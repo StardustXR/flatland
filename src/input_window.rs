@@ -1,0 +1,224 @@
+use crate::flatland::Flatland;
+use anyhow::Result;
+use mint::Vector2;
+use softbuffer::GraphicsContext;
+use std::sync::Arc;
+use winit::{
+	dpi::{LogicalPosition, PhysicalPosition, Size},
+	event::{
+		ElementState, Event, KeyboardInput, ModifiersState, MouseButton, MouseScrollDelta,
+		VirtualKeyCode, WindowEvent,
+	},
+	event_loop::EventLoop,
+	window::{CursorGrabMode, Window, WindowBuilder},
+};
+
+const RADIUS: u32 = 8;
+pub struct InputWindow {
+	flatland: Arc<Flatland>,
+	graphics_context: GraphicsContext<Window>,
+	cursor_position: Option<LogicalPosition<u32>>,
+	grabbed: bool,
+	modifiers: ModifiersState,
+}
+impl InputWindow {
+	pub fn new(event_loop: &EventLoop<()>, flatland: Arc<Flatland>) -> Result<Self> {
+		let size = Size::Logical([512, 512].into());
+		let window = WindowBuilder::new()
+			.with_title("Flatland")
+			.with_min_inner_size(size)
+			.with_max_inner_size(size)
+			.with_inner_size(size)
+			.with_resizable(false)
+			.with_always_on_top(true)
+			.build(event_loop)?;
+		let graphics_context = unsafe { GraphicsContext::new(window) }.unwrap();
+		let mut input_window = InputWindow {
+			flatland,
+			graphics_context,
+			cursor_position: None,
+			grabbed: true,
+			modifiers: ModifiersState::empty(),
+		};
+		input_window.set_grab(false);
+
+		Ok(input_window)
+	}
+
+	fn window(&mut self) -> &mut Window {
+		self.graphics_context.window_mut()
+	}
+
+	pub fn handle_event(&mut self, event: Event<()>) {
+		match event {
+			Event::WindowEvent { event, .. } => self.handle_window_event(event),
+			Event::RedrawRequested(_window_id) => {
+				let window_size = self.window().inner_size();
+				let buffer_len = window_size.width * window_size.height;
+				let mut buffer = vec![0; buffer_len as usize];
+				if let Some(mouse_position) = self.cursor_position {
+					for x in (mouse_position.x - RADIUS)..(mouse_position.x + RADIUS) {
+						for y in (mouse_position.y - RADIUS)..(mouse_position.y + RADIUS) {
+							if let Some(pixel) =
+								buffer.get_mut((x + (y * window_size.width)) as usize)
+							{
+								*pixel = u32::MAX;
+							}
+						}
+					}
+				}
+
+				self.graphics_context.set_buffer(
+					&buffer,
+					window_size.width as u16,
+					window_size.height as u16,
+				);
+			}
+			_ => (),
+		}
+	}
+
+	fn handle_window_event(&mut self, event: WindowEvent) {
+		match event {
+			WindowEvent::CloseRequested => {
+				self.flatland.client.stop_loop();
+			}
+			WindowEvent::Destroyed => {
+				self.flatland.client.stop_loop();
+			}
+			WindowEvent::KeyboardInput { input, .. } => self.handle_keyboard_input(input),
+			WindowEvent::MouseInput { state, button, .. } => self.handle_mouse_input(state, button),
+			WindowEvent::MouseWheel { delta, .. } => self.handle_axis(delta),
+			WindowEvent::ModifiersChanged(state) => self.modifiers = state,
+			WindowEvent::CursorMoved { position, .. } => self.handle_mouse_move(position),
+			_ => (),
+		}
+	}
+
+	fn handle_mouse_move(&mut self, position: PhysicalPosition<f64>) {
+		self.cursor_position = if self.grabbed {
+			self.window().request_redraw();
+			Some(position.to_logical::<u32>(self.window().scale_factor()))
+		} else {
+			None
+		};
+
+		if self.grabbed {
+			let window_size = self.window().inner_size();
+			let cursor_position = position.to_logical::<f64>(self.window().scale_factor());
+			let center_position = LogicalPosition::new(
+				window_size.width as f64 / 2.0,
+				window_size.height as f64 / 2.0,
+			);
+			let cursor_delta = Vector2::from_slice(&[
+				cursor_position.x - center_position.x,
+				cursor_position.y - center_position.y,
+			]);
+
+			self.flatland
+				.on_focused(move |focused| async move { focused.cursor_delta(cursor_delta).await });
+
+			self.window().set_cursor_position(center_position).unwrap();
+		}
+	}
+
+	fn handle_mouse_input(
+		&mut self,
+		state: ElementState,
+		button: MouseButton,
+		// modifiers: ModifiersState,
+	) {
+		if !self.grabbed {
+			if state == ElementState::Released && button == MouseButton::Left {
+				self.set_grab(true);
+			}
+		} else if let Some(focused) = self.flatland.focused.lock().upgrade() {
+			let focused_item = focused.item.upgrade().unwrap();
+
+			tokio::spawn(async move {
+				focused_item
+					.pointer_button(
+						match button {
+							MouseButton::Left => input_event_codes::BTN_LEFT!(),
+							MouseButton::Right => input_event_codes::BTN_RIGHT!(),
+							MouseButton::Middle => input_event_codes::BTN_MIDDLE!(),
+							MouseButton::Other(_) => {
+								return;
+							}
+						},
+						match state {
+							ElementState::Released => 0,
+							ElementState::Pressed => 1,
+						},
+					)
+					.await
+					.unwrap();
+			});
+		}
+	}
+
+	fn handle_axis(&mut self, delta: MouseScrollDelta) {
+		if self.grabbed {
+			if let Some(focused) = self.flatland.focused.lock().upgrade() {
+				let focused_item = focused.item.upgrade().unwrap();
+
+				let (scroll_distance, scroll_steps) = match delta {
+					MouseScrollDelta::LineDelta(right, down) => {
+						(Vector2::from([0.0, 0.0]), Vector2::from([-right, -down]))
+					}
+					MouseScrollDelta::PixelDelta(offset) => (
+						Vector2::from([-offset.x as f32, -offset.y as f32]),
+						Vector2::from([0.0, 0.0]),
+					),
+				};
+
+				tokio::spawn(async move {
+					focused_item
+						.pointer_scroll(scroll_distance, scroll_steps)
+						.await
+						.unwrap();
+				});
+			}
+		}
+	}
+
+	fn handle_keyboard_input(&mut self, input: KeyboardInput) {
+		if input.virtual_keycode == Some(VirtualKeyCode::Escape)
+			&& input.state == ElementState::Released
+			&& self.modifiers.ctrl()
+		{
+			self.set_grab(false);
+		}
+	}
+
+	const GRABBED_WINDOW_TITLE: &'static str = "Flatland Input (ctrl+esc to release cursor)";
+	const UNGRABBED_WINDOW_TITLE: &'static str = "Flatland Input (click to grab input)";
+	fn set_grab(&mut self, grab: bool) {
+		if grab != self.grabbed {
+			self.grabbed = grab;
+
+			self.window().set_cursor_visible(!grab);
+			if grab {
+				let window_size = self.window().inner_size();
+				let center_position =
+					LogicalPosition::new(window_size.width / 2, window_size.height / 2);
+				self.window().set_cursor_position(center_position).unwrap();
+			}
+			let window_title = if grab {
+				Self::GRABBED_WINDOW_TITLE
+			} else {
+				Self::UNGRABBED_WINDOW_TITLE
+			};
+
+			let grab = if grab {
+				CursorGrabMode::Confined
+			} else {
+				CursorGrabMode::None
+			};
+
+			if self.window().set_cursor_grab(grab).is_ok() {
+				self.window().set_title(window_title);
+			}
+		}
+	}
+}
