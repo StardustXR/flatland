@@ -7,6 +7,7 @@ use std::thread;
 use tokio::{runtime::Handle, sync::oneshot};
 use winit::{event_loop::EventLoopBuilder, platform::unix::EventLoopBuilderExtUnix};
 
+mod cursor;
 mod flatland;
 mod input_window;
 mod panel_ui;
