@@ -12,41 +12,6 @@ mod flatland;
 mod input_window;
 mod panel_ui;
 
-// fn main() {
-// 	let (stardust_shutdown_tx, stardust_shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-// 	let stardust_shutdown_tx = Arc::new(Mutex::new(Some(stardust_shutdown_tx)));
-
-// 	let event_loop = EventLoop::new();
-// 	let proxy = event_loop.create_proxy();
-// 	let window = WindowBuilder::new().build(&event_loop).unwrap();
-// 	let mut input_window = InputWindow::new(flatland.clone(), window);
-
-// 	event_loop.run(move |event, _, control_flow| {
-// 		*control_flow = ControlFlow::Wait;
-
-// 		match event {
-// 			Event::WindowEvent { event, .. } => input_window.handle_event(event),
-// 			Event::UserEvent(_) => *control_flow = ControlFlow::Exit,
-// 			Event::LoopDestroyed => {
-// 				stardust_shutdown_tx
-// 					.lock()
-// 					.take()
-// 					.unwrap()
-// 					.send(())
-// 					.unwrap();
-// 				stardust_thread
-// 					.lock()
-// 					.take()
-// 					.unwrap()
-// 					.join()
-// 					.unwrap()
-// 					.unwrap();
-// 			}
-// 			_ => (),
-// 		}
-// 	});
-// }
-
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
 	let (client, stardust_event_loop) = Client::connect_with_async_loop().await?;

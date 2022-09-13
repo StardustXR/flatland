@@ -2,7 +2,7 @@ use crate::flatland::Flatland;
 use anyhow::Result;
 use mint::Vector2;
 use softbuffer::GraphicsContext;
-use std::sync::Arc;
+use std::{mem::ManuallyDrop, sync::Arc};
 use winit::{
 	dpi::{LogicalPosition, PhysicalPosition, Size},
 	event::{
@@ -10,7 +10,14 @@ use winit::{
 		VirtualKeyCode, WindowEvent,
 	},
 	event_loop::EventLoop,
+	platform::unix::WindowExtUnix,
 	window::{CursorGrabMode, Window, WindowBuilder},
+};
+use xcb::ffi::xcb_connection_t;
+use xkbcommon::xkb::{
+	self,
+	x11::{get_core_keyboard_device_id, keymap_new_from_device},
+	Keymap, KEYMAP_COMPILE_NO_FLAGS, KEYMAP_FORMAT_TEXT_V1,
 };
 
 const RADIUS: u32 = 8;
@@ -20,6 +27,7 @@ pub struct InputWindow {
 	cursor_position: Option<LogicalPosition<u32>>,
 	grabbed: bool,
 	modifiers: ModifiersState,
+	keymap: Keymap,
 }
 impl InputWindow {
 	pub fn new(event_loop: &EventLoop<()>, flatland: Arc<Flatland>) -> Result<Self> {
@@ -32,13 +40,33 @@ impl InputWindow {
 			.with_resizable(false)
 			.with_always_on_top(true)
 			.build(event_loop)?;
+
+		let keymap = match window.xcb_connection() {
+			Some(raw_conn) => {
+				let connection = unsafe {
+					ManuallyDrop::new(xcb::Connection::from_raw_conn(
+						raw_conn as *mut xcb_connection_t,
+					))
+				};
+				keymap_new_from_device(
+					&xkb::Context::new(0),
+					&connection,
+					get_core_keyboard_device_id(&connection),
+					KEYMAP_COMPILE_NO_FLAGS,
+				)
+			}
+			None => Keymap::new_from_names(&xkb::Context::new(0), "", "", "", "", None, 0).unwrap(),
+		};
+
 		let graphics_context = unsafe { GraphicsContext::new(window) }.unwrap();
+
 		let mut input_window = InputWindow {
 			flatland,
 			graphics_context,
 			cursor_position: None,
 			grabbed: true,
 			modifiers: ModifiersState::empty(),
+			keymap,
 		};
 		input_window.set_grab(false);
 
@@ -80,17 +108,13 @@ impl InputWindow {
 
 	fn handle_window_event(&mut self, event: WindowEvent) {
 		match event {
-			WindowEvent::CloseRequested => {
-				self.flatland.client.stop_loop();
-			}
-			WindowEvent::Destroyed => {
-				self.flatland.client.stop_loop();
-			}
-			WindowEvent::KeyboardInput { input, .. } => self.handle_keyboard_input(input),
 			WindowEvent::MouseInput { state, button, .. } => self.handle_mouse_input(state, button),
 			WindowEvent::MouseWheel { delta, .. } => self.handle_axis(delta),
-			WindowEvent::ModifiersChanged(state) => self.modifiers = state,
 			WindowEvent::CursorMoved { position, .. } => self.handle_mouse_move(position),
+			WindowEvent::KeyboardInput { input, .. } => self.handle_keyboard_input(input),
+			WindowEvent::ModifiersChanged(state) => self.modifiers = state,
+			WindowEvent::CloseRequested => self.flatland.client.stop_loop(),
+			WindowEvent::Destroyed => self.flatland.client.stop_loop(),
 			_ => (),
 		}
 	}
@@ -122,12 +146,7 @@ impl InputWindow {
 		}
 	}
 
-	fn handle_mouse_input(
-		&mut self,
-		state: ElementState,
-		button: MouseButton,
-		// modifiers: ModifiersState,
-	) {
+	fn handle_mouse_input(&mut self, state: ElementState, button: MouseButton) {
 		if !self.grabbed {
 			if state == ElementState::Released && button == MouseButton::Left {
 				self.set_grab(true);
@@ -188,37 +207,60 @@ impl InputWindow {
 			&& self.modifiers.ctrl()
 		{
 			self.set_grab(false);
+		} else if let Some(focused) = self.flatland.focused.lock().upgrade() {
+			let item = focused.item.upgrade().unwrap();
+
+			tokio::spawn(async move {
+				item.keyboard_key_state(input.scancode, input.state == ElementState::Pressed)
+					.await
+					.unwrap();
+			});
 		}
 	}
 
 	const GRABBED_WINDOW_TITLE: &'static str = "Flatland Input (ctrl+esc to release cursor)";
 	const UNGRABBED_WINDOW_TITLE: &'static str = "Flatland Input (click to grab input)";
 	fn set_grab(&mut self, grab: bool) {
-		if grab != self.grabbed {
-			self.grabbed = grab;
+		if grab == self.grabbed {
+			return;
+		}
+		self.grabbed = grab;
 
-			self.window().set_cursor_visible(!grab);
-			if grab {
-				let window_size = self.window().inner_size();
-				let center_position =
-					LogicalPosition::new(window_size.width / 2, window_size.height / 2);
-				self.window().set_cursor_position(center_position).unwrap();
+		self.window().set_cursor_visible(!grab);
+		if grab {
+			let window_size = self.window().inner_size();
+			let center_position =
+				LogicalPosition::new(window_size.width / 2, window_size.height / 2);
+			self.window().set_cursor_position(center_position).unwrap();
+			if let Some(item) = self.flatland.focused.lock().upgrade() {
+				let keymap = self.keymap.get_as_string(KEYMAP_FORMAT_TEXT_V1);
+				let item = item.item.upgrade().unwrap();
+				tokio::spawn(async move {
+					item.keyboard_activate(&keymap).await.unwrap();
+				});
 			}
-			let window_title = if grab {
-				Self::GRABBED_WINDOW_TITLE
-			} else {
-				Self::UNGRABBED_WINDOW_TITLE
-			};
-
-			let grab = if grab {
-				CursorGrabMode::Confined
-			} else {
-				CursorGrabMode::None
-			};
-
-			if self.window().set_cursor_grab(grab).is_ok() {
-				self.window().set_title(window_title);
+		} else {
+			if let Some(item) = self.flatland.focused.lock().upgrade() {
+				let item = item.item.upgrade().unwrap();
+				tokio::spawn(async move {
+					item.keyboard_deactivate().await.unwrap();
+				});
 			}
+		}
+		let window_title = if grab {
+			Self::GRABBED_WINDOW_TITLE
+		} else {
+			Self::UNGRABBED_WINDOW_TITLE
+		};
+
+		let grab = if grab {
+			CursorGrabMode::Confined
+		} else {
+			CursorGrabMode::None
+		};
+
+		if self.window().set_cursor_grab(grab).is_ok() {
+			self.window().set_title(window_title);
 		}
 	}
 }
