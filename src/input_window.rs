@@ -139,8 +139,9 @@ impl InputWindow {
 				cursor_position.y - center_position.y,
 			]);
 
-			self.flatland
-				.on_focused(move |focused| async move { focused.cursor_delta(cursor_delta).await });
+			if let Some(focused) = self.flatland.focused.lock().upgrade() {
+				focused.lock().cursor_delta(cursor_delta);
+			}
 
 			self.window().set_cursor_position(center_position).unwrap();
 		}
@@ -151,36 +152,30 @@ impl InputWindow {
 			if state == ElementState::Released && button == MouseButton::Left {
 				self.set_grab(true);
 			}
-		} else if let Some(focused) = self.flatland.focused.lock().upgrade() {
-			let focused_item = focused.item.upgrade().unwrap();
-
-			tokio::spawn(async move {
-				focused_item
-					.pointer_button(
-						match button {
-							MouseButton::Left => input_event_codes::BTN_LEFT!(),
-							MouseButton::Right => input_event_codes::BTN_RIGHT!(),
-							MouseButton::Middle => input_event_codes::BTN_MIDDLE!(),
-							MouseButton::Other(_) => {
-								return;
-							}
-						},
-						match state {
-							ElementState::Released => 0,
-							ElementState::Pressed => 1,
-						},
-					)
-					.await
-					.unwrap();
+		} else {
+			self.flatland.with_focused(|item| {
+				item.pointer_button(
+					match button {
+						MouseButton::Left => input_event_codes::BTN_LEFT!(),
+						MouseButton::Right => input_event_codes::BTN_RIGHT!(),
+						MouseButton::Middle => input_event_codes::BTN_MIDDLE!(),
+						MouseButton::Other(_) => {
+							return;
+						}
+					},
+					match state {
+						ElementState::Released => 0,
+						ElementState::Pressed => 1,
+					},
+				)
+				.unwrap();
 			});
 		}
 	}
 
 	fn handle_axis(&mut self, delta: MouseScrollDelta) {
 		if self.grabbed {
-			if let Some(focused) = self.flatland.focused.lock().upgrade() {
-				let focused_item = focused.item.upgrade().unwrap();
-
+			self.flatland.with_focused(|item| {
 				let (scroll_distance, scroll_steps) = match delta {
 					MouseScrollDelta::LineDelta(right, down) => {
 						(Vector2::from([0.0, 0.0]), Vector2::from([-right, -down]))
@@ -191,13 +186,8 @@ impl InputWindow {
 					),
 				};
 
-				tokio::spawn(async move {
-					focused_item
-						.pointer_scroll(scroll_distance, scroll_steps)
-						.await
-						.unwrap();
-				});
-			}
+				item.pointer_scroll(scroll_distance, scroll_steps).unwrap();
+			});
 		}
 	}
 
@@ -207,12 +197,9 @@ impl InputWindow {
 			&& self.modifiers.ctrl()
 		{
 			self.set_grab(false);
-		} else if let Some(focused) = self.flatland.focused.lock().upgrade() {
-			let item = focused.item.upgrade().unwrap();
-
-			tokio::spawn(async move {
+		} else {
+			self.flatland.with_focused(|item| {
 				item.keyboard_key_state(input.scancode, input.state == ElementState::Pressed)
-					.await
 					.unwrap();
 			});
 		}
@@ -232,20 +219,14 @@ impl InputWindow {
 			let center_position =
 				LogicalPosition::new(window_size.width / 2, window_size.height / 2);
 			self.window().set_cursor_position(center_position).unwrap();
-			if let Some(item) = self.flatland.focused.lock().upgrade() {
+			self.flatland.with_focused(|item| {
 				let keymap = self.keymap.get_as_string(KEYMAP_FORMAT_TEXT_V1);
-				let item = item.item.upgrade().unwrap();
-				tokio::spawn(async move {
-					item.keyboard_activate(&keymap).await.unwrap();
-				});
-			}
+				item.keyboard_activate(&keymap).unwrap();
+			});
 		} else {
-			if let Some(item) = self.flatland.focused.lock().upgrade() {
-				let item = item.item.upgrade().unwrap();
-				tokio::spawn(async move {
-					item.keyboard_deactivate().await.unwrap();
-				});
-			}
+			self.flatland.with_focused(|item| {
+				item.keyboard_deactivate().unwrap();
+			});
 		}
 		let window_title = if grab {
 			Self::GRABBED_WINDOW_TITLE

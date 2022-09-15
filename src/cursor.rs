@@ -17,25 +17,23 @@ pub struct Cursor {
 	model: Model,
 }
 impl Cursor {
-	pub async fn new(parent: &Spatial) -> Cursor {
+	pub fn new(parent: &Spatial) -> Cursor {
 		let root = Spatial::builder()
 			.spatial_parent(parent)
 			.zoneable(false)
 			.build()
-			.await
 			.unwrap();
 		let model = Model::resource_builder()
 			.spatial_parent(&root)
 			.resource(&CURSOR_RESOURCE)
 			// .scale(glam::vec3(0.0, 0.0, 0.0))
 			.build()
-			.await
 			.unwrap();
 
 		Cursor { root, model }
 	}
 
-	pub async fn update_info(&self, info: &Option<PanelItemCursor>, item: &PanelItem) {
+	pub fn update_info(&self, info: &Option<PanelItemCursor>, item: &PanelItem) {
 		if let Some(info) = info {
 			self.model
 				.set_transform(
@@ -47,20 +45,16 @@ impl Cursor {
 					None,
 					Some((glam::vec3(info.size.x as f32, info.size.y as f32, 1.0) / PPM).into()),
 				)
-				.await
 				.unwrap();
-			item.apply_cursor_material(info, &self.model, 0)
-				.await
-				.unwrap();
+			item.apply_cursor_material(info, &self.model, 0).unwrap();
 		} else {
 			self.model
 				.set_scale(None, glam::vec3(0.0, 0.0, 1.0))
-				.await
 				.unwrap();
 		}
 	}
 
-	pub async fn update_position(&self, size: Vector2<f64>, position: Vector2<f64>) {
+	pub fn update_position(&self, size: Vector2<f64>, position: Vector2<f64>) {
 		self.root
 			.set_position(
 				None,
@@ -70,7 +64,6 @@ impl Cursor {
 					0.006,
 				]),
 			)
-			.await
 			.unwrap();
 	}
 }
