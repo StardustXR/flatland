@@ -2,7 +2,7 @@ use crate::panel_ui::PanelItemUI;
 use anyhow::Result;
 use libstardustxr::fusion::{
 	client::{Client, LifeCycleHandler, LogicStepInfo},
-	item::{ItemUI, ItemUIType, PanelItem},
+	items::{panel::PanelItem, ItemUI, ItemUIType},
 	WeakWrapped,
 };
 use parking_lot::Mutex;

@@ -2,7 +2,7 @@ use crate::panel_ui::PPM;
 use lazy_static::lazy_static;
 use libstardustxr::fusion::{
 	drawable::Model,
-	item::{PanelItem, PanelItemCursor},
+	items::panel::{PanelItem, PanelItemCursor},
 	resource::Resource,
 	spatial::Spatial,
 };

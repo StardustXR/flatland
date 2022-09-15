@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use libstardustxr::fusion::{
 	client::LogicStepInfo,
 	drawable::Model,
-	item::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
+	items::panel::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
 	node::NodeType,
 	resource::Resource,
 	WeakNodeRef,
