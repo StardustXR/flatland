@@ -1,9 +1,12 @@
 [package]
-name = "flatland-stardust"
-version = "0.1.0"
+name = "flatland"
+version = "0.2.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Nova King <technobaboo@proton.me>"]
+description = "Flat panel UI client for Stardust XR like SimulaVR or xrdesktop"
+license = "MIT"
+repository = "https://github.com/StardustXR/flatland/"
+homepage = "https://stardustxr.org"
 
 [dependencies]
 anyhow = "1.0.60"
@@ -28,6 +31,4 @@ input-event-codes = "5.16.8"
 xkbcommon = { version = "0.5.0", features = ["x11"] }
 xcb = "1.1.1"
 num-traits = "0.2.15"
-
-[dependencies.libstardustxr]
-path = "../libstardustxr-rs"
+stardust-xr-fusion = "0.9.0"

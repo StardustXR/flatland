@@ -1,6 +1,6 @@
 use crate::panel_ui::PanelItemUI;
 use anyhow::Result;
-use libstardustxr::fusion::{
+use stardust_xr_fusion::{
 	client::{Client, LifeCycleHandler, LogicStepInfo},
 	items::{panel::PanelItem, ItemUI, ItemUIType},
 	WeakWrapped,

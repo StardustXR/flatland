@@ -1,4 +1,4 @@
-use libstardustxr::fusion::input::{
+use stardust_xr_fusion::input::{
 	action::{ActiveCondition, BaseInputAction, InputAction, InputActionState},
 	InputData,
 };

@@ -1,12 +1,12 @@
 use crate::panel_ui::PPM;
 use lazy_static::lazy_static;
-use libstardustxr::fusion::{
+use mint::Vector2;
+use stardust_xr_fusion::{
 	drawable::Model,
 	items::panel::{PanelItem, PanelItemCursor},
 	resource::Resource,
 	spatial::Spatial,
 };
-use mint::Vector2;
 
 lazy_static! {
 	static ref CURSOR_RESOURCE: Resource = Resource::new("flatland", "cursor.glb");

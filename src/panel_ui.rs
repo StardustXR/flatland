@@ -2,7 +2,8 @@ use crate::{cursor::Cursor, single_actor_action::SingleActorAction};
 use glam::Quat;
 use input_event_codes::BTN_LEFT;
 use lazy_static::lazy_static;
-use libstardustxr::fusion::{
+use mint::Vector2;
+use stardust_xr_fusion::{
 	drawable::Model,
 	fields::BoxField,
 	input::{
@@ -14,7 +15,6 @@ use libstardustxr::fusion::{
 	resource::Resource,
 	HandlerWrapper, WeakNodeRef,
 };
-use mint::Vector2;
 
 lazy_static! {
 	static ref PANEL_RESOURCE: Resource = Resource::new("flatland", "panel.glb");
@@ -123,6 +123,7 @@ impl PanelItemUI {
 						]);
 						self.set_pointer_pos(pos);
 					}
+					InputDataType::Hand(_) => (),
 				}
 			}
 			closest_input.distance
