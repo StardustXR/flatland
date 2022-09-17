@@ -54,13 +54,13 @@ impl Cursor {
 		}
 	}
 
-	pub fn update_position(&self, size: Vector2<f64>, position: Vector2<f64>) {
+	pub fn update_position(&self, size: Vector2<f32>, position: Vector2<f32>) {
 		self.root
 			.set_position(
 				None,
 				mint::Vector3::from([
-					(-size.x * 0.5 + position.x) as f32 / PPM,
-					(-size.y * 0.5 + position.y) as f32 / -PPM,
+					(-size.x * 0.5 + position.x) / PPM,
+					(-size.y * 0.5 + position.y) / -PPM,
 					0.006,
 				]),
 			)

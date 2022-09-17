@@ -1,6 +1,7 @@
 use crate::flatland::Flatland;
 use anyhow::Result;
 use mint::Vector2;
+use parking_lot::Mutex;
 use softbuffer::GraphicsContext;
 use std::{mem::ManuallyDrop, sync::Arc};
 use winit::{
@@ -22,7 +23,7 @@ use xkbcommon::xkb::{
 
 const RADIUS: u32 = 8;
 pub struct InputWindow {
-	flatland: Arc<Flatland>,
+	flatland: Arc<Mutex<Flatland>>,
 	graphics_context: GraphicsContext<Window>,
 	cursor_position: Option<LogicalPosition<u32>>,
 	grabbed: bool,
@@ -30,7 +31,7 @@ pub struct InputWindow {
 	keymap: Keymap,
 }
 impl InputWindow {
-	pub fn new(event_loop: &EventLoop<()>, flatland: Arc<Flatland>) -> Result<Self> {
+	pub fn new(event_loop: &EventLoop<()>, flatland: Arc<Mutex<Flatland>>) -> Result<Self> {
 		let size = Size::Logical([512, 512].into());
 		let window = WindowBuilder::new()
 			.with_title("Flatland")
@@ -113,8 +114,8 @@ impl InputWindow {
 			WindowEvent::CursorMoved { position, .. } => self.handle_mouse_move(position),
 			WindowEvent::KeyboardInput { input, .. } => self.handle_keyboard_input(input),
 			WindowEvent::ModifiersChanged(state) => self.modifiers = state,
-			WindowEvent::CloseRequested => self.flatland.client.stop_loop(),
-			WindowEvent::Destroyed => self.flatland.client.stop_loop(),
+			WindowEvent::CloseRequested => self.flatland.lock().client.stop_loop(),
+			WindowEvent::Destroyed => self.flatland.lock().client.stop_loop(),
 			_ => (),
 		}
 	}
@@ -135,12 +136,12 @@ impl InputWindow {
 				window_size.height as f64 / 2.0,
 			);
 			let cursor_delta = Vector2::from_slice(&[
-				cursor_position.x - center_position.x,
-				cursor_position.y - center_position.y,
+				(cursor_position.x - center_position.x) as f32,
+				(cursor_position.y - center_position.y) as f32,
 			]);
 
-			if let Some(focused) = self.flatland.focused.lock().upgrade() {
-				focused.lock().cursor_delta(cursor_delta);
+			if let Some(focused) = self.flatland.lock().focused.clone().upgrade() {
+				focused.lock().pointer_delta(cursor_delta);
 			}
 
 			self.window().set_cursor_position(center_position).unwrap();
@@ -153,7 +154,7 @@ impl InputWindow {
 				self.set_grab(true);
 			}
 		} else {
-			self.flatland.with_focused(|item| {
+			self.flatland.lock().with_focused(|item| {
 				item.pointer_button(
 					match button {
 						MouseButton::Left => input_event_codes::BTN_LEFT!(),
@@ -175,7 +176,7 @@ impl InputWindow {
 
 	fn handle_axis(&mut self, delta: MouseScrollDelta) {
 		if self.grabbed {
-			self.flatland.with_focused(|item| {
+			self.flatland.lock().with_focused(|item| {
 				let (scroll_distance, scroll_steps) = match delta {
 					MouseScrollDelta::LineDelta(right, down) => {
 						(Vector2::from([0.0, 0.0]), Vector2::from([-right, -down]))
@@ -198,7 +199,7 @@ impl InputWindow {
 		{
 			self.set_grab(false);
 		} else {
-			self.flatland.with_focused(|item| {
+			self.flatland.lock().with_focused(|item| {
 				item.keyboard_key_state(input.scancode, input.state == ElementState::Pressed)
 					.unwrap();
 			});
@@ -219,12 +220,12 @@ impl InputWindow {
 			let center_position =
 				LogicalPosition::new(window_size.width / 2, window_size.height / 2);
 			self.window().set_cursor_position(center_position).unwrap();
-			self.flatland.with_focused(|item| {
+			self.flatland.lock().with_focused(|item| {
 				let keymap = self.keymap.get_as_string(KEYMAP_FORMAT_TEXT_V1);
 				item.keyboard_activate(&keymap).unwrap();
 			});
 		} else {
-			self.flatland.with_focused(|item| {
+			self.flatland.lock().with_focused(|item| {
 				item.keyboard_deactivate().unwrap();
 			});
 		}

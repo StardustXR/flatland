@@ -5,50 +5,45 @@ use libstardustxr::fusion::{
 	items::{panel::PanelItem, ItemUI, ItemUIType},
 	WeakWrapped,
 };
-use parking_lot::Mutex;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 pub struct Flatland {
 	pub client: Arc<Client>,
 	ui: ItemUI<PanelItem, PanelItemUI>,
-	pub focused: Mutex<WeakWrapped<PanelItemUI>>,
+	pub focused: WeakWrapped<PanelItemUI>,
 }
 impl Flatland {
-	pub async fn new(client: Arc<Client>) -> Result<Arc<Self>> {
-		let flatland = Arc::new_cyclic(|weak_flatland: &Weak<Flatland>| {
-			let weak_flatland = weak_flatland.clone();
-			let ui = ItemUI::<PanelItem, PanelItemUI>::register(
-				&client,
-				move |init_data, weak_wrapped, weak_item, item| {
-					*weak_flatland.upgrade().unwrap().focused.lock() = weak_wrapped;
-					PanelItemUI::new(init_data, weak_item, item)
-				},
-			)
-			.unwrap();
-			Flatland {
-				client: client.clone(),
-				ui,
-				focused: Mutex::new(WeakWrapped::new()),
-			}
-		});
-
-		Ok(flatland)
+	pub async fn new(client: Arc<Client>) -> Result<Self> {
+		let ui = ItemUI::<PanelItem, PanelItemUI>::register(
+			&client,
+			move |init_data, _, weak_item, item| PanelItemUI::new(init_data, weak_item, item),
+		)
+		.unwrap();
+		Ok(Flatland {
+			client: client.clone(),
+			ui,
+			focused: WeakWrapped::new(),
+		})
 	}
 
-	pub fn with_focused<F, O>(&self, f: F) -> Option<O>
+	pub fn with_focused<F, O>(&mut self, f: F) -> Option<O>
 	where
 		F: FnOnce(&PanelItem) -> O,
 	{
 		self.focused
-			.lock()
 			.upgrade()
 			.and_then(|ui| ui.lock().item.clone().with_node(|node| f(node)))
 	}
 }
 impl LifeCycleHandler for Flatland {
-	fn logic_step(&mut self, info: LogicStepInfo) {
-		for (_id, wrapper) in &*self.ui.items() {
-			wrapper.lock_inner().step(&info);
+	fn logic_step(&mut self, _info: LogicStepInfo) {
+		let items = self.ui.items();
+		let focus = items
+			.iter()
+			.map(|(_, wrapper)| (wrapper.clone(), wrapper.lock_inner().step()))
+			.reduce(|a, b| if a.1 > b.1 { b } else { a });
+		if let Some((focus, _)) = focus {
+			self.focused = focus.weak_wrapped();
 		}
 	}
 }
