@@ -17,7 +17,7 @@ pub mod util;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
 	let (client, stardust_event_loop) = Client::connect_with_async_loop().await?;
-	client.set_base_prefixes(&[directory_relative_path!("res")])?;
+	client.set_base_prefixes(&[directory_relative_path!("res")]);
 
 	let tokio_handle = Handle::current();
 	let flatland = client.wrap_root(Flatland::new(client.clone()).await?);

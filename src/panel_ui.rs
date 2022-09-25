@@ -1,5 +1,5 @@
 use crate::cursor::Cursor;
-use glam::{vec3, Quat};
+use glam::{Quat};
 use lazy_static::lazy_static;
 use mint::Vector2;
 use stardust_xr_fusion::{
