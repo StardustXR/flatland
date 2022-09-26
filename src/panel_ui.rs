@@ -1,5 +1,5 @@
 use crate::cursor::Cursor;
-use glam::{Quat};
+use glam::Quat;
 use lazy_static::lazy_static;
 use mint::Vector2;
 use stardust_xr_fusion::{
@@ -11,13 +11,14 @@ use stardust_xr_fusion::{
 	},
 	items::panel::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
 	node::NodeType,
-	resource::Resource,
+	resource::NamespacedResource,
 	HandlerWrapper, WeakNodeRef,
 };
 use stardust_xr_molecules::Grabbable;
 
 lazy_static! {
-	static ref PANEL_RESOURCE: Resource = Resource::new("flatland", "panel.glb");
+	static ref PANEL_RESOURCE: NamespacedResource =
+		NamespacedResource::new("flatland", "panel.glb");
 }
 
 pub const PPM: f32 = 1000.0;
@@ -63,9 +64,9 @@ impl PanelItemUI {
 			.unwrap();
 		item.set_spatial_parent_in_place(grabbable.content_parent())
 			.unwrap();
-		let model = Model::resource_builder()
+		let model = Model::builder()
 			.spatial_parent(&item)
-			.resource(&PANEL_RESOURCE)
+			.resource(&*PANEL_RESOURCE)
 			.scale(size)
 			.build()
 			.unwrap();

@@ -4,12 +4,13 @@ use mint::Vector2;
 use stardust_xr_fusion::{
 	drawable::Model,
 	items::panel::{PanelItem, PanelItemCursor},
-	resource::Resource,
+	resource::NamespacedResource,
 	spatial::Spatial,
 };
 
 lazy_static! {
-	static ref CURSOR_RESOURCE: Resource = Resource::new("flatland", "cursor.glb");
+	static ref CURSOR_RESOURCE: NamespacedResource =
+		NamespacedResource::new("flatland", "cursor.glb");
 }
 
 pub struct Cursor {
@@ -23,9 +24,9 @@ impl Cursor {
 			.zoneable(false)
 			.build()
 			.unwrap();
-		let model = Model::resource_builder()
+		let model = Model::builder()
 			.spatial_parent(&root)
-			.resource(&CURSOR_RESOURCE)
+			.resource(&*CURSOR_RESOURCE)
 			// .scale(glam::vec3(0.0, 0.0, 0.0))
 			.build()
 			.unwrap();
