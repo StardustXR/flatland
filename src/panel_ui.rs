@@ -1,7 +1,7 @@
 use crate::cursor::Cursor;
-use glam::Quat;
+use glam::{Quat, Vec3};
 use lazy_static::lazy_static;
-use mint::Vector2;
+use mint::{Vector2};
 use stardust_xr_fusion::{
 	drawable::Model,
 	fields::BoxField,
@@ -85,7 +85,10 @@ impl PanelItemUI {
 			|input_data: &InputData, _| {
 				input_data.datamap.with_data(|data| match input_data.input {
 					InputDataType::Pointer(_) => data.idx("grab").as_f32() > 0.99,
-					InputDataType::Hand(_) => data.idx("pinchStrength").as_f32() > 0.99,
+					InputDataType::Hand(h) => {
+						Vec3::from(h.thumb.tip.position).distance(Vec3::from(h.index.tip.position))
+							< 0.02
+					}
 					InputDataType::Tip(_) => data.idx("grab").as_f32() > 0.99,
 				})
 			},

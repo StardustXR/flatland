@@ -1,6 +1,6 @@
 [package]
 name = "flatland"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 authors = ["Nova King <technobaboo@proton.me>"]
 description = "Flat panel UI client for Stardust XR like SimulaVR or xrdesktop"
@@ -31,5 +31,5 @@ input-event-codes = "5.16.8"
 xkbcommon = { version = "0.5.0", features = ["x11"] }
 xcb = "1.1.1"
 num-traits = "0.2.15"
-stardust-xr-fusion = "0.14.4"
-stardust-xr-molecules = "0.1.2"
+stardust-xr-fusion = "0.15.1"
+stardust-xr-molecules = "0.2.1"
