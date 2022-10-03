@@ -7,14 +7,14 @@ use stardust_xr_fusion::{
 	fields::BoxField,
 	input::{
 		action::{BaseInputAction, InputAction, InputActionHandler},
-		InputDataType, InputHandler,
+		InputData, InputDataType, InputHandler,
 	},
 	items::panel::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
 	node::NodeType,
 	resource::NamespacedResource,
 	HandlerWrapper, WeakNodeRef,
 };
-use stardust_xr_molecules::Grabbable;
+use stardust_xr_molecules::{Grabbable, SingleActorAction};
 
 lazy_static! {
 	static ref PANEL_RESOURCE: NamespacedResource =
@@ -31,6 +31,7 @@ pub struct PanelItemUI {
 	field: BoxField,
 	grabbable: Grabbable,
 	hover_action: BaseInputAction<()>,
+	click_action: SingleActorAction<()>,
 	input_handler: HandlerWrapper<InputHandler, InputActionHandler<()>>,
 }
 impl PanelItemUI {
@@ -78,7 +79,18 @@ impl PanelItemUI {
 		cursor.update_position(Vector2::from([size.x, size.y]), Vector2::from([0.0, 0.0]));
 
 		let hover_action =
-			BaseInputAction::new(false, |input_data, _: &()| input_data.distance < 0.0);
+			BaseInputAction::new(false, |input_data, _: &()| input_data.distance < 0.05);
+		let click_action = SingleActorAction::new(
+			true,
+			|input_data: &InputData, _| {
+				input_data.datamap.with_data(|data| match input_data.input {
+					InputDataType::Pointer(_) => data.idx("grab").as_f32() > 0.99,
+					InputDataType::Hand(_) => data.idx("pinchStrength").as_f32() > 0.99,
+					InputDataType::Tip(_) => data.idx("grab").as_f32() > 0.99,
+				})
+			},
+			false,
+		);
 
 		let input_handler = InputHandler::create(&model, None, None, &field, |_, _| {
 			InputActionHandler::new(())
@@ -94,15 +106,30 @@ impl PanelItemUI {
 			field,
 			grabbable,
 			hover_action,
+			click_action,
 			input_handler,
 		}
 	}
 
 	pub fn step(&mut self) -> f32 {
 		self.grabbable.update();
-		self.input_handler
-			.lock_inner()
-			.update_actions([self.hover_action.type_erase()]);
+		self.input_handler.lock_inner().update_actions([
+			self.hover_action.type_erase(),
+			self.click_action.type_erase(),
+		]);
+		self.click_action.update(&mut self.hover_action);
+
+		if self.click_action.actor_started()
+			|| self.click_action.actor_changed()
+			|| self.click_action.actor_stopped()
+		{
+			self.item.with_node(|item| {
+				item.pointer_button(
+					input_event_codes::BTN_LEFT!(),
+					self.click_action.actor_acting() as u32,
+				)
+			});
+		}
 
 		let closest_input = self
 			.hover_action
@@ -123,12 +150,18 @@ impl PanelItemUI {
 						self.set_pointer_pos(pos);
 					}
 					InputDataType::Hand(_) => (),
+					InputDataType::Tip(tip) => {
+						let pos = Vector2::from([
+							(tip.origin.x + 0.5) * self.size.x as f32,
+							(tip.origin.y - 0.5) * -self.size.y as f32,
+						]);
+						self.set_pointer_pos(pos);
+					}
 				}
 			}
-			closest_input.distance
-		} else {
-			f32::MAX
 		}
+
+		self.grabbable.min_distance()
 	}
 
 	pub fn pointer_delta(&mut self, delta: mint::Vector2<f32>) {
