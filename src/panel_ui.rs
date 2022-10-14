@@ -1,20 +1,22 @@
 use crate::cursor::Cursor;
 use glam::{Quat, Vec3};
 use lazy_static::lazy_static;
-use mint::{Vector2};
-use stardust_xr_fusion::{
-	drawable::Model,
-	fields::BoxField,
-	input::{
-		action::{BaseInputAction, InputAction, InputActionHandler},
-		InputData, InputDataType, InputHandler,
+use mint::Vector2;
+use stardust_xr_molecules::{
+	fusion::{
+		drawable::Model,
+		fields::BoxField,
+		input::{
+			action::{BaseInputAction, InputAction, InputActionHandler},
+			InputData, InputDataType, InputHandler,
+		},
+		items::panel::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
+		node::NodeType,
+		resource::NamespacedResource,
+		HandlerWrapper, WeakNodeRef,
 	},
-	items::panel::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
-	node::NodeType,
-	resource::NamespacedResource,
-	HandlerWrapper, WeakNodeRef,
+	Grabbable, SingleActorAction,
 };
-use stardust_xr_molecules::{Grabbable, SingleActorAction};
 
 lazy_static! {
 	static ref PANEL_RESOURCE: NamespacedResource =
@@ -54,19 +56,19 @@ impl PanelItemUI {
 		)
 		.unwrap();
 		let field = BoxField::builder()
-			.spatial_parent(&item)
-			.size(size)
+			.spatial_parent(item)
+			.size(size.into())
 			.build()
 			.unwrap();
 		let grabbable = Grabbable::new(item.client().unwrap().get_root(), &field).unwrap();
 		grabbable
 			.content_parent()
-			.set_transform(Some(&item), None, None, None)
+			.set_transform(Some(item), None, None, None)
 			.unwrap();
 		item.set_spatial_parent_in_place(grabbable.content_parent())
 			.unwrap();
 		let model = Model::builder()
-			.spatial_parent(&item)
+			.spatial_parent(item)
 			.resource(&*PANEL_RESOURCE)
 			.scale(size)
 			.build()
@@ -75,7 +77,7 @@ impl PanelItemUI {
 		item.apply_surface_material(&model, 0).unwrap();
 
 		let cursor = Cursor::new(&item.spatial);
-		cursor.update_info(&init_data.cursor, &item);
+		cursor.update_info(&init_data.cursor, item);
 		cursor.update_position(Vector2::from([size.x, size.y]), Vector2::from([0.0, 0.0]));
 
 		let hover_action =
@@ -83,14 +85,17 @@ impl PanelItemUI {
 		let click_action = SingleActorAction::new(
 			true,
 			|input_data: &InputData, _| {
-				input_data.datamap.with_data(|data| match input_data.input {
-					InputDataType::Pointer(_) => data.idx("grab").as_f32() > 0.99,
-					InputDataType::Hand(h) => {
-						Vec3::from(h.thumb.tip.position).distance(Vec3::from(h.index.tip.position))
-							< 0.02
-					}
-					InputDataType::Tip(_) => data.idx("grab").as_f32() > 0.99,
-				})
+				input_data
+					.datamap
+					.with_data(|data| match &input_data.input {
+						InputDataType::Pointer(_) => data.idx("grab").as_f32() > 0.99,
+						InputDataType::Hand(h) => {
+							Vec3::from(h.thumb.tip.position)
+								.distance(Vec3::from(h.index.tip.position))
+								< 0.02
+						}
+						InputDataType::Tip(_) => data.idx("grab").as_f32() > 0.99,
+					})
 			},
 			false,
 		);
@@ -147,8 +152,8 @@ impl PanelItemUI {
 				match &closest_input.input {
 					InputDataType::Pointer(pointer) => {
 						let pos = Vector2::from([
-							(pointer.deepest_point().x + 0.5) * self.size.x as f32,
-							(pointer.deepest_point().y - 0.5) * -self.size.y as f32,
+							(pointer.deepest_point.x + 0.5) * self.size.x as f32,
+							(pointer.deepest_point.y - 0.5) * -self.size.y as f32,
 						]);
 						self.set_pointer_pos(pos);
 					}

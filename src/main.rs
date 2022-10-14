@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use flatland::Flatland;
 use input_window::InputWindow;
 use manifest_dir_macros::directory_relative_path;
-use stardust_xr_fusion::client::Client;
+use stardust_xr_molecules::fusion::client::Client;
 use std::thread;
 use tokio::{runtime::Handle, sync::oneshot};
 use winit::{event_loop::EventLoopBuilder, platform::unix::EventLoopBuilderExtUnix};

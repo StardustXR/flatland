@@ -1,6 +1,6 @@
 use crate::panel_ui::PanelItemUI;
 use anyhow::Result;
-use stardust_xr_fusion::{
+use stardust_xr_molecules::fusion::{
 	client::{Client, LifeCycleHandler, LogicStepInfo},
 	items::{panel::PanelItem, ItemUI, ItemUIType},
 	WeakWrapped,
@@ -20,7 +20,7 @@ impl Flatland {
 		)
 		.unwrap();
 		Ok(Flatland {
-			client: client.clone(),
+			client,
 			ui,
 			focused: WeakWrapped::new(),
 		})
@@ -40,7 +40,7 @@ impl LifeCycleHandler for Flatland {
 		let items = self.ui.items();
 		let focus = items
 			.iter()
-			.map(|(_, wrapper)| (wrapper.clone(), wrapper.lock_inner().step()))
+			.map(|(_, wrapper)| (wrapper, wrapper.lock_inner().step()))
 			.reduce(|a, b| if a.1 > b.1 { b } else { a });
 		if let Some((focus, _)) = focus {
 			self.focused = focus.weak_wrapped();
