@@ -43,6 +43,9 @@ impl PanelItemUI {
 		item: &PanelItem,
 	) -> Self {
 		println!("Panel item created with {:#?}", init_data);
+		if init_data.size.x < 200 || init_data.size.y < 200 {
+			item.resize(1600, 900).unwrap();
+		}
 		let size = glam::vec3(
 			init_data.size.x as f32 / PPM,
 			init_data.size.y as f32 / PPM,
