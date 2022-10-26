@@ -192,6 +192,58 @@ impl InputWindow {
 		}
 	}
 
+	fn keycombo(
+		&mut self,
+		input: KeyboardInput,
+		desired_key: VirtualKeyCode,
+		ctrl: bool,
+		alt: bool,
+		shift: bool,
+		super_key: bool,
+	) -> bool {
+		if ctrl && !self.modifiers.ctrl() {
+			return false;
+		}
+
+		if alt && !self.modifiers.alt() {
+			return false;
+		}
+
+		if shift && !self.modifiers.shift() {
+			return false;
+		}
+
+		if super_key && !self.modifiers.logo() {
+			return false;
+		}
+
+		let mut retval: bool = true;
+
+		if input.virtual_keycode == Some(desired_key) && input.state == ElementState::Released {
+			retval = true;
+		} else {
+			retval = false;
+		}
+		return retval;
+	}
+
+	fn window_delta(&mut self, delta: Vector2<f32>) {
+		if let Some(focused) = self.flatland.lock().focused.clone().upgrade() {
+			let mut new_size: Vector2<f32> = delta;
+			new_size.x += focused.lock().size.x;
+			new_size.y += focused.lock().size.y;
+
+			focused.lock().item.with_node(|panel_item| {
+				new_size.x = new_size.x.clamp(0.0, 4096.0);
+				new_size.y = new_size.y.clamp(0.0, 4096.0);
+
+				panel_item
+					.resize(new_size.x as u32, new_size.y as u32)
+					.unwrap();
+			});
+		}
+	}
+
 	fn handle_keyboard_input(&mut self, input: KeyboardInput) {
 		if input.virtual_keycode == Some(VirtualKeyCode::Escape)
 			&& input.state == ElementState::Released
@@ -203,6 +255,22 @@ impl InputWindow {
 				item.keyboard_key_state(input.scancode, input.state == ElementState::Pressed)
 					.unwrap();
 			});
+		}
+
+		if self.keycombo(input, VirtualKeyCode::Left, true, false, false, true) {
+			self.window_delta(Vector2 { x: -100.0, y: 0.0 });
+		}
+
+		if self.keycombo(input, VirtualKeyCode::Right, true, false, false, true) {
+			self.window_delta(Vector2 { x: 100.0, y: 0.0 });
+		}
+
+		if self.keycombo(input, VirtualKeyCode::Up, true, false, false, true) {
+			self.window_delta(Vector2 { x: 0.0, y: 100.0 });
+		}
+
+		if self.keycombo(input, VirtualKeyCode::Down, true, false, false, true) {
+			self.window_delta(Vector2 { x: 0.0, y: -100.0 });
 		}
 	}
 
