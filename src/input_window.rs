@@ -86,8 +86,8 @@ impl InputWindow {
 				let buffer_len = window_size.width * window_size.height;
 				let mut buffer = vec![0; buffer_len as usize];
 				if let Some(mouse_position) = self.cursor_position {
-					for x in (mouse_position.x - RADIUS)..(mouse_position.x + RADIUS) {
-						for y in (mouse_position.y - RADIUS)..(mouse_position.y + RADIUS) {
+					for x in (mouse_position.x.checked_sub(RADIUS).unwrap_or(0))..(mouse_position.x.checked_add(RADIUS).unwrap_or(u32::MAX)) {
+						for y in (mouse_position.y.checked_sub(RADIUS).unwrap_or(0))..(mouse_position.y.checked_add(RADIUS).unwrap_or(u32::MAX)) {
 							if let Some(pixel) =
 								buffer.get_mut((x + (y * window_size.width)) as usize)
 							{
