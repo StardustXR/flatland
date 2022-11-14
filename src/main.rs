@@ -45,6 +45,7 @@ async fn main() -> Result<()> {
 				}
 
 				input_window.handle_event(event);
+				control_flow.set_wait();
 			});
 		}
 	})?;
