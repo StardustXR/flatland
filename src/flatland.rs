@@ -2,7 +2,7 @@ use crate::panel_ui::PanelItemUI;
 use anyhow::Result;
 use stardust_xr_molecules::fusion::{
 	client::{Client, LifeCycleHandler, LogicStepInfo},
-	items::{panel::PanelItem, ItemUI, ItemUIType},
+	items::{panel::PanelItem, ItemUI},
 	WeakWrapped,
 };
 use std::sync::Arc;

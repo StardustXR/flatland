@@ -10,7 +10,10 @@ use stardust_xr_molecules::{
 			action::{BaseInputAction, InputAction, InputActionHandler},
 			InputData, InputDataType, InputHandler,
 		},
-		items::panel::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
+		items::{
+			panel::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
+			ItemHandler,
+		},
 		node::NodeType,
 		resource::NamespacedResource,
 		HandlerWrapper, WeakNodeRef,
@@ -189,6 +192,22 @@ impl PanelItemUI {
 			panel_item.pointer_motion(pos).unwrap();
 		});
 		self.cursor.update_position(self.size, pos);
+	}
+}
+impl ItemHandler<PanelItem> for PanelItemUI {
+	fn captured(&mut self, item: &PanelItem, acceptor_uid: &str) {
+		println!(
+			"Acceptor {} captured panel item {}",
+			acceptor_uid,
+			item.node().get_name()
+		);
+	}
+	fn released(&mut self, item: &PanelItem, acceptor_uid: &str) {
+		println!(
+			"Acceptor {} released panel item {}",
+			acceptor_uid,
+			item.node().get_name()
+		);
 	}
 }
 impl PanelItemHandler for PanelItemUI {
