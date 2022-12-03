@@ -188,7 +188,7 @@ impl PanelItemUI {
 
 	pub fn set_pointer_pos(&mut self, pos: mint::Vector2<f32>) {
 		self.cursor_pos = pos;
-		self.item.pointer_motion(pos).unwrap();
+		let _ = self.item.pointer_motion(pos);
 		self.cursor.update_position(self.size, pos);
 	}
 

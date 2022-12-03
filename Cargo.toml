@@ -8,6 +8,9 @@ license = "MIT"
 repository = "https://github.com/StardustXR/flatland/"
 homepage = "https://stardustxr.org"
 
+[profile.dev]
+opt-level = 3
+
 [dependencies]
 anyhow = "1.0.60"
 glam = { version = "0.22.0", features = ["mint"] }
