@@ -1,49 +1,66 @@
 use crate::panel_ui::PanelItemUI;
-use anyhow::Result;
+use rustc_hash::FxHashMap;
 use stardust_xr_molecules::fusion::{
-	client::{Client, LifeCycleHandler, LogicStepInfo},
-	items::{panel::PanelItem, ItemUI},
-	WeakWrapped,
+	client::LogicStepInfo,
+	items::{
+		panel::{PanelItem, PanelItemInitData},
+		ItemAcceptor, ItemAcceptorHandler, ItemUIHandler,
+	},
+	node::NodeType,
+	HandlerWrapper,
 };
-use std::sync::Arc;
 
 pub struct Flatland {
-	pub client: Arc<Client>,
-	ui: ItemUI<PanelItem, PanelItemUI>,
-	pub focused: WeakWrapped<PanelItemUI>,
+	panel_items: FxHashMap<String, HandlerWrapper<PanelItem, PanelItemUI>>,
 }
 impl Flatland {
-	pub async fn new(client: Arc<Client>) -> Result<Self> {
-		let ui = ItemUI::<PanelItem, PanelItemUI>::register(
-			&client,
-			move |init_data, _, weak_item, item| PanelItemUI::new(init_data, weak_item, item),
-		)
-		.unwrap();
-		Ok(Flatland {
-			client,
-			ui,
-			focused: WeakWrapped::new(),
-		})
+	pub fn new() -> Self {
+		Flatland {
+			panel_items: FxHashMap::default(),
+		}
 	}
 
-	pub fn with_focused<F, O>(&mut self, f: F) -> Option<O>
-	where
-		F: FnOnce(&PanelItem) -> O,
-	{
-		self.focused
-			.upgrade()
-			.and_then(|ui| ui.lock().item.clone().with_node(|node| f(node)))
+	pub fn logic_step(&mut self, _info: LogicStepInfo) {
+		for item in self.panel_items.values() {
+			item.lock_wrapped().step();
+		}
+		// let items = self.panel_items.items();
+		// let focus = items
+		// 	.iter()
+		// 	.map(|(_, wrapper)| (wrapper, wrapper.lock_inner().step()))
+		// 	.reduce(|a, b| if a.1 > b.1 { b } else { a });
+		// if let Some((focus, _)) = focus {
+		// 	self.focused = focus.weak_wrapped();
+		// }
+	}
+
+	fn add_item(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
+		let ui = PanelItemUI::new(init_data, item.alias());
+		let handler = item.wrap(ui).unwrap();
+		handler.lock_wrapped().mouse.lock_wrapped().panel_item_ui = Some(handler.wrapped().clone());
+		self.panel_items.insert(uid.to_string(), handler);
+	}
+	fn remove_item(&mut self, uid: &str) {
+		self.panel_items.remove(uid);
 	}
 }
-impl LifeCycleHandler for Flatland {
-	fn logic_step(&mut self, _info: LogicStepInfo) {
-		let items = self.ui.items();
-		let focus = items
-			.iter()
-			.map(|(_, wrapper)| (wrapper, wrapper.lock_inner().step()))
-			.reduce(|a, b| if a.1 > b.1 { b } else { a });
-		if let Some((focus, _)) = focus {
-			self.focused = focus.weak_wrapped();
-		}
+impl ItemUIHandler<PanelItem> for Flatland {
+	fn item_created(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
+		self.add_item(uid, item, init_data);
+	}
+	fn item_captured(&mut self, _uid: &str, _acceptor_uid: &str, _item: PanelItem) {}
+	fn item_released(&mut self, _uid: &str, _acceptor_uid: &str, _item: PanelItem) {}
+	fn item_destroyed(&mut self, uid: &str) {
+		self.remove_item(uid);
+	}
+	fn acceptor_created(&mut self, _uid: &str, _acceptor: ItemAcceptor<PanelItem>) {}
+	fn acceptor_destroyed(&mut self, _uid: &str) {}
+}
+impl ItemAcceptorHandler<PanelItem> for Flatland {
+	fn captured(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
+		self.add_item(uid, item, init_data);
+	}
+	fn released(&mut self, uid: &str) {
+		self.remove_item(uid);
 	}
 }

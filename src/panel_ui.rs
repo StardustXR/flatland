@@ -1,22 +1,20 @@
-use crate::cursor::Cursor;
+use crate::{cursor::Cursor, keyboard::Keyboard, mouse::Mouse};
 use glam::{Quat, Vec3};
 use lazy_static::lazy_static;
-use mint::Vector2;
+use mint::{Vector2, Vector3};
 use stardust_xr_molecules::{
 	fusion::{
+		data::PulseReceiver,
 		drawable::Model,
 		fields::BoxField,
 		input::{
 			action::{BaseInputAction, InputAction, InputActionHandler},
 			InputData, InputDataType, InputHandler,
 		},
-		items::{
-			panel::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
-			ItemHandler,
-		},
+		items::panel::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
 		node::NodeType,
 		resource::NamespacedResource,
-		HandlerWrapper, WeakNodeRef,
+		HandlerWrapper,
 	},
 	Grabbable, SingleActorAction,
 };
@@ -28,32 +26,30 @@ lazy_static! {
 
 pub const PPM: f32 = 1000.0;
 pub struct PanelItemUI {
-	pub item: WeakNodeRef<PanelItem>,
+	pub item: PanelItem,
 	pub model: Model,
 	cursor: Cursor,
 	cursor_pos: Vector2<f32>,
 	size: Vector2<f32>,
 	field: BoxField,
+	keyboard: HandlerWrapper<PulseReceiver, Keyboard>,
+	pub mouse: HandlerWrapper<PulseReceiver, Mouse>,
 	grabbable: Grabbable,
 	hover_action: BaseInputAction<()>,
 	click_action: SingleActorAction<()>,
 	input_handler: HandlerWrapper<InputHandler, InputActionHandler<()>>,
 }
 impl PanelItemUI {
-	pub fn new(
-		init_data: PanelItemInitData,
-		weak_item: WeakNodeRef<PanelItem>,
-		item: &PanelItem,
-	) -> Self {
-		println!("Panel item created with {:#?}", init_data);
+	pub fn new(init_data: PanelItemInitData, item: PanelItem) -> Self {
+		// println!("Panel item created with {:#?}", init_data);
 		if init_data.size.x < 200 || init_data.size.y < 200 {
 			item.resize(1600, 900).unwrap();
 		}
-		let size = glam::vec3(
-			init_data.size.x as f32 / PPM,
-			init_data.size.y as f32 / PPM,
-			0.01,
-		);
+		// let size = glam::vec3(
+		// 	init_data.size.x as f32 / PPM,
+		// 	init_data.size.y as f32 / PPM,
+		// 	0.01,
+		// );
 		item.set_transform(
 			Some(item.client().unwrap().get_hmd()),
 			Some(glam::vec3(0.0, 0.0, -0.5).into()),
@@ -62,29 +58,30 @@ impl PanelItemUI {
 		)
 		.unwrap();
 		let field = BoxField::builder()
-			.spatial_parent(item)
-			.size(size.into())
+			.spatial_parent(&item)
+			.size(Vector3::from([1.0; 3]))
 			.build()
 			.unwrap();
 		let grabbable = Grabbable::new(item.client().unwrap().get_root(), &field).unwrap();
 		grabbable
 			.content_parent()
-			.set_transform(Some(item), None, None, None)
+			.set_transform(Some(&item), None, None, None)
 			.unwrap();
 		item.set_spatial_parent_in_place(grabbable.content_parent())
 			.unwrap();
+		let keyboard = Keyboard::new(&item, &field, None, Some(item.alias())).unwrap();
+		let mouse = Mouse::new(&item, &field, None, Some(item.alias()), None).unwrap();
 		let model = Model::builder()
-			.spatial_parent(item)
+			.spatial_parent(&item)
 			.resource(&*PANEL_RESOURCE)
-			.scale(size)
 			.build()
 			.unwrap();
 
 		item.apply_surface_material(&model, 0).unwrap();
 
 		let cursor = Cursor::new(&item.spatial);
-		cursor.update_info(&init_data.cursor, item);
-		cursor.update_position(Vector2::from([size.x, size.y]), Vector2::from([0.0, 0.0]));
+		cursor.update_info(&init_data.cursor, &item);
+		// cursor.update_position(Vector2::from([size.x, size.y]), Vector2::from([0.0, 0.0]));
 
 		let hover_action =
 			BaseInputAction::new(false, |input_data, _: &()| input_data.distance < 0.05);
@@ -94,40 +91,43 @@ impl PanelItemUI {
 				input_data
 					.datamap
 					.with_data(|data| match &input_data.input {
-						InputDataType::Pointer(_) => data.idx("grab").as_f32() > 0.99,
 						InputDataType::Hand(h) => {
 							Vec3::from(h.thumb.tip.position)
 								.distance(Vec3::from(h.index.tip.position))
 								< 0.02
 						}
-						InputDataType::Tip(_) => data.idx("grab").as_f32() > 0.99,
+						_ => data.idx("select").as_f32() > 0.90,
 					})
 			},
 			false,
 		);
 
-		let input_handler = InputHandler::create(&model, None, None, &field, |_, _| {
-			InputActionHandler::new(())
-		})
-		.unwrap();
+		let input_handler = InputHandler::create(&model, None, None, &field)
+			.unwrap()
+			.wrap(InputActionHandler::new(()))
+			.unwrap();
 
-		PanelItemUI {
-			item: weak_item,
+		let mut ui = PanelItemUI {
+			item,
 			model,
 			cursor,
 			cursor_pos: Vector2::from([0.0, 0.0]),
-			size: Vector2::from([init_data.size.x as f32, init_data.size.y as f32]),
+			size: Vector2::from([0.0; 2]),
 			field,
+			keyboard,
+			mouse,
 			grabbable,
 			hover_action,
 			click_action,
 			input_handler,
-		}
+		};
+		ui.resize_surf(init_data.size);
+		ui
 	}
 
 	pub fn step(&mut self) -> f32 {
 		self.grabbable.update();
-		self.input_handler.lock_inner().update_actions([
+		self.input_handler.lock_wrapped().update_actions([
 			self.hover_action.type_erase(),
 			self.click_action.type_erase(),
 		]);
@@ -137,12 +137,12 @@ impl PanelItemUI {
 			|| self.click_action.actor_changed()
 			|| self.click_action.actor_stopped()
 		{
-			self.item.with_node(|item| {
-				item.pointer_button(
+			self.item
+				.pointer_button(
 					input_event_codes::BTN_LEFT!(),
 					self.click_action.actor_acting() as u32,
 				)
-			});
+				.unwrap();
 		}
 
 		let closest_input = self
@@ -188,43 +188,37 @@ impl PanelItemUI {
 
 	pub fn set_pointer_pos(&mut self, pos: mint::Vector2<f32>) {
 		self.cursor_pos = pos;
-		self.item.with_node(|panel_item| {
-			panel_item.pointer_motion(pos).unwrap();
-		});
+		self.item.pointer_motion(pos).unwrap();
 		self.cursor.update_position(self.size, pos);
 	}
-}
-impl ItemHandler<PanelItem> for PanelItemUI {
-	fn captured(&mut self, item: &PanelItem, acceptor_uid: &str) {
-		println!(
-			"Acceptor {} captured panel item {}",
-			acceptor_uid,
-			item.node().get_name()
-		);
-	}
-	fn released(&mut self, item: &PanelItem, acceptor_uid: &str) {
-		println!(
-			"Acceptor {} released panel item {}",
-			acceptor_uid,
-			item.node().get_name()
-		);
+
+	pub fn resize_surf(&mut self, size: Vector2<u32>) {
+		self.size = Vector2::from_slice(&[size.x as f32, size.y as f32]);
+		let size = glam::vec3(self.size.x / PPM, self.size.y / PPM, 0.01);
+		self.model.set_scale(None, size).unwrap();
+		self.field.set_size(size).unwrap();
+		self.keyboard
+			.node()
+			.spatial
+			.set_position(None, Vector3::from([-0.01, size.y * -0.5, 0.0]))
+			.unwrap();
+		self.mouse
+			.node()
+			.spatial
+			.set_position(None, Vector3::from([0.01, size.y * -0.5, 0.0]))
+			.unwrap();
 	}
 }
 impl PanelItemHandler for PanelItemUI {
 	fn resize(&mut self, size: Vector2<u32>) {
 		println!("Got resize of {}, {}", size.x, size.y);
-		self.size = Vector2::from_slice(&[size.x as f32, size.y as f32]);
-		let size = glam::vec3(self.size.x / PPM, self.size.y / PPM, 0.01);
-		self.model.set_scale(None, size).unwrap();
-		self.field.set_size(size).unwrap();
+		self.resize_surf(size);
 	}
 
 	fn set_cursor(&mut self, info: Option<PanelItemCursor>) {
 		// println!("Set cursor with info {:?}", info);
 
-		self.item.with_node(|panel_item| {
-			self.cursor.update_info(&info, panel_item);
-		});
+		self.cursor.update_info(&info, &self.item);
 	}
 }
 impl Drop for PanelItemUI {
