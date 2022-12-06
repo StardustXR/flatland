@@ -62,7 +62,7 @@ impl PanelItemUI {
 			.size(Vector3::from([1.0; 3]))
 			.build()
 			.unwrap();
-		let grabbable = Grabbable::new(item.client().unwrap().get_root(), &field).unwrap();
+		let grabbable = Grabbable::new(item.client().unwrap().get_root(), &field, 0.05).unwrap();
 		grabbable
 			.content_parent()
 			.set_transform(Some(&item), None, None, None)
