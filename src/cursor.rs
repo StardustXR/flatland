@@ -9,8 +9,7 @@ use stardust_xr_molecules::fusion::{
 };
 
 lazy_static! {
-	static ref CURSOR_RESOURCE: NamespacedResource =
-		NamespacedResource::new("flatland", "cursor.glb");
+	static ref CURSOR_RESOURCE: NamespacedResource = NamespacedResource::new("flatland", "cursor");
 }
 
 pub struct Cursor {

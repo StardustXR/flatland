@@ -20,8 +20,7 @@ use stardust_xr_molecules::{
 };
 
 lazy_static! {
-	static ref PANEL_RESOURCE: NamespacedResource =
-		NamespacedResource::new("flatland", "panel.glb");
+	static ref PANEL_RESOURCE: NamespacedResource = NamespacedResource::new("flatland", "panel");
 }
 
 pub const PPM: f32 = 1000.0;
