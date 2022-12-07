@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use mint::Vector3;
 use parking_lot::Mutex;
 use stardust_xr_molecules::{
@@ -13,12 +11,13 @@ use stardust_xr_molecules::{
 	},
 	mouse::{MouseEvent, MOUSE_MASK},
 };
+use std::sync::Weak;
 
 use crate::panel_ui::PanelItemUI;
 
 pub struct Mouse {
 	pub panel_item: Option<PanelItem>,
-	pub panel_item_ui: Option<Arc<Mutex<PanelItemUI>>>,
+	pub panel_item_ui: Weak<Mutex<PanelItemUI>>,
 }
 impl Mouse {
 	pub fn new<Fi: Field + ClientOwned>(
@@ -26,7 +25,7 @@ impl Mouse {
 		field: &Fi,
 		position: Option<Vector3<f32>>,
 		panel_item: Option<PanelItem>,
-		panel_item_ui: Option<Arc<Mutex<PanelItemUI>>>,
+		panel_item_ui: Weak<Mutex<PanelItemUI>>,
 	) -> Result<HandlerWrapper<PulseReceiver, Mouse>, NodeError> {
 		PulseReceiver::create(spatial_parent, position, None, field, MOUSE_MASK.clone())?.wrap(
 			Mouse {
@@ -43,7 +42,7 @@ impl PulseReceiverHandler for Mouse {
 				let _ = mouse_event.send_to_panel(panel_item);
 			}
 			if let Some(delta) = mouse_event.delta {
-				if let Some(panel_item_ui) = &self.panel_item_ui {
+				if let Some(panel_item_ui) = self.panel_item_ui.upgrade() {
 					panel_item_ui.lock().pointer_delta(delta);
 				}
 			}

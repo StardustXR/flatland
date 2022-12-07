@@ -1,3 +1,5 @@
+use std::sync::Weak;
+
 use crate::{cursor::Cursor, keyboard::Keyboard, mouse::Mouse};
 use glam::{Quat, Vec3};
 use lazy_static::lazy_static;
@@ -69,7 +71,7 @@ impl PanelItemUI {
 		item.set_spatial_parent_in_place(grabbable.content_parent())
 			.unwrap();
 		let keyboard = Keyboard::new(&item, &field, None, Some(item.alias())).unwrap();
-		let mouse = Mouse::new(&item, &field, None, Some(item.alias()), None).unwrap();
+		let mouse = Mouse::new(&item, &field, None, Some(item.alias()), Weak::new()).unwrap();
 		let model = Model::builder()
 			.spatial_parent(&item)
 			.resource(&*PANEL_RESOURCE)
