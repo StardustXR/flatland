@@ -6,6 +6,7 @@ use lazy_static::lazy_static;
 use mint::{Vector2, Vector3};
 use stardust_xr_molecules::{
 	fusion::{
+		core::values::Transform,
 		data::PulseReceiver,
 		drawable::Model,
 		fields::BoxField,
@@ -13,7 +14,7 @@ use stardust_xr_molecules::{
 			action::{BaseInputAction, InputAction, InputActionHandler},
 			InputData, InputDataType, InputHandler,
 		},
-		items::panel::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
+		items::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
 		node::NodeType,
 		resource::NamespacedResource,
 		HandlerWrapper,
@@ -46,43 +47,39 @@ impl PanelItemUI {
 		if init_data.size.x < 200 || init_data.size.y < 200 {
 			item.resize(1600, 900).unwrap();
 		}
-		// let size = glam::vec3(
-		// 	init_data.size.x as f32 / PPM,
-		// 	init_data.size.y as f32 / PPM,
-		// 	0.01,
-		// );
 		item.set_transform(
 			Some(item.client().unwrap().get_hmd()),
-			Some(glam::vec3(0.0, 0.0, -0.5).into()),
-			Some(Quat::IDENTITY.into()),
-			Some(glam::vec3(1.0, 1.0, 1.0).into()),
+			Transform {
+				position: Vector3::from([0.0, 0.0, -0.5]),
+				rotation: Quat::IDENTITY.into(),
+				scale: Vector3::from([1.0; 3]),
+			},
 		)
 		.unwrap();
-		let field = BoxField::builder()
-			.spatial_parent(&item)
-			.size(Vector3::from([1.0; 3]))
-			.build()
-			.unwrap();
+		let field = BoxField::create(&item, Transform::default(), Vector3::from([1.0; 3])).unwrap();
 		let grabbable = Grabbable::new(item.client().unwrap().get_root(), &field, 0.05).unwrap();
 		grabbable
 			.content_parent()
-			.set_transform(Some(&item), None, None, None)
+			.set_transform(Some(&item), Transform::default())
 			.unwrap();
 		item.set_spatial_parent_in_place(grabbable.content_parent())
 			.unwrap();
-		let keyboard = Keyboard::new(&item, &field, None, Some(item.alias())).unwrap();
-		let mouse = Mouse::new(&item, &field, None, Some(item.alias()), Weak::new()).unwrap();
-		let model = Model::builder()
-			.spatial_parent(&item)
-			.resource(&*PANEL_RESOURCE)
-			.build()
-			.unwrap();
+		let keyboard =
+			Keyboard::new(&item, Transform::default(), &field, Some(item.alias())).unwrap();
+		let mouse = Mouse::new(
+			&item,
+			Transform::default(),
+			&field,
+			Some(item.alias()),
+			Weak::new(),
+		)
+		.unwrap();
+		let model = Model::create(&item, Transform::default(), &*PANEL_RESOURCE).unwrap();
 
 		item.apply_surface_material(&model, 0).unwrap();
 
-		let cursor = Cursor::new(&item.spatial);
+		let cursor = Cursor::new(&item);
 		cursor.update_info(&init_data.cursor, &item);
-		// cursor.update_position(Vector2::from([size.x, size.y]), Vector2::from([0.0, 0.0]));
 
 		let hover_action =
 			BaseInputAction::new(false, |input_data, _: &()| input_data.distance < 0.05);
@@ -103,7 +100,7 @@ impl PanelItemUI {
 			false,
 		);
 
-		let input_handler = InputHandler::create(&model, None, None, &field)
+		let input_handler = InputHandler::create(&model, Transform::default(), &field)
 			.unwrap()
 			.wrap(InputActionHandler::new(()))
 			.unwrap();
@@ -141,7 +138,7 @@ impl PanelItemUI {
 			self.item
 				.pointer_button(
 					input_event_codes::BTN_LEFT!(),
-					self.click_action.actor_acting() as u32,
+					self.click_action.actor_acting(),
 				)
 				.unwrap();
 		}
@@ -200,12 +197,10 @@ impl PanelItemUI {
 		self.field.set_size(size).unwrap();
 		self.keyboard
 			.node()
-			.spatial
 			.set_position(None, Vector3::from([-0.01, size.y * -0.5, 0.0]))
 			.unwrap();
 		self.mouse
 			.node()
-			.spatial
 			.set_position(None, Vector3::from([0.01, size.y * -0.5, 0.0]))
 			.unwrap();
 	}

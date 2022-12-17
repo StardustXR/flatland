@@ -1,11 +1,11 @@
-use mint::Vector3;
 use parking_lot::Mutex;
 use stardust_xr_molecules::{
 	fusion::{
+		core::values::Transform,
 		data::{PulseReceiver, PulseReceiverHandler},
 		fields::Field,
-		items::panel::PanelItem,
-		node::{ClientOwned, NodeError},
+		items::PanelItem,
+		node::NodeError,
 		spatial::Spatial,
 		HandlerWrapper,
 	},
@@ -20,19 +20,17 @@ pub struct Mouse {
 	pub panel_item_ui: Weak<Mutex<PanelItemUI>>,
 }
 impl Mouse {
-	pub fn new<Fi: Field + ClientOwned>(
+	pub fn new<Fi: Field>(
 		spatial_parent: &Spatial,
+		transform: Transform,
 		field: &Fi,
-		position: Option<Vector3<f32>>,
 		panel_item: Option<PanelItem>,
 		panel_item_ui: Weak<Mutex<PanelItemUI>>,
 	) -> Result<HandlerWrapper<PulseReceiver, Mouse>, NodeError> {
-		PulseReceiver::create(spatial_parent, position, None, field, MOUSE_MASK.clone())?.wrap(
-			Mouse {
-				panel_item,
-				panel_item_ui,
-			},
-		)
+		PulseReceiver::create(spatial_parent, transform, field, &MOUSE_MASK)?.wrap(Mouse {
+			panel_item,
+			panel_item_ui,
+		})
 	}
 }
 impl PulseReceiverHandler for Mouse {

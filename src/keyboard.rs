@@ -1,10 +1,10 @@
-use mint::Vector3;
 use stardust_xr_molecules::{
 	fusion::{
+		core::values::Transform,
 		data::{PulseReceiver, PulseReceiverHandler},
 		fields::Field,
-		items::panel::PanelItem,
-		node::{ClientOwned, NodeError},
+		items::PanelItem,
+		node::NodeError,
 		spatial::Spatial,
 		HandlerWrapper,
 	},
@@ -15,13 +15,13 @@ pub struct Keyboard {
 	pub panel_item: Option<PanelItem>,
 }
 impl Keyboard {
-	pub fn new<Fi: Field + ClientOwned>(
+	pub fn new<Fi: Field>(
 		spatial_parent: &Spatial,
+		transform: Transform,
 		field: &Fi,
-		position: Option<Vector3<f32>>,
 		panel_item: Option<PanelItem>,
 	) -> Result<HandlerWrapper<PulseReceiver, Keyboard>, NodeError> {
-		PulseReceiver::create(spatial_parent, position, None, field, KEYBOARD_MASK.clone())?
+		PulseReceiver::create(spatial_parent, transform, field, &KEYBOARD_MASK)?
 			.wrap(Keyboard { panel_item })
 	}
 }
