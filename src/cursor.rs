@@ -30,14 +30,18 @@ impl Cursor {
 			self.model
 				.set_transform(
 					None,
-					Transform {
-						position: (glam::vec3(-info.hotspot.x as f32, info.hotspot.y as f32, 0.0)
-							/ PPM)
-							.into(),
-						scale: (glam::vec3(info.size.x as f32, info.size.y as f32, 1.0) / PPM)
-							.into(),
-						..Default::default()
-					},
+					Transform::from_position_scale(
+						[
+							-info.hotspot.x as f32 / PPM,
+							info.hotspot.y as f32 / PPM,
+							0.0,
+						],
+						[
+							info.size.x as f32 / PPM,
+							info.size.y as f32 / PPM,
+							1.0 / PPM,
+						],
+					),
 				)
 				.unwrap();
 			item.apply_cursor_material(info, &self.model, 0).unwrap();

@@ -19,7 +19,7 @@ use stardust_xr_molecules::{
 		resource::NamespacedResource,
 		HandlerWrapper,
 	},
-	Grabbable, SingleActorAction,
+	GrabData, Grabbable, SingleActorAction,
 };
 
 lazy_static! {
@@ -49,15 +49,17 @@ impl PanelItemUI {
 		}
 		item.set_transform(
 			Some(item.client().unwrap().get_hmd()),
-			Transform {
-				position: Vector3::from([0.0, 0.0, -0.5]),
-				rotation: Quat::IDENTITY.into(),
-				scale: Vector3::from([1.0; 3]),
-			},
+			Transform::from_position_rotation_scale([0.0, 0.0, -0.5], Quat::IDENTITY, [1.0; 3]),
 		)
 		.unwrap();
 		let field = BoxField::create(&item, Transform::default(), Vector3::from([1.0; 3])).unwrap();
-		let grabbable = Grabbable::new(item.client().unwrap().get_root(), &field, 0.05).unwrap();
+		let grabbable = Grabbable::new(
+			item.client().unwrap().get_root(),
+			Transform::default(),
+			&field,
+			GrabData { max_distance: 0.05 },
+		)
+		.unwrap();
 		grabbable
 			.content_parent()
 			.set_transform(Some(&item), Transform::default())
