@@ -1,5 +1,3 @@
-use std::sync::Weak;
-
 use crate::{cursor::Cursor, keyboard::Keyboard, mouse::Mouse};
 use glam::{Quat, Vec3};
 use lazy_static::lazy_static;
@@ -14,13 +12,16 @@ use stardust_xr_molecules::{
 			action::{BaseInputAction, InputAction, InputActionHandler},
 			InputData, InputDataType, InputHandler,
 		},
-		items::{PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData},
+		items::{
+			PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData, PanelItemToplevel,
+		},
 		node::NodeType,
 		resource::NamespacedResource,
 		HandlerWrapper,
 	},
 	GrabData, Grabbable, SingleActorAction,
 };
+use std::sync::Weak;
 
 lazy_static! {
 	static ref PANEL_RESOURCE: NamespacedResource = NamespacedResource::new("flatland", "panel");
@@ -44,9 +45,9 @@ pub struct PanelItemUI {
 impl PanelItemUI {
 	pub fn new(init_data: PanelItemInitData, item: PanelItem) -> Self {
 		// println!("Panel item created with {:#?}", init_data);
-		if init_data.size.x < 200 || init_data.size.y < 200 {
-			item.resize(1600, 900).unwrap();
-		}
+		// if init_data.size.x < 200 || init_data.size.y < 200 {
+		// 	item.resize(1600, 900).unwrap();
+		// }
 		item.set_transform(
 			Some(item.client().unwrap().get_hmd()),
 			Transform::from_position_rotation_scale([0.0, 0.0, -0.5], Quat::IDENTITY, [1.0; 3]),
@@ -78,7 +79,7 @@ impl PanelItemUI {
 		.unwrap();
 		let model = Model::create(&item, Transform::default(), &*PANEL_RESOURCE).unwrap();
 
-		item.apply_surface_material(&model, 0).unwrap();
+		item.apply_toplevel_material(&model, 0).unwrap();
 
 		let cursor = Cursor::new(&item);
 		cursor.update_info(&init_data.cursor, &item);
@@ -121,7 +122,7 @@ impl PanelItemUI {
 			click_action,
 			input_handler,
 		};
-		ui.resize_surf(init_data.size);
+		ui.update_state(init_data.toplevel);
 		ui
 	}
 
@@ -192,25 +193,27 @@ impl PanelItemUI {
 		self.cursor.update_position(self.size, pos);
 	}
 
-	pub fn resize_surf(&mut self, size: Vector2<u32>) {
-		self.size = Vector2::from_slice(&[size.x as f32, size.y as f32]);
-		let size = glam::vec3(self.size.x / PPM, self.size.y / PPM, 0.01);
-		self.model.set_scale(None, size).unwrap();
-		self.field.set_size(size).unwrap();
-		self.keyboard
-			.node()
-			.set_position(None, Vector3::from([-0.01, size.y * -0.5, 0.0]))
-			.unwrap();
-		self.mouse
-			.node()
-			.set_position(None, Vector3::from([0.01, size.y * -0.5, 0.0]))
-			.unwrap();
+	pub fn update_state(&mut self, state: Option<PanelItemToplevel>) {
+		// dbg!(&state);
+		if let Some(state) = state {
+			self.size = Vector2::from_slice(&[state.size.x as f32, state.size.y as f32]);
+			let size = glam::vec3(self.size.x / PPM, self.size.y / PPM, 0.01);
+			self.model.set_scale(None, size).unwrap();
+			self.field.set_size(size).unwrap();
+			self.keyboard
+				.node()
+				.set_position(None, Vector3::from([-0.01, size.y * -0.5, 0.0]))
+				.unwrap();
+			self.mouse
+				.node()
+				.set_position(None, Vector3::from([0.01, size.y * -0.5, 0.0]))
+				.unwrap();
+		}
 	}
 }
 impl PanelItemHandler for PanelItemUI {
-	fn resize(&mut self, size: Vector2<u32>) {
-		println!("Got resize of {}, {}", size.x, size.y);
-		self.resize_surf(size);
+	fn commit_toplevel(&mut self, state: Option<PanelItemToplevel>) {
+		self.update_state(state);
 	}
 
 	fn set_cursor(&mut self, info: Option<PanelItemCursor>) {
