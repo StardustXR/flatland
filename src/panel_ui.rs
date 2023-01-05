@@ -12,8 +12,9 @@ use stardust_xr_molecules::{
 			action::{BaseInputAction, InputAction, InputActionHandler},
 			InputData, InputDataType, InputHandler,
 		},
-		items::{
-			PanelItem, PanelItemCursor, PanelItemHandler, PanelItemInitData, PanelItemToplevel,
+		items::panel::{
+			CursorInfo, PanelItem, PanelItemHandler, PanelItemInitData, RequestedState, State,
+			ToplevelInfo,
 		},
 		node::NodeType,
 		resource::NamespacedResource,
@@ -32,8 +33,8 @@ pub struct PanelItemUI {
 	pub item: PanelItem,
 	pub model: Model,
 	cursor: Cursor,
-	cursor_pos: Vector2<f32>,
 	size: Vector2<f32>,
+	toplevel_info: Option<ToplevelInfo>,
 	field: BoxField,
 	keyboard: HandlerWrapper<PulseReceiver, Keyboard>,
 	pub mouse: HandlerWrapper<PulseReceiver, Mouse>,
@@ -48,6 +49,23 @@ impl PanelItemUI {
 		// if init_data.size.x < 200 || init_data.size.y < 200 {
 		// 	item.resize(1600, 900).unwrap();
 		// }
+
+		item.configure_toplevel(
+			None,
+			&[
+				State::Maximized,
+				// State::Fullscreen,
+				// State::Resizing,
+				State::Activated,
+				// State::TiledLeft,
+				// State::TiledRight,
+				// State::TiledTop,
+				// State::TiledBottom,
+			],
+			None,
+		)
+		.unwrap();
+		item.set_toplevel_capabilities(&[]).unwrap();
 		item.set_transform(
 			Some(item.client().unwrap().get_hmd()),
 			Transform::from_position_rotation_scale([0.0, 0.0, -0.5], Quat::IDENTITY, [1.0; 3]),
@@ -79,10 +97,8 @@ impl PanelItemUI {
 		.unwrap();
 		let model = Model::create(&item, Transform::default(), &*PANEL_RESOURCE).unwrap();
 
-		item.apply_toplevel_material(&model, 0).unwrap();
-
-		let cursor = Cursor::new(&item);
-		cursor.update_info(&init_data.cursor, &item);
+		let cursor = Cursor::new(&item, &init_data.cursor, &item);
+		cursor.update_info(&None, &item);
 
 		let hover_action =
 			BaseInputAction::new(false, |input_data, _: &()| input_data.distance < 0.05);
@@ -112,8 +128,8 @@ impl PanelItemUI {
 			item,
 			model,
 			cursor,
-			cursor_pos: Vector2::from([0.0, 0.0]),
 			size: Vector2::from([0.0; 2]),
+			toplevel_info: None,
 			field,
 			keyboard,
 			mouse,
@@ -122,7 +138,7 @@ impl PanelItemUI {
 			click_action,
 			input_handler,
 		};
-		ui.update_state(init_data.toplevel);
+		ui.update_toplevel_info(init_data.toplevel);
 		ui
 	}
 
@@ -181,22 +197,24 @@ impl PanelItemUI {
 
 	pub fn pointer_delta(&mut self, delta: mint::Vector2<f32>) {
 		let pos = Vector2::from([
-			(self.cursor_pos.x + delta.x).clamp(0.0, self.size.x - 1.0),
-			(self.cursor_pos.y + delta.y).clamp(0.0, self.size.y - 1.0),
+			(self.cursor.pos.x + delta.x).clamp(0.0, self.size.x - 1.0),
+			(self.cursor.pos.y + delta.y).clamp(0.0, self.size.y - 1.0),
 		]);
 		self.set_pointer_pos(pos);
 	}
 
 	pub fn set_pointer_pos(&mut self, pos: mint::Vector2<f32>) {
-		self.cursor_pos = pos;
+		self.cursor.pos = pos;
 		let _ = self.item.pointer_motion(pos);
 		self.cursor.update_position(self.size, pos);
 	}
 
-	pub fn update_state(&mut self, state: Option<PanelItemToplevel>) {
-		// dbg!(&state);
-		if let Some(state) = state {
-			self.size = Vector2::from_slice(&[state.size.x as f32, state.size.y as f32]);
+	pub fn update_toplevel_info(&mut self, toplevel_info: Option<ToplevelInfo>) {
+		dbg!(&toplevel_info);
+		if let Some(toplevel_info) = &toplevel_info {
+			self.item.apply_toplevel_material(&self.model, 0).unwrap();
+			self.size =
+				Vector2::from_slice(&[toplevel_info.size.x as f32, toplevel_info.size.y as f32]);
 			let size = glam::vec3(self.size.x / PPM, self.size.y / PPM, 0.01);
 			self.model.set_scale(None, size).unwrap();
 			self.field.set_size(size).unwrap();
@@ -209,18 +227,31 @@ impl PanelItemUI {
 				.set_position(None, Vector3::from([0.01, size.y * -0.5, 0.0]))
 				.unwrap();
 		}
+		self.toplevel_info = toplevel_info;
 	}
 }
 impl PanelItemHandler for PanelItemUI {
-	fn commit_toplevel(&mut self, state: Option<PanelItemToplevel>) {
-		self.update_state(state);
+	fn commit_toplevel(&mut self, state: Option<ToplevelInfo>) {
+		self.update_toplevel_info(state);
 	}
 
-	fn set_cursor(&mut self, info: Option<PanelItemCursor>) {
-		// println!("Set cursor with info {:?}", info);
-
+	fn set_cursor(&mut self, info: Option<CursorInfo>) {
 		self.cursor.update_info(&info, &self.item);
 	}
+
+	fn recommend_toplevel_state(&mut self, state: RequestedState) {
+		dbg!(&state);
+		let new_states = match state {
+			RequestedState::Maximize(true) => vec![State::Activated, State::Maximized],
+			RequestedState::Fullscreen(true) => vec![State::Activated, State::Fullscreen],
+			_ => vec![State::Activated],
+		};
+		self.item
+			.configure_toplevel(None, &new_states, None)
+			.unwrap();
+	}
+
+	fn show_window_menu(&mut self) {}
 }
 impl Drop for PanelItemUI {
 	fn drop(&mut self) {

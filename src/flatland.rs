@@ -4,7 +4,10 @@ use crate::panel_ui::PanelItemUI;
 use rustc_hash::FxHashMap;
 use stardust_xr_molecules::fusion::{
 	client::LogicStepInfo,
-	items::{ItemAcceptor, ItemAcceptorHandler, ItemUIHandler, PanelItem, PanelItemInitData},
+	items::{
+		panel::{PanelItem, PanelItemInitData},
+		ItemAcceptor, ItemAcceptorHandler, ItemUIHandler,
+	},
 	node::NodeType,
 	HandlerWrapper,
 };

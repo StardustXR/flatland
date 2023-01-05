@@ -3,7 +3,7 @@ use stardust_xr_molecules::{
 		core::values::Transform,
 		data::{PulseReceiver, PulseReceiverHandler},
 		fields::Field,
-		items::PanelItem,
+		items::panel::PanelItem,
 		node::NodeError,
 		spatial::Spatial,
 		HandlerWrapper,

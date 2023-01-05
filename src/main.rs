@@ -3,7 +3,7 @@ use flatland::Flatland;
 use manifest_dir_macros::directory_relative_path;
 use stardust_xr_molecules::fusion::{
 	client::{Client, LifeCycleHandler, LogicStepInfo},
-	items::{ItemUI, PanelItem},
+	items::{panel::PanelItem, ItemUI},
 	HandlerWrapper,
 };
 use std::sync::Arc;
