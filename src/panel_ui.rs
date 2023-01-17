@@ -6,7 +6,7 @@ use stardust_xr_molecules::{
 	fusion::{
 		core::values::Transform,
 		data::PulseReceiver,
-		drawable::Model,
+		drawable::{Alignment, Model, ResourceID, Text, TextStyle},
 		fields::BoxField,
 		input::{
 			action::{BaseInputAction, InputAction, InputActionHandler},
@@ -17,15 +17,14 @@ use stardust_xr_molecules::{
 			ToplevelInfo,
 		},
 		node::NodeType,
-		resource::NamespacedResource,
 		HandlerWrapper,
 	},
 	GrabData, Grabbable, SingleActorAction,
 };
-use std::sync::Weak;
+use std::{f32::consts::PI, sync::Weak};
 
 lazy_static! {
-	static ref PANEL_RESOURCE: NamespacedResource = NamespacedResource::new("flatland", "panel");
+	static ref PANEL_RESOURCE: ResourceID = ResourceID::new_namespaced("flatland", "panel");
 }
 
 pub const PPM: f32 = 1000.0;
@@ -34,6 +33,7 @@ pub struct PanelItemUI {
 	pub model: Model,
 	cursor: Cursor,
 	size: Vector2<f32>,
+	title: Text,
 	toplevel_info: Option<ToplevelInfo>,
 	field: BoxField,
 	keyboard: HandlerWrapper<PulseReceiver, Keyboard>,
@@ -51,16 +51,17 @@ impl PanelItemUI {
 		// }
 
 		item.configure_toplevel(
+			// Some([1000; 2].into()),
 			None,
 			&[
-				State::Maximized,
+				// State::Maximized,
 				// State::Fullscreen,
 				// State::Resizing,
 				State::Activated,
-				// State::TiledLeft,
-				// State::TiledRight,
-				// State::TiledTop,
-				// State::TiledBottom,
+				State::TiledLeft,
+				State::TiledRight,
+				State::TiledTop,
+				State::TiledBottom,
 			],
 			None,
 		)
@@ -97,6 +98,21 @@ impl PanelItemUI {
 		.unwrap();
 		let model = Model::create(&item, Transform::default(), &*PANEL_RESOURCE).unwrap();
 
+		let title_style = TextStyle {
+			character_height: 0.0075,
+			text_align: Alignment::XLeft | Alignment::YCenter,
+			..Default::default()
+		};
+		let title = Text::create(
+			&item,
+			Transform::from_rotation(
+				Quat::from_rotation_x(-PI * 0.5) * Quat::from_rotation_y(-PI * 0.5),
+			),
+			"",
+			title_style,
+		)
+		.unwrap();
+
 		let cursor = Cursor::new(&item, &init_data.cursor, &item);
 		cursor.update_info(&None, &item);
 
@@ -129,6 +145,7 @@ impl PanelItemUI {
 			model,
 			cursor,
 			size: Vector2::from([0.0; 2]),
+			title,
 			toplevel_info: None,
 			field,
 			keyboard,
@@ -225,6 +242,18 @@ impl PanelItemUI {
 			self.mouse
 				.node()
 				.set_position(None, Vector3::from([0.01, size.y * -0.5, 0.0]))
+				.unwrap();
+			self.title
+				.set_text(
+					toplevel_info
+						.title
+						.as_ref()
+						.map(String::as_str)
+						.unwrap_or(""),
+				)
+				.unwrap();
+			self.title
+				.set_position(None, [size.x / 2.0, (size.y / 2.0) - 0.005, -0.005])
 				.unwrap();
 		}
 		self.toplevel_info = toplevel_info;

@@ -3,14 +3,13 @@ use lazy_static::lazy_static;
 use mint::{Vector2, Vector3};
 use stardust_xr_molecules::fusion::{
 	core::values::Transform,
-	drawable::Model,
+	drawable::{Model, ResourceID},
 	items::panel::{CursorInfo, PanelItem},
-	resource::NamespacedResource,
 	spatial::Spatial,
 };
 
 lazy_static! {
-	static ref CURSOR_RESOURCE: NamespacedResource = NamespacedResource::new("flatland", "cursor");
+	static ref CURSOR_RESOURCE: ResourceID = ResourceID::new_namespaced("flatland", "cursor");
 }
 
 pub struct Cursor {
