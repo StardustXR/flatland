@@ -32,6 +32,7 @@ pub struct PanelItemUI {
 	pub item: PanelItem,
 	pub model: Model,
 	cursor: Cursor,
+	mapped: bool,
 	size: Vector2<f32>,
 	title: Text,
 	toplevel_info: Option<ToplevelInfo>,
@@ -72,6 +73,8 @@ impl PanelItemUI {
 			Transform::from_position_rotation_scale([0.0, 0.0, -0.5], Quat::IDENTITY, [1.0; 3]),
 		)
 		.unwrap();
+		item.pointer_set_active(true).unwrap();
+		item.keyboard_set_active(true).unwrap();
 		let field = BoxField::create(&item, Transform::default(), Vector3::from([1.0; 3])).unwrap();
 		let grabbable = Grabbable::new(
 			item.client().unwrap().get_root(),
@@ -144,6 +147,7 @@ impl PanelItemUI {
 			item,
 			model,
 			cursor,
+			mapped: false,
 			size: Vector2::from([0.0; 2]),
 			title,
 			toplevel_info: None,
@@ -213,11 +217,13 @@ impl PanelItemUI {
 	}
 
 	pub fn pointer_delta(&mut self, delta: mint::Vector2<f32>) {
-		let pos = Vector2::from([
-			(self.cursor.pos.x + delta.x).clamp(0.0, self.size.x - 1.0),
-			(self.cursor.pos.y + delta.y).clamp(0.0, self.size.y - 1.0),
-		]);
-		self.set_pointer_pos(pos);
+		if self.mapped {
+			let pos = Vector2::from([
+				(self.cursor.pos.x + delta.x).clamp(0.0, self.size.x - 1.0),
+				(self.cursor.pos.y + delta.y).clamp(0.0, self.size.y - 1.0),
+			]);
+			self.set_pointer_pos(pos);
+		}
 	}
 
 	pub fn set_pointer_pos(&mut self, pos: mint::Vector2<f32>) {
@@ -243,15 +249,23 @@ impl PanelItemUI {
 				.node()
 				.set_position(None, Vector3::from([0.01, size.y * -0.5, 0.0]))
 				.unwrap();
-			self.title
-				.set_text(
-					toplevel_info
-						.title
-						.as_ref()
-						.map(String::as_str)
-						.unwrap_or(""),
-				)
-				.unwrap();
+			let app_name = toplevel_info
+				.app_id
+				.clone()
+				.map(|id| id.split('.').last().unwrap_or_default().to_string());
+			let title = match (toplevel_info.title.clone(), app_name) {
+				(Some(title), Some(app_name)) => {
+					if title == app_name {
+						title
+					} else {
+						format!("{} - {}", title, app_name)
+					}
+				}
+				(Some(title), None) => title.clone(),
+				(None, Some(app_name)) => app_name,
+				(None, None) => String::new(),
+			};
+			self.title.set_text(&title).unwrap();
 			self.title
 				.set_position(None, [size.x / 2.0, (size.y / 2.0) - 0.005, -0.005])
 				.unwrap();

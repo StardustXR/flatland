@@ -13,7 +13,6 @@ use stardust_xr_molecules::{
 
 pub struct Keyboard {
 	pub panel_item: Option<PanelItem>,
-	keys: Vec<u32>,
 }
 impl Keyboard {
 	pub fn new<Fi: Field>(
@@ -22,10 +21,8 @@ impl Keyboard {
 		field: &Fi,
 		panel_item: Option<PanelItem>,
 	) -> Result<HandlerWrapper<PulseReceiver, Keyboard>, NodeError> {
-		PulseReceiver::create(spatial_parent, transform, field, &KEYBOARD_MASK)?.wrap(Keyboard {
-			panel_item,
-			keys: Vec::new(),
-		})
+		PulseReceiver::create(spatial_parent, transform, field, &KEYBOARD_MASK)?
+			.wrap(Keyboard { panel_item })
 	}
 }
 impl PulseReceiverHandler for Keyboard {
@@ -33,19 +30,6 @@ impl PulseReceiverHandler for Keyboard {
 		if let Some(keyboard_event) = KeyboardEvent::from_pulse_data(data) {
 			if let Some(panel_item) = &self.panel_item {
 				let _ = keyboard_event.send_to_panel(panel_item);
-			}
-			for key_down in keyboard_event.keys_down.clone().unwrap_or_default() {
-				if !self.keys.contains(&key_down) {
-					self.keys.push(key_down);
-				}
-			}
-			let keys_up = keyboard_event.keys_down.clone().unwrap_or_default();
-			self.keys.retain_mut(|key| !keys_up.contains(key));
-
-			if self.keys.is_empty() {
-				if let Some(panel_item) = &self.panel_item {
-					let _ = panel_item.keyboard_deactivate();
-				}
 			}
 		}
 	}
