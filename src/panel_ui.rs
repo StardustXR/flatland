@@ -22,6 +22,7 @@ use stardust_xr_molecules::{
 	GrabData, Grabbable, SingleActorAction,
 };
 use std::{f32::consts::PI, sync::Weak};
+use tracing::debug;
 
 lazy_static! {
 	static ref PANEL_RESOURCE: ResourceID = ResourceID::new_namespaced("flatland", "panel");
@@ -117,7 +118,7 @@ impl PanelItemUI {
 		.unwrap();
 
 		let cursor = Cursor::new(&item, &init_data.cursor, &item);
-		cursor.update_info(&None, &item);
+		// cursor.update_info(&None, &item);
 
 		let hover_action =
 			BaseInputAction::new(false, |input_data, _: &()| input_data.distance < 0.05);
@@ -217,6 +218,7 @@ impl PanelItemUI {
 	}
 
 	pub fn pointer_delta(&mut self, delta: mint::Vector2<f32>) {
+		debug!(?delta, mapped = self.mapped, "Pointer delta");
 		if self.mapped {
 			let pos = Vector2::from([
 				(self.cursor.pos.x + delta.x).clamp(0.0, self.size.x - 1.0),
@@ -233,7 +235,8 @@ impl PanelItemUI {
 	}
 
 	pub fn update_toplevel_info(&mut self, toplevel_info: Option<ToplevelInfo>) {
-		dbg!(&toplevel_info);
+		debug!(?toplevel_info, "Update toplevel info");
+		self.mapped = toplevel_info.is_some();
 		if let Some(toplevel_info) = &toplevel_info {
 			self.item.apply_toplevel_material(&self.model, 0).unwrap();
 			self.size =
@@ -283,7 +286,7 @@ impl PanelItemHandler for PanelItemUI {
 	}
 
 	fn recommend_toplevel_state(&mut self, state: RequestedState) {
-		dbg!(&state);
+		debug!(?state, "Recommend toplevel state");
 		let new_states = match state {
 			RequestedState::Maximize(true) => vec![State::Activated, State::Maximized],
 			RequestedState::Fullscreen(true) => vec![State::Activated, State::Fullscreen],

@@ -12,6 +12,7 @@ use stardust_xr_molecules::{
 	mouse::{MouseEvent, MOUSE_MASK},
 };
 use std::sync::Weak;
+use tracing::debug;
 
 use crate::panel_ui::PanelItemUI;
 
@@ -36,11 +37,13 @@ impl Mouse {
 impl PulseReceiverHandler for Mouse {
 	fn data(&mut self, _uid: &str, data: &[u8], _data_reader: flexbuffers::MapReader<&[u8]>) {
 		if let Some(mouse_event) = MouseEvent::from_pulse_data(data) {
+			debug!(?mouse_event, "Mouse event");
 			if let Some(panel_item) = &self.panel_item {
 				let _ = mouse_event.send_to_panel(panel_item);
 			}
 			if let Some(delta) = mouse_event.delta {
 				if let Some(panel_item_ui) = self.panel_item_ui.upgrade() {
+					debug!(?delta, "Pointer delta");
 					panel_item_ui.lock().pointer_delta(delta);
 				}
 			}

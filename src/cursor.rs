@@ -7,6 +7,7 @@ use stardust_xr_molecules::fusion::{
 	items::panel::{CursorInfo, PanelItem},
 	spatial::Spatial,
 };
+use tracing::debug;
 
 lazy_static! {
 	static ref CURSOR_RESOURCE: ResourceID = ResourceID::new_namespaced("flatland", "cursor");
@@ -26,7 +27,7 @@ impl Cursor {
 			&*CURSOR_RESOURCE,
 		)
 		.unwrap();
-		dbg!(info);
+		debug!(?info, "New cursor");
 		if let Some(info) = info {
 			model
 				.set_transform(
@@ -52,7 +53,7 @@ impl Cursor {
 	}
 
 	pub fn update_info(&self, cursor_info: &Option<CursorInfo>, item: &PanelItem) {
-		// dbg!(&cursor_info);
+		debug!(?cursor_info, ?item, "Update cursor info");
 		if let Some(cursor_info) = cursor_info {
 			self.model
 				.set_transform(
@@ -80,6 +81,7 @@ impl Cursor {
 	}
 
 	pub fn update_position(&self, size: Vector2<f32>, position: Vector2<f32>) {
+		debug!(?size, ?position, "Update cursor position");
 		self.root
 			.set_position(
 				None,

@@ -7,6 +7,7 @@ use stardust_xr_molecules::fusion::{
 	HandlerWrapper,
 };
 use std::sync::Arc;
+use tracing_subscriber::EnvFilter;
 
 pub mod cursor;
 pub mod flatland;
@@ -33,6 +34,10 @@ impl LifeCycleHandler for Root {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
+	tracing_subscriber::fmt()
+		.compact()
+		.with_env_filter(EnvFilter::from_env("LOG_LEVEL"))
+		.init();
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
 	client.set_base_prefixes(&[directory_relative_path!("res")]);
 

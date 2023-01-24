@@ -10,6 +10,7 @@ use stardust_xr_molecules::{
 	},
 	keyboard::{KeyboardEvent, KEYBOARD_MASK},
 };
+use tracing::debug;
 
 pub struct Keyboard {
 	pub panel_item: Option<PanelItem>,
@@ -28,6 +29,7 @@ impl Keyboard {
 impl PulseReceiverHandler for Keyboard {
 	fn data(&mut self, _uid: &str, data: &[u8], _data_reader: flexbuffers::MapReader<&[u8]>) {
 		if let Some(keyboard_event) = KeyboardEvent::from_pulse_data(data) {
+			debug!(?keyboard_event, "Keyboard event");
 			if let Some(panel_item) = &self.panel_item {
 				let _ = keyboard_event.send_to_panel(panel_item);
 			}
