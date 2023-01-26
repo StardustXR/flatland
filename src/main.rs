@@ -1,8 +1,8 @@
-use anyhow::Result;
+use color_eyre::eyre::{bail, Result};
 use flatland::Flatland;
 use manifest_dir_macros::directory_relative_path;
 use stardust_xr_molecules::fusion::{
-	client::{Client, LifeCycleHandler, LogicStepInfo},
+	client::{Client, FrameInfo, RootHandler},
 	items::{panel::PanelItem, ItemUI},
 	HandlerWrapper,
 };
@@ -26,8 +26,8 @@ impl Root {
 		Ok(Root { flatland })
 	}
 }
-impl LifeCycleHandler for Root {
-	fn logic_step(&mut self, info: LogicStepInfo) {
+impl RootHandler for Root {
+	fn frame(&mut self, info: FrameInfo) {
 		self.flatland.lock_wrapped().logic_step(info);
 	}
 }
@@ -45,6 +45,6 @@ async fn main() -> Result<()> {
 
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => Ok(()),
-		_ = event_loop => Err(anyhow::anyhow!("Server crashed")),
+		_ = event_loop => bail!("Server crashed"),
 	}
 }

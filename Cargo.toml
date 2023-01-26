@@ -1,6 +1,6 @@
 [package]
 name = "flatland"
-version = "0.7.1"
+version = "0.8.0"
 edition = "2021"
 authors = ["Nova King <technobaboo@proton.me>"]
 description = "Flat panel UI client for Stardust XR like SimulaVR or xrdesktop"
@@ -9,7 +9,6 @@ repository = "https://github.com/StardustXR/flatland/"
 homepage = "https://stardustxr.org"
 
 [dependencies]
-anyhow = "1.0.68"
 glam = { version = "0.22.0", features = ["mint"] }
 mint = "0.5.9"
 manifest-dir-macros = "0.1.16"
@@ -19,12 +18,13 @@ num = "0.4.0"
 xkbcommon = { version = "0.5.0", features = ["x11"] }
 num-traits = "0.2.15"
 input-event-codes = "5.16.8"
-stardust-xr-molecules = "0.16.0"
+stardust-xr-molecules = "0.17.0"
 rustc-hash = "1.1.0"
 flexbuffers = "2.0.0"
 parking_lot = "0.12.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 tracing = "0.1.37"
+color-eyre = "0.6.2"
 
 # [patch.crates-io]
 # stardust-xr-molecules = { path = "../../molecules" }

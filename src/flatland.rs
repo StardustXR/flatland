@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::panel_ui::PanelItemUI;
 use rustc_hash::FxHashMap;
 use stardust_xr_molecules::fusion::{
-	client::LogicStepInfo,
+	client::FrameInfo,
 	items::{
 		panel::{PanelItem, PanelItemInitData},
 		ItemAcceptor, ItemAcceptorHandler, ItemUIHandler,
@@ -22,7 +22,7 @@ impl Flatland {
 		}
 	}
 
-	pub fn logic_step(&mut self, _info: LogicStepInfo) {
+	pub fn logic_step(&mut self, _info: FrameInfo) {
 		for item in self.panel_items.values() {
 			item.lock_wrapped().step();
 		}
