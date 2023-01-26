@@ -1,7 +1,7 @@
 use parking_lot::Mutex;
 use stardust_xr_molecules::{
 	fusion::{
-		core::values::Transform,
+		core::{schemas::flex::flexbuffers, values::Transform},
 		data::{PulseReceiver, PulseReceiverHandler},
 		fields::Field,
 		items::panel::PanelItem,
