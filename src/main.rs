@@ -28,7 +28,7 @@ impl Root {
 }
 impl RootHandler for Root {
 	fn frame(&mut self, info: FrameInfo) {
-		self.flatland.lock_wrapped().logic_step(info);
+		self.flatland.lock_wrapped().frame(info);
 	}
 }
 

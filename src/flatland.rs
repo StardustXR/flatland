@@ -22,9 +22,9 @@ impl Flatland {
 		}
 	}
 
-	pub fn logic_step(&mut self, _info: FrameInfo) {
+	pub fn frame(&mut self, info: FrameInfo) {
 		for item in self.panel_items.values() {
-			item.lock_wrapped().step();
+			item.lock_wrapped().frame(&info);
 		}
 		// let items = self.panel_items.items();
 		// let focus = items

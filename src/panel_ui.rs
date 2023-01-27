@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 use mint::{Vector2, Vector3};
 use stardust_xr_molecules::{
 	fusion::{
+		client::FrameInfo,
 		core::values::Transform,
 		data::PulseReceiver,
 		drawable::{Alignment, Model, ResourceID, Text, TextStyle},
@@ -164,8 +165,8 @@ impl PanelItemUI {
 		ui
 	}
 
-	pub fn step(&mut self) -> f32 {
-		self.grabbable.update();
+	pub fn frame(&mut self, info: &FrameInfo) -> f32 {
+		self.grabbable.update(info);
 		self.input_handler.lock_wrapped().update_actions([
 			self.hover_action.type_erase(),
 			self.click_action.type_erase(),
