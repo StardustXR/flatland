@@ -101,7 +101,7 @@ impl PanelItemUI {
 			Weak::new(),
 		)
 		.unwrap();
-		let model = Model::create(&item, Transform::default(), &*PANEL_RESOURCE).unwrap();
+		let model = Model::create(&item, Transform::default(), &PANEL_RESOURCE).unwrap();
 
 		let title_style = TextStyle {
 			character_height: 0.0075,
@@ -198,16 +198,16 @@ impl PanelItemUI {
 				match &closest_input.input {
 					InputDataType::Pointer(pointer) => {
 						let pos = Vector2::from([
-							(pointer.deepest_point.x + 0.5) * self.size.x as f32,
-							(pointer.deepest_point.y - 0.5) * -self.size.y as f32,
+							(pointer.deepest_point.x + 0.5) * self.size.x,
+							(pointer.deepest_point.y - 0.5) * -self.size.y,
 						]);
 						self.set_pointer_pos(pos);
 					}
 					InputDataType::Hand(_) => (),
 					InputDataType::Tip(tip) => {
 						let pos = Vector2::from([
-							(tip.origin.x + 0.5) * self.size.x as f32,
-							(tip.origin.y - 0.5) * -self.size.y as f32,
+							(tip.origin.x + 0.5) * self.size.x,
+							(tip.origin.y - 0.5) * -self.size.y,
 						]);
 						self.set_pointer_pos(pos);
 					}
@@ -262,14 +262,14 @@ impl PanelItemUI {
 					if title == app_name {
 						title
 					} else {
-						format!("{} - {}", title, app_name)
+						format!("{title} - {app_name}")
 					}
 				}
-				(Some(title), None) => title.clone(),
+				(Some(title), None) => title,
 				(None, Some(app_name)) => app_name,
 				(None, None) => String::new(),
 			};
-			self.title.set_text(&title).unwrap();
+			self.title.set_text(title).unwrap();
 			self.title
 				.set_position(None, [size.x / 2.0, (size.y / 2.0) - 0.005, -0.005])
 				.unwrap();
