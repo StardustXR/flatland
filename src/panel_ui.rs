@@ -82,7 +82,7 @@ impl PanelItemUI {
 			item.client().unwrap().get_root(),
 			Transform::default(),
 			&field,
-			GrabData { max_distance: 0.05 },
+			GrabData::default(),
 		)
 		.unwrap();
 		grabbable
