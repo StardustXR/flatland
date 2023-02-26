@@ -9,7 +9,7 @@ repository = "https://github.com/StardustXR/flatland/"
 homepage = "https://stardustxr.org"
 
 [dependencies]
-glam = { version = "0.22.0", features = ["mint"] }
+glam = { version = "0.23.0", features = ["mint"] }
 mint = "0.5.9"
 manifest-dir-macros = "0.1.16"
 lazy_static = "1.4.0"
@@ -18,13 +18,10 @@ num = "0.4.0"
 xkbcommon = { version = "0.5.0", features = ["x11"] }
 num-traits = "0.2.15"
 input-event-codes = "5.16.8"
-stardust-xr-molecules = "0.18.1"
+stardust-xr-fusion = "0.38.1"
+stardust-xr-molecules = "0.21.1"
 rustc-hash = "1.1.0"
 parking_lot = "0.12.1"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 tracing = "0.1.37"
 color-eyre = "0.6.2"
-
-# [patch.crates-io]
-# stardust-xr-molecules = { path = "../../molecules" }
-# stardust-xr-fusion = { path = "../../core/fusion" }

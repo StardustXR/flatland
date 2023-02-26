@@ -1,7 +1,7 @@
 use color_eyre::eyre::{bail, Result};
 use flatland::Flatland;
 use manifest_dir_macros::directory_relative_path;
-use stardust_xr_molecules::fusion::{
+use stardust_xr_fusion::{
 	client::{Client, FrameInfo, RootHandler},
 	items::{panel::PanelItem, ItemUI},
 	HandlerWrapper,

@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use crate::panel_ui::PanelItemUI;
 use rustc_hash::FxHashMap;
-use stardust_xr_molecules::fusion::{
+use stardust_xr_fusion::{
 	client::FrameInfo,
 	items::{
 		panel::{PanelItem, PanelItemInitData},
-		ItemAcceptor, ItemAcceptorHandler, ItemUIHandler,
+		ItemAcceptorHandler, ItemUIHandler,
 	},
 	node::NodeType,
 	HandlerWrapper,
@@ -51,13 +51,9 @@ impl ItemUIHandler<PanelItem> for Flatland {
 	fn item_created(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
 		self.add_item(uid, item, init_data);
 	}
-	fn item_captured(&mut self, _uid: &str, _acceptor_uid: &str, _item: PanelItem) {}
-	fn item_released(&mut self, _uid: &str, _acceptor_uid: &str, _item: PanelItem) {}
 	fn item_destroyed(&mut self, uid: &str) {
 		self.remove_item(uid);
 	}
-	fn acceptor_created(&mut self, _uid: &str, _acceptor: ItemAcceptor<PanelItem>) {}
-	fn acceptor_destroyed(&mut self, _uid: &str) {}
 }
 impl ItemAcceptorHandler<PanelItem> for Flatland {
 	fn captured(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {

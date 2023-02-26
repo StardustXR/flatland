@@ -2,26 +2,24 @@ use crate::{cursor::Cursor, keyboard::Keyboard, mouse::Mouse};
 use glam::{Quat, Vec3};
 use lazy_static::lazy_static;
 use mint::{Vector2, Vector3};
-use stardust_xr_molecules::{
-	fusion::{
-		client::FrameInfo,
-		core::values::Transform,
-		data::PulseReceiver,
-		drawable::{Alignment, Model, ResourceID, Text, TextStyle},
-		fields::BoxField,
-		input::{
-			action::{BaseInputAction, InputAction, InputActionHandler},
-			InputData, InputDataType, InputHandler,
-		},
-		items::panel::{
-			CursorInfo, PanelItem, PanelItemHandler, PanelItemInitData, RequestedState, State,
-			ToplevelInfo,
-		},
-		node::NodeType,
-		HandlerWrapper,
+use stardust_xr_fusion::{
+	client::FrameInfo,
+	core::values::Transform,
+	data::PulseReceiver,
+	drawable::{Alignment, Model, ResourceID, Text, TextStyle},
+	fields::BoxField,
+	input::{
+		action::{BaseInputAction, InputAction, InputActionHandler},
+		InputData, InputDataType, InputHandler,
 	},
-	GrabData, Grabbable, SingleActorAction,
+	items::panel::{
+		CursorInfo, PanelItem, PanelItemHandler, PanelItemInitData, RequestedState, State,
+		ToplevelInfo,
+	},
+	node::NodeType,
+	HandlerWrapper,
 };
+use stardust_xr_molecules::{GrabData, Grabbable, SingleActorAction};
 use std::{f32::consts::PI, sync::Weak};
 use tracing::debug;
 
@@ -57,7 +55,7 @@ impl PanelItemUI {
 			// Some([1000; 2].into()),
 			None,
 			&[
-				// State::Maximized,
+				State::Maximized,
 				// State::Fullscreen,
 				// State::Resizing,
 				State::Activated,

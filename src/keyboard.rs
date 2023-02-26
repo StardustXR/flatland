@@ -1,15 +1,13 @@
-use stardust_xr_molecules::{
-	fusion::{
-		core::{schemas::flex::flexbuffers, values::Transform},
-		data::{PulseReceiver, PulseReceiverHandler},
-		fields::Field,
-		items::panel::PanelItem,
-		node::NodeError,
-		spatial::Spatial,
-		HandlerWrapper,
-	},
-	keyboard::{KeyboardEvent, KEYBOARD_MASK},
+use stardust_xr_fusion::{
+	core::{schemas::flex::flexbuffers, values::Transform},
+	data::{PulseReceiver, PulseReceiverHandler},
+	fields::Field,
+	items::panel::PanelItem,
+	node::NodeError,
+	spatial::Spatial,
+	HandlerWrapper,
 };
+use stardust_xr_molecules::keyboard::{KeyboardEvent, KEYBOARD_MASK};
 use tracing::debug;
 
 pub struct Keyboard {
@@ -28,11 +26,10 @@ impl Keyboard {
 }
 impl PulseReceiverHandler for Keyboard {
 	fn data(&mut self, _uid: &str, data: &[u8], _data_reader: flexbuffers::MapReader<&[u8]>) {
-		if let Some(keyboard_event) = KeyboardEvent::from_pulse_data(data) {
-			debug!(?keyboard_event, "Keyboard event");
-			if let Some(panel_item) = &self.panel_item {
-				let _ = keyboard_event.send_to_panel(panel_item);
-			}
+		let Some(keyboard_event) = KeyboardEvent::from_pulse_data(data) else {return};
+		debug!(?keyboard_event, "Keyboard event");
+		if let Some(panel_item) = &self.panel_item {
+			let _ = keyboard_event.send_to_panel(panel_item);
 		}
 	}
 }

@@ -1,7 +1,7 @@
 use crate::panel_ui::PPM;
 use lazy_static::lazy_static;
 use mint::{Vector2, Vector3};
-use stardust_xr_molecules::fusion::{
+use stardust_xr_fusion::{
 	core::values::Transform,
 	drawable::{Model, ResourceID},
 	items::panel::{CursorInfo, PanelItem},

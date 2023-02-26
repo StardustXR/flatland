@@ -1,16 +1,14 @@
 use parking_lot::Mutex;
-use stardust_xr_molecules::{
-	fusion::{
-		core::{schemas::flex::flexbuffers, values::Transform},
-		data::{PulseReceiver, PulseReceiverHandler},
-		fields::Field,
-		items::panel::PanelItem,
-		node::NodeError,
-		spatial::Spatial,
-		HandlerWrapper,
-	},
-	mouse::{MouseEvent, MOUSE_MASK},
+use stardust_xr_fusion::{
+	core::{schemas::flex::flexbuffers, values::Transform},
+	data::{PulseReceiver, PulseReceiverHandler},
+	fields::Field,
+	items::panel::PanelItem,
+	node::NodeError,
+	spatial::Spatial,
+	HandlerWrapper,
 };
+use stardust_xr_molecules::mouse::{MouseEvent, MOUSE_MASK};
 use std::sync::Weak;
 use tracing::debug;
 
