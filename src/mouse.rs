@@ -3,7 +3,7 @@ use stardust_xr_fusion::{
 	core::{schemas::flex::flexbuffers, values::Transform},
 	data::{PulseReceiver, PulseReceiverHandler},
 	fields::Field,
-	items::panel::PanelItem,
+	items::panel::{PanelItem, SurfaceID},
 	node::NodeError,
 	spatial::Spatial,
 	HandlerWrapper,
@@ -17,6 +17,7 @@ use crate::panel_ui::PanelItemUI;
 pub struct Mouse {
 	pub panel_item: Option<PanelItem>,
 	pub panel_item_ui: Weak<Mutex<PanelItemUI>>,
+	pub focus: SurfaceID,
 }
 impl Mouse {
 	pub fn new<Fi: Field>(
@@ -25,10 +26,12 @@ impl Mouse {
 		field: &Fi,
 		panel_item: Option<PanelItem>,
 		panel_item_ui: Weak<Mutex<PanelItemUI>>,
+		focus: SurfaceID,
 	) -> Result<HandlerWrapper<PulseReceiver, Mouse>, NodeError> {
 		PulseReceiver::create(spatial_parent, transform, field, &MOUSE_MASK)?.wrap(Mouse {
 			panel_item,
 			panel_item_ui,
+			focus,
 		})
 	}
 }
@@ -37,7 +40,7 @@ impl PulseReceiverHandler for Mouse {
 		if let Some(mouse_event) = MouseEvent::from_pulse_data(data) {
 			debug!(?mouse_event, "Mouse event");
 			if let Some(panel_item) = &self.panel_item {
-				let _ = mouse_event.send_to_panel(panel_item);
+				let _ = mouse_event.send_to_panel(panel_item, &self.focus);
 			}
 			if let Some(delta) = mouse_event.delta {
 				if let Some(panel_item_ui) = self.panel_item_ui.upgrade() {

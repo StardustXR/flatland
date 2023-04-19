@@ -2,7 +2,7 @@ use stardust_xr_fusion::{
 	core::{schemas::flex::flexbuffers, values::Transform},
 	data::{PulseReceiver, PulseReceiverHandler},
 	fields::Field,
-	items::panel::PanelItem,
+	items::panel::{PanelItem, SurfaceID},
 	node::NodeError,
 	spatial::Spatial,
 	HandlerWrapper,
@@ -12,6 +12,7 @@ use tracing::debug;
 
 pub struct Keyboard {
 	pub panel_item: Option<PanelItem>,
+	pub focus: SurfaceID,
 }
 impl Keyboard {
 	pub fn new<Fi: Field>(
@@ -19,9 +20,10 @@ impl Keyboard {
 		transform: Transform,
 		field: &Fi,
 		panel_item: Option<PanelItem>,
+		focus: SurfaceID,
 	) -> Result<HandlerWrapper<PulseReceiver, Keyboard>, NodeError> {
 		PulseReceiver::create(spatial_parent, transform, field, &KEYBOARD_MASK)?
-			.wrap(Keyboard { panel_item })
+			.wrap(Keyboard { panel_item, focus })
 	}
 }
 impl PulseReceiverHandler for Keyboard {
@@ -29,7 +31,7 @@ impl PulseReceiverHandler for Keyboard {
 		let Some(keyboard_event) = KeyboardEvent::from_pulse_data(data) else {return};
 		debug!(?keyboard_event, "Keyboard event");
 		if let Some(panel_item) = &self.panel_item {
-			let _ = keyboard_event.send_to_panel(panel_item);
+			let _ = keyboard_event.send_to_panel(panel_item, &self.focus);
 		}
 	}
 }

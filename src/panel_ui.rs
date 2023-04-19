@@ -1,5 +1,5 @@
 use crate::{cursor::Cursor, keyboard::Keyboard, mouse::Mouse};
-use glam::{Quat, Vec3};
+use glam::{Quat, Vec3Swizzles};
 use lazy_static::lazy_static;
 use mint::{Vector2, Vector3};
 use stardust_xr_fusion::{
@@ -7,24 +7,20 @@ use stardust_xr_fusion::{
 	core::values::Transform,
 	data::PulseReceiver,
 	drawable::{Alignment, Model, ResourceID, Text, TextStyle},
-	fields::BoxField,
-	input::{
-		action::{BaseInputAction, InputAction, InputActionHandler},
-		InputData, InputDataType, InputHandler,
-	},
+	input::InputDataType,
 	items::panel::{
-		CursorInfo, PanelItem, PanelItemHandler, PanelItemInitData, RequestedState, State,
-		ToplevelInfo,
+		CursorInfo, PanelItem, PanelItemHandler, PanelItemInitData, PopupInfo, PositionerData,
+		RequestedState, State, SurfaceID, ToplevelInfo,
 	},
 	node::NodeType,
 	HandlerWrapper,
 };
-use stardust_xr_molecules::{GrabData, Grabbable, SingleActorAction};
+use stardust_xr_molecules::{touch_plane::TouchPlane, GrabData, Grabbable};
 use std::{f32::consts::PI, sync::Weak};
 use tracing::debug;
 
 lazy_static! {
-	static ref PANEL_RESOURCE: ResourceID = ResourceID::new_namespaced("flatland", "panel");
+	pub static ref PANEL_RESOURCE: ResourceID = ResourceID::new_namespaced("flatland", "panel");
 }
 
 pub const PPM: f32 = 1000.0;
@@ -36,13 +32,10 @@ pub struct PanelItemUI {
 	size: Vector2<f32>,
 	title: Text,
 	toplevel_info: Option<ToplevelInfo>,
-	field: BoxField,
 	keyboard: HandlerWrapper<PulseReceiver, Keyboard>,
 	pub mouse: HandlerWrapper<PulseReceiver, Mouse>,
 	grabbable: Grabbable,
-	hover_action: BaseInputAction<()>,
-	click_action: SingleActorAction<()>,
-	input_handler: HandlerWrapper<InputHandler, InputActionHandler<()>>,
+	touch_plane: TouchPlane,
 }
 impl PanelItemUI {
 	pub fn new(init_data: PanelItemInitData, item: PanelItem) -> Self {
@@ -73,13 +66,18 @@ impl PanelItemUI {
 			Transform::from_position_rotation_scale([0.0, 0.0, -0.5], Quat::IDENTITY, [1.0; 3]),
 		)
 		.unwrap();
-		item.pointer_set_active(true).unwrap();
-		item.keyboard_set_active(true).unwrap();
-		let field = BoxField::create(&item, Transform::default(), Vector3::from([1.0; 3])).unwrap();
+
+		let touch_plane = TouchPlane::new(
+			&item,
+			Transform::from_position([0.0, 0.0, 0.005]),
+			[0.0; 2],
+			0.01,
+		)
+		.unwrap();
 		let grabbable = Grabbable::new(
 			item.client().unwrap().get_root(),
 			Transform::default(),
-			&field,
+			&touch_plane.field(),
 			GrabData::default(),
 		)
 		.unwrap();
@@ -89,14 +87,21 @@ impl PanelItemUI {
 			.unwrap();
 		item.set_spatial_parent_in_place(grabbable.content_parent())
 			.unwrap();
-		let keyboard =
-			Keyboard::new(&item, Transform::default(), &field, Some(item.alias())).unwrap();
+		let keyboard = Keyboard::new(
+			&item,
+			Transform::default(),
+			&touch_plane.field(),
+			Some(item.alias()),
+			SurfaceID::Toplevel,
+		)
+		.unwrap();
 		let mouse = Mouse::new(
 			&item,
 			Transform::default(),
-			&field,
+			&touch_plane.field(),
 			Some(item.alias()),
 			Weak::new(),
+			SurfaceID::Toplevel,
 		)
 		.unwrap();
 		let model = Model::create(&item, Transform::default(), &PANEL_RESOURCE).unwrap();
@@ -117,31 +122,7 @@ impl PanelItemUI {
 		.unwrap();
 
 		let cursor = Cursor::new(&item, &init_data.cursor, &item);
-		// cursor.update_info(&None, &item);
-
-		let hover_action =
-			BaseInputAction::new(false, |input_data, _: &()| input_data.distance < 0.05);
-		let click_action = SingleActorAction::new(
-			true,
-			|input_data: &InputData, _| {
-				input_data
-					.datamap
-					.with_data(|data| match &input_data.input {
-						InputDataType::Hand(h) => {
-							Vec3::from(h.thumb.tip.position)
-								.distance(Vec3::from(h.index.tip.position))
-								< 0.02
-						}
-						_ => data.idx("select").as_f32() > 0.90,
-					})
-			},
-			false,
-		);
-
-		let input_handler = InputHandler::create(&model, Transform::default(), &field)
-			.unwrap()
-			.wrap(InputActionHandler::new(()))
-			.unwrap();
+		cursor.update_info(&None, &item);
 
 		let mut ui = PanelItemUI {
 			item,
@@ -151,68 +132,50 @@ impl PanelItemUI {
 			size: Vector2::from([0.0; 2]),
 			title,
 			toplevel_info: None,
-			field,
 			keyboard,
 			mouse,
 			grabbable,
-			hover_action,
-			click_action,
-			input_handler,
+			touch_plane,
 		};
+		if init_data.toplevel.is_some() {
+			ui.item
+				.apply_surface_material(&SurfaceID::Toplevel, &ui.model, 0)
+				.unwrap();
+		}
 		ui.update_toplevel_info(init_data.toplevel);
 		ui
 	}
 
 	pub fn frame(&mut self, info: &FrameInfo) -> f32 {
 		self.grabbable.update(info);
-		self.input_handler.lock_wrapped().update_actions([
-			self.hover_action.type_erase(),
-			self.click_action.type_erase(),
-		]);
-		self.click_action.update(&mut self.hover_action);
+		self.touch_plane.update();
 
-		if self.click_action.actor_started()
-			|| self.click_action.actor_changed()
-			|| self.click_action.actor_stopped()
+		if let Some(closest_hover) = self
+			.touch_plane
+			.hovering_inputs()
+			.into_iter()
+			.reduce(|a, b| if a.distance > b.distance { b } else { a })
 		{
+			let interact_point = match &closest_hover.input {
+				InputDataType::Pointer(p) => p.deepest_point,
+				InputDataType::Hand(h) => h.index.tip.position,
+				InputDataType::Tip(t) => t.origin,
+			};
+			self.set_pointer_pos(Vector2 {
+				x: self.size.x * 0.5 + (interact_point.x * PPM),
+				y: self.size.y * 0.5 - (interact_point.y * PPM),
+			})
+		}
+
+		if self.touch_plane.touch_started() {
 			self.item
-				.pointer_button(
-					input_event_codes::BTN_LEFT!(),
-					self.click_action.actor_acting(),
-				)
+				.pointer_button(&SurfaceID::Toplevel, input_event_codes::BTN_LEFT!(), true)
+				.unwrap();
+		} else if self.touch_plane.touch_stopped() {
+			self.item
+				.pointer_button(&SurfaceID::Toplevel, input_event_codes::BTN_LEFT!(), false)
 				.unwrap();
 		}
-
-		let closest_input = self
-			.hover_action
-			.actively_acting
-			.iter()
-			.reduce(|a, b| if a.distance > b.distance { b } else { a })
-			.cloned();
-
-		// Closest object distance calculation for focus
-		if let Some(closest_input) = closest_input {
-			if closest_input.distance < 0.01 {
-				match &closest_input.input {
-					InputDataType::Pointer(pointer) => {
-						let pos = Vector2::from([
-							(pointer.deepest_point.x + 0.5) * self.size.x,
-							(pointer.deepest_point.y - 0.5) * -self.size.y,
-						]);
-						self.set_pointer_pos(pos);
-					}
-					InputDataType::Hand(_) => (),
-					InputDataType::Tip(tip) => {
-						let pos = Vector2::from([
-							(tip.origin.x + 0.5) * self.size.x,
-							(tip.origin.y - 0.5) * -self.size.y,
-						]);
-						self.set_pointer_pos(pos);
-					}
-				}
-			}
-		}
-
 		self.grabbable.min_distance()
 	}
 
@@ -229,7 +192,7 @@ impl PanelItemUI {
 
 	pub fn set_pointer_pos(&mut self, pos: mint::Vector2<f32>) {
 		self.cursor.pos = pos;
-		let _ = self.item.pointer_motion(pos);
+		let _ = self.item.pointer_motion(&SurfaceID::Toplevel, pos);
 		self.cursor.update_position(self.size, pos);
 	}
 
@@ -237,12 +200,12 @@ impl PanelItemUI {
 		debug!(?toplevel_info, "Update toplevel info");
 		self.mapped = toplevel_info.is_some();
 		if let Some(toplevel_info) = &toplevel_info {
-			self.item.apply_toplevel_material(&self.model, 0).unwrap();
 			self.size =
 				Vector2::from_slice(&[toplevel_info.size.x as f32, toplevel_info.size.y as f32]);
 			let size = glam::vec3(self.size.x / PPM, self.size.y / PPM, 0.01);
 			self.model.set_scale(None, size).unwrap();
-			self.field.set_size(size).unwrap();
+			self.touch_plane.set_size(size.xy()).unwrap();
+			// self.touch_plane.set_debug(Some(DebugSettings::default()));
 			self.keyboard
 				.node()
 				.set_position(None, Vector3::from([-0.01, size.y * -0.5, 0.0]))
@@ -277,6 +240,11 @@ impl PanelItemUI {
 }
 impl PanelItemHandler for PanelItemUI {
 	fn commit_toplevel(&mut self, state: Option<ToplevelInfo>) {
+		if self.toplevel_info.is_none() && state.is_some() {
+			self.item
+				.apply_surface_material(&SurfaceID::Toplevel, &self.model, 0)
+				.unwrap();
+		}
 		self.update_toplevel_info(state);
 	}
 
@@ -297,6 +265,24 @@ impl PanelItemHandler for PanelItemUI {
 	}
 
 	fn show_window_menu(&mut self) {}
+
+	fn new_popup(&mut self, uid: &str, data: Option<PopupInfo>) {
+		dbg!(uid);
+		dbg!(data);
+		self.item
+			.apply_surface_material(&SurfaceID::Popup(uid.to_string()), &self.model, 0)
+			.unwrap();
+	}
+	fn reposition_popup(&mut self, uid: &str, data: Option<PositionerData>) {
+		dbg!(uid);
+		dbg!(data);
+	}
+	fn drop_popup(&mut self, uid: &str) {
+		dbg!(uid);
+		self.item
+			.apply_surface_material(&SurfaceID::Toplevel, &self.model, 0)
+			.unwrap();
+	}
 }
 impl Drop for PanelItemUI {
 	fn drop(&mut self) {

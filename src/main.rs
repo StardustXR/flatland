@@ -15,6 +15,7 @@ pub mod panel_ui;
 // pub mod resize_handle;
 pub mod keyboard;
 pub mod mouse;
+// pub mod popup;
 pub mod util;
 
 struct Root {
