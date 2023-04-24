@@ -297,7 +297,7 @@ name = "flatland"
 version = "0.8.0"
 dependencies = [
  "color-eyre",
- "glam 0.23.0",
+ "glam 0.24.0",
  "input-event-codes",
  "lazy_static",
  "manifest-dir-macros",
@@ -351,9 +351,9 @@ dependencies = [
 
 [[package]]
 name = "glam"
-version = "0.23.0"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e4afd9ad95555081e109fe1d21f2a30c691b5f0919c67dfa690a2e1eb6bd51c"
+checksum = "ad83ab008a4fa3b31dfa713dd41b5a9bdea1e94e4cf1e2fc274ffbd49b0271d3"
 dependencies = [
  "mint",
 ]
@@ -932,7 +932,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr"
-version = "0.11.1"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cda517a2d26eb8a11cfb8d3e1f9230da81af2ca39f0b2fad169d07f16495b516"
 dependencies = [
  "chrono",
  "cluFlock",
@@ -950,7 +952,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-fusion"
-version = "0.38.1"
+version = "0.39.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "792ac1bb09a2c941fc1b8b1e45da8d549729aa8e0310fd416ca3ddab4a0d589c"
 dependencies = [
  "color-eyre",
  "color-rs",
@@ -971,10 +975,12 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-molecules"
-version = "0.23.2"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "185291b7cf2368a9ef0deed9e5ebf2c49954e862d2747aeee96cc08a57796c1c"
 dependencies = [
  "color-rs",
- "glam 0.23.0",
+ "glam 0.24.0",
  "lazy_static",
  "map-range",
  "mint",
@@ -988,7 +994,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-schemas"
-version = "1.4.1"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bebfbddbcba7db7ce8180bb373c9ad5a7d58ff60ee213ca07562820d7e8aab0"
 dependencies = [
  "flatbuffers",
  "flexbuffers",
