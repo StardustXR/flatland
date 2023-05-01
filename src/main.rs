@@ -40,18 +40,7 @@ async fn main() -> Result<()> {
 		.with_env_filter(EnvFilter::from_env("LOG_LEVEL"))
 		.init();
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
-
-	let resources: Option<&'static str> = option_env!("STARDUST_RES_DIR");
-	let paths: Vec<&'static str> =
-		resources
-			.map(|paths| paths.split(":").collect())
-			.unwrap_or(vec![
-				directory_relative_path!("res"),
-				"/usr/local/share",
-				"/usr/share",
-			]);
-
-	client.set_base_prefixes(&paths);
+	client.set_base_prefixes(&[directory_relative_path!("res")]);
 
 	let _wrapped_root = client.wrap_root(Root::new(client.clone())?);
 
