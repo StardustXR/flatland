@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::panel_ui::PanelItemUI;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
@@ -37,10 +35,10 @@ impl Flatland {
 	}
 
 	fn add_item(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
-		let ui = PanelItemUI::new(init_data, item.alias());
+		let ui = PanelItemUI::create(init_data, item.alias());
 		let handler = item.wrap(ui).unwrap();
-		handler.lock_wrapped().mouse.lock_wrapped().panel_item_ui =
-			Arc::downgrade(handler.wrapped());
+		// handler.lock_wrapped().mouse.lock_wrapped().panel_item_ui =
+		// 	Arc::downgrade(handler.wrapped());
 		self.panel_items.insert(uid.to_string(), handler);
 	}
 	fn remove_item(&mut self, uid: &str) {

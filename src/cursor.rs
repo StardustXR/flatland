@@ -1,13 +1,14 @@
-use crate::panel_ui::PPM;
 use lazy_static::lazy_static;
 use mint::{Vector2, Vector3};
 use stardust_xr_fusion::{
 	core::values::Transform,
 	drawable::{Model, ResourceID},
-	items::panel::{CursorInfo, PanelItem},
+	items::panel::{CursorInfo, PanelItem, SurfaceID},
 	spatial::Spatial,
 };
 use tracing::debug;
+
+use crate::surface::PPM;
 
 lazy_static! {
 	static ref CURSOR_RESOURCE: ResourceID = ResourceID::new_namespaced("flatland", "cursor");
@@ -42,7 +43,8 @@ impl Cursor {
 					),
 				)
 				.unwrap();
-			item.apply_cursor_material(&model, 0).unwrap();
+			item.apply_surface_material(&SurfaceID::Cursor, &model, 0)
+				.unwrap();
 		}
 
 		Cursor {
@@ -72,7 +74,8 @@ impl Cursor {
 					),
 				)
 				.unwrap();
-			item.apply_cursor_material(&self.model, 0).unwrap();
+			item.apply_surface_material(&SurfaceID::Cursor, &self.model, 0)
+				.unwrap();
 		} else {
 			self.model
 				.set_scale(None, glam::vec3(0.0, 0.0, 1.0))
