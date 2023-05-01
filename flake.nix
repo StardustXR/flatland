@@ -23,13 +23,14 @@
           }).buildRustPackage rec {
             pname = name;
             src = ./.;
-            cargoDepsName = pname;
 
             # ---- START package specific settings ----
             version = "20230314";
-            cargoSha256 = "sha256-SHgPT1jxs7oSvFswda00wL8UsX/KbtROchO2vpHdB3Y=";
+            cargoLock = {
+              lockFile = ./Cargo.lock;
+            };
 
-            STARDUST_RES_DIR = ./res;
+            STARDUST_RES_PREFIXES = ./res;
 
             buildInputs = with pkgs; [
               libxkbcommon xorg.libxcb
