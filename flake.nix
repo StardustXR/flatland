@@ -25,7 +25,7 @@
             src = ./.;
 
             # ---- START package specific settings ----
-            version = "20230314";
+            version = "0.8.0";
             cargoLock = {
               lockFile = ./Cargo.lock;
             };
