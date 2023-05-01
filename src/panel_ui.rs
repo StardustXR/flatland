@@ -14,7 +14,6 @@ use stardust_xr_fusion::{
 pub struct PanelItemUI {
 	pub item: PanelItem,
 	// cursor: Cursor,
-	// keyboard: HandlerWrapper<PulseReceiver, Keyboard>,
 	// mouse: HandlerWrapper<PulseReceiver, Mouse>,
 	toplevel: Option<Toplevel>,
 }
@@ -47,15 +46,6 @@ impl PanelItemUI {
 			Transform::from_position_rotation_scale([0.0, 0.0, -0.5], Quat::IDENTITY, [1.0; 3]),
 		)
 		.unwrap();
-
-		// let keyboard = Keyboard::new(
-		// 	&item,
-		// 	Transform::default(),
-		// 	&touch_plane.field(),
-		// 	Some(item.alias()),
-		// 	SurfaceID::Toplevel,
-		// )
-		// .unwrap();
 		// let mouse = Mouse::new(
 		// 	&item,
 		// 	Transform::default(),
@@ -73,6 +63,7 @@ impl PanelItemUI {
 			item,
 			toplevel: None,
 		};
+
 		ui.update_toplevel_info(init_data.toplevel);
 		ui
 	}
@@ -126,10 +117,6 @@ impl PanelItemUI {
 	// 		self.touch_plane.x_range = 0.0..self.size.x;
 	// 		self.touch_plane.y_range = 0.0..self.size.y;
 	// 		// self.touch_plane.set_debug(Some(DebugSettings::default()));
-	// 		self.keyboard
-	// 			.node()
-	// 			.set_position(None, Vector3::from([-0.01, size.y * -0.5, 0.0]))
-	// 			.unwrap();
 	// 		self.mouse
 	// 			.node()
 	// 			.set_position(None, Vector3::from([0.01, size.y * -0.5, 0.0]))

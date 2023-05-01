@@ -3,13 +3,17 @@ use lazy_static::lazy_static;
 use mint::Vector2;
 use stardust_xr_fusion::{
 	core::values::Transform,
+	data::PulseReceiver,
 	drawable::{Model, ResourceID},
 	fields::UnknownField,
 	items::panel::{PanelItem, PositionerData, SurfaceID},
 	node::{NodeError, NodeType},
 	spatial::Spatial,
+	HandlerWrapper,
 };
 use stardust_xr_molecules::touch_plane::TouchPlane;
+
+use crate::keyboard::Keyboard;
 
 lazy_static! {
 	pub static ref PANEL_RESOURCE: ResourceID = ResourceID::new_namespaced("flatland", "panel");
@@ -24,6 +28,7 @@ pub struct Surface {
 	id: SurfaceID,
 	model: Model,
 	touch_plane: TouchPlane,
+	keyboard: HandlerWrapper<PulseReceiver, Keyboard>,
 	physical_size: Vec2,
 }
 impl Surface {
@@ -53,12 +58,21 @@ impl Surface {
 		)?;
 		// touch_plane.set_debug(Some(DebugSettings::default()));
 
+		let keyboard = Keyboard::new(
+			&item,
+			Transform::default(),
+			&touch_plane.field(),
+			Some(item.alias()),
+			SurfaceID::Toplevel,
+		)?;
+
 		Ok(Surface {
 			root,
 			item,
 			id,
 			model,
 			touch_plane,
+			keyboard,
 			physical_size,
 		})
 	}
@@ -116,6 +130,10 @@ impl Surface {
 		self.touch_plane.x_range = 0.0..px_size.x as f32;
 		self.touch_plane.y_range = 0.0..px_size.y as f32;
 		self.physical_size = physical_size;
+		self.keyboard
+			.node()
+			.set_position(None, [-0.01, physical_size.y * -0.5, 0.0])
+			.unwrap();
 		// self.touch_plane.set_debug(Some(DebugSettings::default()));
 
 		Ok(())
