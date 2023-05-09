@@ -20,7 +20,7 @@ lazy_static! {
 }
 
 // Pixels per meter, screen density
-pub const PPM: f32 = 1000.0;
+pub const PPM: f32 = 3000.0;
 pub const THICKNESS: f32 = 0.01;
 pub struct Surface {
 	root: Spatial,
