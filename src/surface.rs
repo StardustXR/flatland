@@ -47,7 +47,7 @@ impl Surface {
 			Transform::from_position_scale(panel_size * vec3(0.5, -0.5, -0.5), panel_size),
 			&PANEL_RESOURCE,
 		)?;
-		item.apply_surface_material(&id, &model, 0)?;
+		item.apply_surface_material(&id, &model.model_part("Panel")?)?;
 		let touch_plane = TouchPlane::create(
 			&root,
 			Transform::from_position(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0),

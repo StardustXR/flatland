@@ -43,7 +43,7 @@ impl Cursor {
 					),
 				)
 				.unwrap();
-			item.apply_surface_material(&SurfaceID::Cursor, &model, 0)
+			item.apply_surface_material(&SurfaceID::Cursor, &model.model_part("Plane").unwrap())
 				.unwrap();
 		}
 
@@ -74,8 +74,11 @@ impl Cursor {
 					),
 				)
 				.unwrap();
-			item.apply_surface_material(&SurfaceID::Cursor, &self.model, 0)
-				.unwrap();
+			item.apply_surface_material(
+				&SurfaceID::Cursor,
+				&self.model.model_part("Plane").unwrap(),
+			)
+			.unwrap();
 		} else {
 			self.model
 				.set_scale(None, glam::vec3(0.0, 0.0, 1.0))
