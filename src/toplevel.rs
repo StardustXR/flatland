@@ -1,22 +1,23 @@
-use crate::surface::Surface;
-use glam::vec3;
+use std::f32::consts::PI;
+
+use crate::surface::{Surface, THICKNESS};
+use glam::{vec3, Quat};
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	client::FrameInfo,
 	core::values::Transform,
 	items::panel::{
-		PanelItem, PopupInfo, PositionerData, RequestedState, State, SurfaceID, ToplevelInfo,
+		PanelItem, PopupInfo, PositionerData, SurfaceID, ToplevelInfo,
 	},
-	node::{NodeError, NodeType},
+	node::{NodeError, NodeType}, drawable::{TextStyle, Alignment, Text},
 };
 use stardust_xr_molecules::{GrabData, Grabbable};
-use tracing::debug;
 
 pub struct Toplevel {
-	item: PanelItem,
+	_item: PanelItem,
 	surface: Surface,
 	grabbable: Grabbable,
-	// title: Text,
+	title: Text,
 	popups: FxHashMap<SurfaceID, Surface>,
 }
 impl Toplevel {
@@ -40,31 +41,31 @@ impl Toplevel {
 		)?;
 		item.set_spatial_parent_in_place(grabbable.content_parent())?;
 
-		// let title_style = TextStyle {
-		// 	character_height: THICKNESS * 1.5,
-		// 	text_align: Alignment::XLeft | Alignment::YCenter,
-		// 	..Default::default()
-		// };
-		// let title = Text::create(
-		// 	&item,
-		// 	Transform::from_position_rotation(
-		// 		vec3(
-		// 			surface.physical_size().x,
-		// 			surface.physical_size().y,
-		// 			THICKNESS,
-		// 		) * 0.5,
-		// 		Quat::from_rotation_x(-PI * 0.5) * Quat::from_rotation_y(-PI * 0.5),
-		// 	),
-		// 	"",
-		// 	title_style,
-		// )
-		// .unwrap();
+		let title_style = TextStyle {
+			character_height: THICKNESS, // * 1.5,
+			text_align: Alignment::XLeft | Alignment::YBottom,
+			..Default::default()
+		};
+		let title = Text::create(
+			&item,
+			Transform::from_position_rotation(
+				[
+					surface.physical_size().x * 0.5,
+					surface.physical_size().y * 0.5,
+					-THICKNESS,
+				],
+				Quat::from_rotation_x(-PI * 0.5) * Quat::from_rotation_y(-PI * 0.5),
+			),
+			&info.title.unwrap_or_default(),
+			title_style,
+		)
+		.unwrap();
 
 		Ok(Toplevel {
-			item,
+			_item: item,
 			surface,
 			grabbable,
-			// title,
+			title,
 			popups: FxHashMap::default(),
 		})
 	}
@@ -77,51 +78,24 @@ impl Toplevel {
 				popup.update();
 			}
 		}
+		self.grabbable.cancel_linear_velocity();
+		self.grabbable.cancel_angular_velocity();
 	}
 
 	pub fn update_info(&mut self, info: ToplevelInfo) {
 		self.surface.resize(info.size).unwrap();
-		// self.title
-		// 	.set_position(
-		// 		None,
-		// 		vec3(
-		// 			self.surface.physical_size().x,
-		// 			self.surface.physical_size().y,
-		// 			THICKNESS,
-		// 		) * 0.5,
-		// 	)
-		// 	.unwrap();
-	}
-
-	pub fn recommend_state(&self, state: RequestedState) {
-		debug!(?state, "Recommend toplevel state");
-		let new_states = match state {
-			RequestedState::Maximize(true) => vec![
-				State::Activated,
-				State::Maximized,
-				State::TiledLeft,
-				State::TiledRight,
-				State::TiledTop,
-				State::TiledBottom,
-			],
-			RequestedState::Fullscreen(true) => vec![
-				State::Activated,
-				State::Fullscreen,
-				State::TiledLeft,
-				State::TiledRight,
-				State::TiledTop,
-				State::TiledBottom,
-			],
-			_ => vec![
-				State::Activated,
-				State::TiledLeft,
-				State::TiledRight,
-				State::TiledTop,
-				State::TiledBottom,
-			],
-		};
-		self.item
-			.configure_toplevel(None, &new_states, None)
+		if let Some(title) = &info.title {
+			self.title.set_text(title).unwrap();
+		}
+		self.title
+			.set_position(
+				None,
+				[
+					self.surface.physical_size().x * 0.5,
+					self.surface.physical_size().y * 0.5,
+					-THICKNESS,
+				],
+			)
 			.unwrap();
 	}
 

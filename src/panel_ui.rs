@@ -5,8 +5,7 @@ use stardust_xr_fusion::{
 	client::FrameInfo,
 	core::values::Transform,
 	items::panel::{
-		CursorInfo, PanelItem, PanelItemHandler, PanelItemInitData, PopupInfo, PositionerData,
-		RequestedState, State, SurfaceID, ToplevelInfo,
+		CursorInfo, PanelItem, PanelItemHandler, PanelItemInitData, PopupInfo, PositionerData, State, SurfaceID, ToplevelInfo,
 	},
 	node::NodeType,
 };
@@ -19,28 +18,21 @@ pub struct PanelItemUI {
 }
 impl PanelItemUI {
 	pub fn create(init_data: PanelItemInitData, item: PanelItem) -> Self {
-		// println!("Panel item created with {:#?}", init_data);
-		// if init_data.size.x < 200 || init_data.size.y < 200 {
-		// 	item.resize(1600, 900).unwrap();
-		// }
+		println!("Panel item created with {:#?}", init_data);
 
-		item.configure_toplevel(
-			// Some([1000; 2].into()),
-			None,
-			&[
-				State::Maximized,
-				// State::Fullscreen,
-				// State::Resizing,
-				State::Activated,
-				State::TiledLeft,
-				State::TiledRight,
-				State::TiledTop,
-				State::TiledBottom,
-			],
-			None,
-		)
-		.unwrap();
-		item.set_toplevel_capabilities(&[]).unwrap();
+		// item.configure_toplevel(
+		// 	None,
+		// 	&[
+		// 		State::Activated,
+		// 		State::TiledLeft,
+		// 		State::TiledRight,
+		// 		State::TiledTop,
+		// 		State::TiledBottom,
+		// 	],
+		// 	None,
+		// )
+		// .unwrap();
+		// item.set_toplevel_capabilities(&[]).unwrap();
 		item.set_transform(
 			Some(item.client().unwrap().get_hmd()),
 			Transform::from_position_rotation_scale([0.0, 0.0, -0.5], Quat::IDENTITY, [1.0; 3]),
@@ -153,13 +145,6 @@ impl PanelItemHandler for PanelItemUI {
 	fn set_cursor(&mut self, _info: Option<CursorInfo>) {
 		// self.cursor.update_info(&info, &self.item);
 	}
-
-	fn recommend_toplevel_state(&mut self, state: RequestedState) {
-		let Some(toplevel) = &self.toplevel else {return};
-		toplevel.recommend_state(state);
-	}
-
-	fn show_window_menu(&mut self) {}
 
 	fn new_popup(&mut self, uid: &str, data: Option<PopupInfo>) {
 		let Some(info) = data else {return};

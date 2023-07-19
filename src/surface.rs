@@ -11,7 +11,7 @@ use stardust_xr_fusion::{
 	spatial::Spatial,
 	HandlerWrapper,
 };
-use stardust_xr_molecules::touch_plane::TouchPlane;
+use stardust_xr_molecules::{touch_plane::TouchPlane, VisualDebug, DebugSettings};
 
 use crate::keyboard::Keyboard;
 
@@ -48,7 +48,7 @@ impl Surface {
 			&PANEL_RESOURCE,
 		)?;
 		item.apply_surface_material(&id, &model.model_part("Panel")?)?;
-		let touch_plane = TouchPlane::create(
+		let mut touch_plane = TouchPlane::create(
 			&root,
 			Transform::from_position(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0),
 			physical_size,
@@ -56,7 +56,7 @@ impl Surface {
 			0.0..px_size.x as f32,
 			0.0..px_size.y as f32,
 		)?;
-		// touch_plane.set_debug(Some(DebugSettings::default()));
+		touch_plane.set_debug(Some(DebugSettings::default()));
 
 		let keyboard = Keyboard::new(
 			&item,
