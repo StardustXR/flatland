@@ -5,7 +5,8 @@ use stardust_xr_fusion::{
 	client::FrameInfo,
 	core::values::Transform,
 	items::panel::{
-		CursorInfo, PanelItem, PanelItemHandler, PanelItemInitData, PopupInfo, PositionerData, State, SurfaceID, ToplevelInfo,
+		CursorInfo, PanelItem, PanelItemHandler, PanelItemInitData, PopupInfo, PositionerData,
+		SurfaceID, ToplevelInfo,
 	},
 	node::NodeType,
 };
@@ -20,19 +21,6 @@ impl PanelItemUI {
 	pub fn create(init_data: PanelItemInitData, item: PanelItem) -> Self {
 		println!("Panel item created with {:#?}", init_data);
 
-		// item.configure_toplevel(
-		// 	None,
-		// 	&[
-		// 		State::Activated,
-		// 		State::TiledLeft,
-		// 		State::TiledRight,
-		// 		State::TiledTop,
-		// 		State::TiledBottom,
-		// 	],
-		// 	None,
-		// )
-		// .unwrap();
-		// item.set_toplevel_capabilities(&[]).unwrap();
 		item.set_transform(
 			Some(item.client().unwrap().get_hmd()),
 			Transform::from_position_rotation_scale([0.0, 0.0, -0.5], Quat::IDENTITY, [1.0; 3]),

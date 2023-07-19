@@ -11,7 +11,7 @@ use stardust_xr_fusion::{
 	spatial::Spatial,
 	HandlerWrapper,
 };
-use stardust_xr_molecules::{touch_plane::TouchPlane, VisualDebug, DebugSettings};
+use stardust_xr_molecules::{touch_plane::TouchPlane, DebugSettings, VisualDebug};
 
 use crate::keyboard::Keyboard;
 

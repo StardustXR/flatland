@@ -6,10 +6,9 @@ use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	client::FrameInfo,
 	core::values::Transform,
-	items::panel::{
-		PanelItem, PopupInfo, PositionerData, SurfaceID, ToplevelInfo,
-	},
-	node::{NodeError, NodeType}, drawable::{TextStyle, Alignment, Text},
+	drawable::{Alignment, Text, TextStyle},
+	items::panel::{PanelItem, PopupInfo, PositionerData, SurfaceID, ToplevelInfo},
+	node::{NodeError, NodeType},
 };
 use stardust_xr_molecules::{GrabData, Grabbable};
 
@@ -84,9 +83,24 @@ impl Toplevel {
 
 	pub fn update_info(&mut self, info: ToplevelInfo) {
 		self.surface.resize(info.size).unwrap();
-		if let Some(title) = &info.title {
-			self.title.set_text(title).unwrap();
-		}
+		let app_name = info
+			.app_id
+			.clone()
+			.map(|id| id.split('.').last().unwrap_or_default().to_string());
+		let title = match (info.title.clone(), app_name) {
+			(Some(title), Some(app_name)) => {
+				if title == app_name {
+					title
+				} else {
+					format!("{title} - {app_name}")
+				}
+			}
+			(Some(title), None) => title,
+			(None, Some(app_name)) => app_name,
+			(None, None) => String::new(),
+		};
+
+		self.title.set_text(title).unwrap();
 		self.title
 			.set_position(
 				None,
