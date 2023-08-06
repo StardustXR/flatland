@@ -11,7 +11,6 @@ use tracing_subscriber::EnvFilter;
 
 pub mod cursor;
 pub mod flatland;
-pub mod keyboard;
 pub mod mouse;
 pub mod panel_ui;
 pub mod surface;
