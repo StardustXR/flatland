@@ -1,7 +1,7 @@
 {
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-22.11;
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
 
-  inputs.fenix.url = github:nix-community/fenix;
+  inputs.fenix.url = "github:nix-community/fenix";
   inputs.fenix.inputs.nixpkgs.follows = "nixpkgs";
 
   outputs = { self, nixpkgs, fenix }:
