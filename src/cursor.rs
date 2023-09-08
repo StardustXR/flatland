@@ -3,7 +3,7 @@ use mint::{Vector2, Vector3};
 use stardust_xr_fusion::{
 	core::values::Transform,
 	drawable::{Model, ResourceID},
-	items::panel::{CursorInfo, PanelItem, SurfaceID},
+	items::panel::{Geometry, PanelItem, SurfaceID},
 	spatial::Spatial,
 };
 use tracing::debug;
@@ -20,7 +20,7 @@ pub struct Cursor {
 	pub pos: Vector2<f32>,
 }
 impl Cursor {
-	pub fn new(parent: &Spatial, info: &Option<CursorInfo>, item: &PanelItem) -> Cursor {
+	pub fn new(parent: &Spatial, info: &Option<Geometry>, item: &PanelItem) -> Cursor {
 		let root = Spatial::create(parent, Transform::default(), false).unwrap();
 		let model = Model::create(
 			&root,
@@ -34,11 +34,7 @@ impl Cursor {
 				.set_transform(
 					None,
 					Transform::from_position_scale(
-						[
-							-info.hotspot.x as f32 / PPM,
-							info.hotspot.y as f32 / PPM,
-							0.0,
-						],
+						[-info.origin.x as f32 / PPM, info.origin.y as f32 / PPM, 0.0],
 						[info.size.x as f32 / PPM, info.size.y as f32 / PPM, 1.0],
 					),
 				)
@@ -54,7 +50,7 @@ impl Cursor {
 		}
 	}
 
-	pub fn update_info(&self, cursor_info: &Option<CursorInfo>, item: &PanelItem) {
+	pub fn update_info(&self, cursor_info: &Option<Geometry>, item: &PanelItem) {
 		debug!(?cursor_info, ?item, "Update cursor info");
 		if let Some(cursor_info) = cursor_info {
 			self.model
@@ -62,8 +58,8 @@ impl Cursor {
 					None,
 					Transform::from_position_scale(
 						[
-							-cursor_info.hotspot.x as f32 / PPM,
-							cursor_info.hotspot.y as f32 / PPM,
+							-cursor_info.origin.x as f32 / PPM,
+							cursor_info.origin.y as f32 / PPM,
 							0.0,
 						],
 						[

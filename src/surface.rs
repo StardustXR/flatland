@@ -5,14 +5,13 @@ use stardust_xr_fusion::{
 	core::values::Transform,
 	drawable::{Model, ResourceID},
 	fields::UnknownField,
-	items::panel::{PanelItem, PositionerData, SurfaceID},
+	items::panel::{Geometry, PanelItem, SurfaceID},
 	node::{NodeError, NodeType},
 	spatial::Spatial,
 };
 use stardust_xr_molecules::{
-	keyboard::{KeyboardPanelHandler, KeyboardPanelRelay},
+	keyboard::{create_keyboard_panel_handler, KeyboardPanelHandler},
 	touch_plane::TouchPlane,
-	DebugSettings, VisualDebug,
 };
 
 lazy_static! {
@@ -28,7 +27,7 @@ pub struct Surface {
 	id: SurfaceID,
 	model: Model,
 	touch_plane: TouchPlane,
-	keyboard: KeyboardPanelRelay,
+	keyboard: KeyboardPanelHandler,
 	physical_size: Vec2,
 }
 impl Surface {
@@ -48,7 +47,7 @@ impl Surface {
 			&PANEL_RESOURCE,
 		)?;
 		item.apply_surface_material(&id, &model.model_part("Panel")?)?;
-		let mut touch_plane = TouchPlane::create(
+		let touch_plane = TouchPlane::create(
 			&root,
 			Transform::from_position(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0),
 			physical_size,
@@ -56,9 +55,9 @@ impl Surface {
 			0.0..px_size.x as f32,
 			0.0..px_size.y as f32,
 		)?;
-		touch_plane.set_debug(Some(DebugSettings::default()));
+		// touch_plane.set_debug(Some(DebugSettings::default()));
 
-		let keyboard = KeyboardPanelHandler::create(
+		let keyboard = create_keyboard_panel_handler(
 			&item,
 			Transform::default(),
 			&touch_plane.field(),
@@ -78,17 +77,20 @@ impl Surface {
 	}
 	pub fn new_child(
 		parent: &Surface,
-		id: SurfaceID,
-		positioner_data: &PositionerData,
+		uid: String,
+		geometry: &Geometry,
 	) -> Result<Self, NodeError> {
-		let offset = positioner_data.get_pos();
-		let position = [offset.x as f32 / PPM, offset.y as f32 / PPM, THICKNESS];
+		let position = [
+			geometry.origin.x as f32 / PPM,
+			geometry.origin.y as f32 / PPM,
+			THICKNESS,
+		];
 		Self::create(
 			&parent.root,
 			Transform::from_position(position),
 			parent.item.alias(),
-			id,
-			positioner_data.size,
+			SurfaceID::Child(uid),
+			geometry.size,
 		)
 	}
 
@@ -102,7 +104,7 @@ impl Surface {
 			.chain(self.touch_plane.interacting_inputs())
 			.reduce(|a, b| if a.distance > b.distance { b } else { a })
 		{
-			let interact_point = self.touch_plane.interact_point(closest_hover);
+			let (interact_point, _depth) = self.touch_plane.interact_point(closest_hover);
 			self.item.pointer_motion(&self.id, interact_point).unwrap();
 		}
 
@@ -115,6 +117,16 @@ impl Surface {
 				.pointer_button(&self.id, input_event_codes::BTN_LEFT!(), false)
 				.unwrap();
 		}
+	}
+	pub fn set_offset(&self, px_offset: Vector2<i32>) -> Result<(), NodeError> {
+		self.root.set_position(
+			None,
+			[
+				px_offset.x as f32 / PPM,
+				px_offset.y as f32 / PPM,
+				THICKNESS,
+			],
+		)
 	}
 	pub fn resize(&mut self, px_size: Vector2<u32>) -> Result<(), NodeError> {
 		let physical_size: Vec2 = vec2(px_size.x as f32, px_size.y as f32) / PPM;
@@ -131,22 +143,11 @@ impl Surface {
 		self.touch_plane.y_range = 0.0..px_size.y as f32;
 		self.physical_size = physical_size;
 		self.keyboard
-			.node()
 			.set_position(None, [-0.01, physical_size.y * -0.5, 0.0])
 			.unwrap();
 		// self.touch_plane.set_debug(Some(DebugSettings::default()));
 
 		Ok(())
-	}
-	pub fn set_offset(&self, px_offset: Vector2<i32>) -> Result<(), NodeError> {
-		self.root.set_position(
-			None,
-			[
-				px_offset.x as f32 / PPM,
-				px_offset.y as f32 / PPM,
-				THICKNESS,
-			],
-		)
 	}
 
 	pub fn root(&self) -> &Spatial {

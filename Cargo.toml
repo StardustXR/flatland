@@ -9,14 +9,14 @@ repository = "https://github.com/StardustXR/flatland/"
 homepage = "https://stardustxr.org"
 
 [dependencies]
-glam = { version = "0.24.0", features = ["mint"] }
+glam = { version = "0.24.1", features = ["mint"] }
 mint = "0.5.9"
 manifest-dir-macros = "0.1.17"
 lazy_static = "1.4.0"
 tokio = { version = "1.28.0", features = ["full"] }
 input-event-codes = "5.16.8"
-stardust-xr-fusion = "0.40.1"
-stardust-xr-molecules = "0.24.2"
+stardust-xr-fusion = "0.43.2"
+stardust-xr-molecules = "0.29.0"
 rustc-hash = "1.1.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 tracing = "0.1.37"

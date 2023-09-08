@@ -7,26 +7,30 @@ use stardust_xr_fusion::{
 	client::FrameInfo,
 	core::values::Transform,
 	drawable::{Alignment, Text, TextStyle},
-	items::panel::{PanelItem, PopupInfo, PositionerData, SurfaceID, ToplevelInfo},
+	items::panel::{
+		ChildInfo, Geometry, PanelItem, PanelItemHandler, PanelItemInitData, SurfaceID,
+	},
 	node::{NodeError, NodeType},
 };
-use stardust_xr_molecules::{GrabData, Grabbable};
+use stardust_xr_molecules::{Grabbable, GrabbableSettings, PointerMode};
 
 pub struct Toplevel {
 	_item: PanelItem,
 	surface: Surface,
 	grabbable: Grabbable,
-	title: Text,
-	popups: FxHashMap<SurfaceID, Surface>,
+	title_text: Text,
+	title: Option<String>,
+	app_id: Option<String>,
+	children: FxHashMap<String, Surface>,
 }
 impl Toplevel {
-	pub fn create(item: PanelItem, info: ToplevelInfo) -> Result<Self, NodeError> {
+	pub fn create(item: PanelItem, data: PanelItemInitData) -> Result<Self, NodeError> {
 		let surface = Surface::create(
 			&item,
 			Transform::none(),
 			item.alias(),
 			SurfaceID::Toplevel,
-			info.size,
+			data.toplevel.size,
 		)?;
 		surface.root().set_position(
 			None,
@@ -36,16 +40,23 @@ impl Toplevel {
 			item.node().client()?.get_root(),
 			Transform::default(),
 			&surface.field(),
-			GrabData::default(),
+			GrabbableSettings {
+				linear_momentum: None,
+				angular_momentum: None,
+				magnet: true,
+				pointer_mode: PointerMode::Move,
+				..Default::default()
+			},
 		)?;
 		item.set_spatial_parent_in_place(grabbable.content_parent())?;
+		item.auto_size_toplevel()?;
 
 		let title_style = TextStyle {
 			character_height: THICKNESS, // * 1.5,
 			text_align: Alignment::XLeft | Alignment::YBottom,
 			..Default::default()
 		};
-		let title = Text::create(
+		let title_text = Text::create(
 			&item,
 			Transform::from_position_rotation(
 				[
@@ -55,7 +66,7 @@ impl Toplevel {
 				],
 				Quat::from_rotation_x(-PI * 0.5) * Quat::from_rotation_y(-PI * 0.5),
 			),
-			&info.title.unwrap_or_default(),
+			&data.toplevel.title.clone().unwrap_or_default(),
 			title_style,
 		)
 		.unwrap();
@@ -64,44 +75,58 @@ impl Toplevel {
 			_item: item,
 			surface,
 			grabbable,
-			title,
-			popups: FxHashMap::default(),
+			title_text,
+			title: data.toplevel.title.clone(),
+			app_id: data.toplevel.app_id.clone(),
+			children: FxHashMap::default(),
 		})
 	}
 
-	pub fn frame(&mut self, info: &FrameInfo) {
+	pub fn update(&mut self, info: &FrameInfo) {
 		self.grabbable.update(info).unwrap();
 		if !self.grabbable.grab_action().actor_acting() {
 			self.surface.update();
-			for popup in self.popups.values_mut() {
+			for popup in self.children.values_mut() {
 				popup.update();
 			}
 		}
-		self.grabbable.cancel_linear_velocity();
-		self.grabbable.cancel_angular_velocity();
 	}
 
-	pub fn update_info(&mut self, info: ToplevelInfo) {
-		self.surface.resize(info.size).unwrap();
-		let app_name = info
+	pub fn update_title(&mut self) {
+		let app_name = self
 			.app_id
-			.clone()
-			.map(|id| id.split('.').last().unwrap_or_default().to_string());
-		let title = match (info.title.clone(), app_name) {
+			.as_ref()
+			.map(|id| id.split('.').last().unwrap_or_default());
+		let title = match (&self.app_id, app_name) {
 			(Some(title), Some(app_name)) => {
 				if title == app_name {
-					title
+					title.to_string()
 				} else {
 					format!("{title} - {app_name}")
 				}
 			}
-			(Some(title), None) => title,
-			(None, Some(app_name)) => app_name,
+			(Some(title), None) => title.to_string(),
+			(None, Some(app_name)) => app_name.to_string(),
 			(None, None) => String::new(),
 		};
 
-		self.title.set_text(title).unwrap();
-		self.title
+		self.title_text.set_text(title).unwrap();
+	}
+}
+
+impl PanelItemHandler for Toplevel {
+	fn toplevel_title_changed(&mut self, title: &str) {
+		self.title.replace(title.to_string());
+		self.update_title();
+	}
+	fn toplevel_app_id_changed(&mut self, app_id: &str) {
+		self.app_id.replace(app_id.to_string());
+		self.update_title();
+	}
+
+	fn toplevel_size_changed(&mut self, size: mint::Vector2<u32>) {
+		self.surface.resize(size).unwrap();
+		self.title_text
 			.set_position(
 				None,
 				[
@@ -113,17 +138,27 @@ impl Toplevel {
 			.unwrap();
 	}
 
-	pub fn new_popup(&mut self, id: SurfaceID, info: PopupInfo) {
-		let parent = self.popups.get(&info.parent).unwrap_or(&self.surface);
-		let surface = Surface::new_child(parent, id.clone(), &info.positioner_data).unwrap();
-		self.popups.insert(id, surface);
+	fn new_child(&mut self, uid: &str, info: ChildInfo) {
+		let parent = match &info.parent {
+			SurfaceID::Cursor => return,
+			SurfaceID::Toplevel => &self.surface,
+			SurfaceID::Child(parent_uid) => {
+				if let Some(child) = self.children.get(parent_uid) {
+					child
+				} else {
+					return;
+				}
+			}
+		};
+		let surface = Surface::new_child(parent, uid.to_string(), &info.geometry).unwrap();
+		self.children.insert(uid.to_string(), surface);
 	}
-	pub fn reposition_popup(&mut self, id: SurfaceID, info: PositionerData) {
-		let Some(popup) = self.popups.get_mut(&id) else {return};
-		popup.resize(info.size).unwrap();
-		popup.set_offset(info.anchor_rect_pos).unwrap();
+	fn reposition_child(&mut self, uid: &str, geometry: Geometry) {
+		let Some(child) = self.children.get_mut(uid) else {return};
+		child.set_offset(geometry.origin).unwrap();
+		child.resize(geometry.size).unwrap();
 	}
-	pub fn drop_popup(&mut self, id: SurfaceID) {
-		self.popups.remove(&id);
+	fn drop_child(&mut self, uid: &str) {
+		self.children.remove(uid);
 	}
 }

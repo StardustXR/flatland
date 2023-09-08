@@ -11,11 +11,8 @@ use tracing_subscriber::EnvFilter;
 
 pub mod cursor;
 pub mod flatland;
-pub mod mouse;
-pub mod panel_ui;
 pub mod surface;
 pub mod toplevel;
-pub mod util;
 
 struct Root {
 	flatland: HandlerWrapper<ItemUI<PanelItem>, Flatland>,

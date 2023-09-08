@@ -1,4 +1,3 @@
-use crate::panel_ui::PanelItemUI;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	client::FrameInfo,
@@ -10,8 +9,10 @@ use stardust_xr_fusion::{
 	HandlerWrapper,
 };
 
+use crate::toplevel::Toplevel;
+
 pub struct Flatland {
-	panel_items: FxHashMap<String, HandlerWrapper<PanelItem, PanelItemUI>>,
+	panel_items: FxHashMap<String, HandlerWrapper<PanelItem, Toplevel>>,
 }
 impl Flatland {
 	pub fn new() -> Self {
@@ -22,7 +23,7 @@ impl Flatland {
 
 	pub fn frame(&mut self, info: FrameInfo) {
 		for item in self.panel_items.values() {
-			item.lock_wrapped().frame(&info);
+			item.lock_wrapped().update(&info);
 		}
 		// let items = self.panel_items.items();
 		// let focus = items
@@ -35,8 +36,8 @@ impl Flatland {
 	}
 
 	fn add_item(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
-		let ui = PanelItemUI::create(init_data, item.alias());
-		let handler = item.wrap(ui).unwrap();
+		let Ok(toplevel) = Toplevel::create(item.alias(), init_data) else {return};
+		let handler = item.wrap(toplevel).unwrap();
 		// handler.lock_wrapped().mouse.lock_wrapped().panel_item_ui =
 		// 	Arc::downgrade(handler.wrapped());
 		self.panel_items.insert(uid.to_string(), handler);
