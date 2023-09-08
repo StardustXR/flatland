@@ -1,16 +1,17 @@
 use std::f32::consts::PI;
 
 use crate::surface::{Surface, THICKNESS};
-use glam::{vec3, Quat};
+use glam::{vec3, Quat, Vec3};
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
-	client::FrameInfo,
+	client::{Client, FrameInfo},
 	core::values::Transform,
 	drawable::{Alignment, Text, TextStyle},
 	items::panel::{
 		ChildInfo, Geometry, PanelItem, PanelItemHandler, PanelItemInitData, SurfaceID,
 	},
 	node::{NodeError, NodeType},
+	spatial::Spatial,
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings, PointerMode};
 
@@ -25,6 +26,9 @@ pub struct Toplevel {
 }
 impl Toplevel {
 	pub fn create(item: PanelItem, data: PanelItemInitData) -> Result<Self, NodeError> {
+		let client = item.client()?;
+		Self::initial_position_item(&client, &item)?;
+
 		let surface = Surface::create(
 			&item,
 			Transform::none(),
@@ -80,6 +84,30 @@ impl Toplevel {
 			app_id: data.toplevel.app_id.clone(),
 			children: FxHashMap::default(),
 		})
+	}
+
+	fn initial_position_item(client: &Client, item: &Spatial) -> Result<(), NodeError> {
+		let hmd_alias = client.get_hmd().alias();
+		let item_alias = item.alias();
+		let future = item.get_position_rotation_scale(client.get_root())?;
+		tokio::spawn(async move {
+			let Ok((position, _, _)) = future.await else {return};
+			let position = Vec3::from(position);
+			// if the distance between the panel item and the client origin is basically nothing, it must be unpositioned
+			if position.length_squared() < 0.01 {
+				// so we want to position it in front of the user
+				let _ = item_alias.set_transform(
+					Some(&hmd_alias),
+					Transform::from_position_rotation(vec3(0.0, 0.0, -0.25), Quat::IDENTITY),
+				);
+				return;
+			}
+			// otherwise make the panel look at the user
+
+			// let _ = item_alias
+			// .set_transform(Some(&hmd_alias), Transform::from_rotation(Quat::IDENTITY));
+		});
+		Ok(())
 	}
 
 	pub fn update(&mut self, info: &FrameInfo) {
