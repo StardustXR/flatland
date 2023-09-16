@@ -1,9 +1,10 @@
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	client::FrameInfo,
+	fields::UnknownField,
 	items::{
 		panel::{PanelItem, PanelItemInitData},
-		ItemAcceptorHandler, ItemUIHandler,
+		ItemAcceptor, ItemAcceptorHandler, ItemUIHandler,
 	},
 	node::NodeType,
 	HandlerWrapper,
@@ -21,9 +22,13 @@ impl Flatland {
 		}
 	}
 
-	pub fn frame(&mut self, info: FrameInfo) {
+	pub fn frame(
+		&mut self,
+		info: FrameInfo,
+		acceptors: &FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
+	) {
 		for item in self.panel_items.values() {
-			item.lock_wrapped().update(&info);
+			item.lock_wrapped().update(&info, acceptors);
 		}
 		// let items = self.panel_items.items();
 		// let focus = items
@@ -52,6 +57,15 @@ impl ItemUIHandler<PanelItem> for Flatland {
 	}
 	fn item_destroyed(&mut self, uid: &str) {
 		self.remove_item(uid);
+	}
+
+	fn item_captured(&mut self, uid: &str, _acceptor_uid: &str, _item: PanelItem) {
+		let Some(toplevel) = self.panel_items.get(uid) else {return};
+		toplevel.lock_wrapped().set_enabled(false);
+	}
+	fn item_released(&mut self, uid: &str, _acceptor_uid: &str, _item: PanelItem) {
+		let Some(toplevel) = self.panel_items.get(uid) else {return};
+		toplevel.lock_wrapped().set_enabled(true);
 	}
 }
 impl ItemAcceptorHandler<PanelItem> for Flatland {

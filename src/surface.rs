@@ -159,4 +159,9 @@ impl Surface {
 	pub fn physical_size(&self) -> Vec2 {
 		self.physical_size
 	}
+
+	pub fn set_enabled(&mut self, enabled: bool) {
+		let _ = self.touch_plane.set_enabled(enabled);
+		let _ = self.model.set_enabled(enabled);
+	}
 }

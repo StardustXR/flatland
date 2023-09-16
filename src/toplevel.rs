@@ -1,14 +1,19 @@
 use std::f32::consts::PI;
 
-use crate::surface::{Surface, THICKNESS};
+use crate::{
+	panel_shell_grab_ball::PanelShellGrabBall,
+	surface::{Surface, THICKNESS},
+};
 use glam::{vec3, Quat, Vec3};
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	client::{Client, FrameInfo},
 	core::values::Transform,
 	drawable::{Alignment, Text, TextStyle},
-	items::panel::{
-		ChildInfo, Geometry, PanelItem, PanelItemHandler, PanelItemInitData, SurfaceID,
+	fields::UnknownField,
+	items::{
+		panel::{ChildInfo, Geometry, PanelItem, PanelItemHandler, PanelItemInitData, SurfaceID},
+		ItemAcceptor,
 	},
 	node::{NodeError, NodeType},
 	spatial::Spatial,
@@ -23,6 +28,7 @@ pub struct Toplevel {
 	title: Option<String>,
 	app_id: Option<String>,
 	children: FxHashMap<String, Surface>,
+	panel_shell_grab_ball: PanelShellGrabBall,
 }
 impl Toplevel {
 	pub fn create(item: PanelItem, data: PanelItemInitData) -> Result<Self, NodeError> {
@@ -49,6 +55,7 @@ impl Toplevel {
 				angular_momentum: None,
 				magnet: true,
 				pointer_mode: PointerMode::Move,
+				max_distance: 0.01,
 				..Default::default()
 			},
 		)?;
@@ -75,6 +82,19 @@ impl Toplevel {
 		)
 		.unwrap();
 
+		let panel_shell_grab_ball_anchor = Spatial::create(
+			&item,
+			Transform::from_position([0.0, -surface.physical_size().y * 0.5, 0.0]),
+			false,
+		)
+		.unwrap();
+		let panel_shell_grab_ball = PanelShellGrabBall::create(
+			panel_shell_grab_ball_anchor,
+			[0.0, -0.02, 0.0],
+			item.alias(),
+		)
+		.unwrap();
+
 		Ok(Toplevel {
 			_item: item,
 			surface,
@@ -83,6 +103,7 @@ impl Toplevel {
 			title: data.toplevel.title.clone(),
 			app_id: data.toplevel.app_id.clone(),
 			children: FxHashMap::default(),
+			panel_shell_grab_ball,
 		})
 	}
 
@@ -110,8 +131,13 @@ impl Toplevel {
 		Ok(())
 	}
 
-	pub fn update(&mut self, info: &FrameInfo) {
+	pub fn update(
+		&mut self,
+		info: &FrameInfo,
+		acceptors: &FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
+	) {
 		self.grabbable.update(info).unwrap();
+		self.panel_shell_grab_ball.update(acceptors);
 		if !self.grabbable.grab_action().actor_acting() {
 			self.surface.update();
 			for popup in self.children.values_mut() {
@@ -140,6 +166,16 @@ impl Toplevel {
 
 		self.title_text.set_text(title).unwrap();
 	}
+
+	pub fn set_enabled(&mut self, enabled: bool) {
+		let _ = self.grabbable.set_enabled(enabled);
+		let _ = self.panel_shell_grab_ball.set_enabled(enabled);
+		for child in self.children.values_mut() {
+			child.set_enabled(enabled);
+		}
+		self.surface.set_enabled(enabled);
+		let _ = self.title_text.set_enabled(enabled);
+	}
 }
 
 impl PanelItemHandler for Toplevel {
@@ -163,6 +199,10 @@ impl PanelItemHandler for Toplevel {
 					-THICKNESS,
 				],
 			)
+			.unwrap();
+		self.panel_shell_grab_ball
+			.connect_root()
+			.set_position(None, [0.0, -self.surface.physical_size().y * 0.5, 0.0])
 			.unwrap();
 	}
 

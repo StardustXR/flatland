@@ -11,6 +11,7 @@ use tracing_subscriber::EnvFilter;
 
 pub mod cursor;
 pub mod flatland;
+pub mod panel_shell_grab_ball;
 pub mod surface;
 pub mod toplevel;
 
@@ -25,7 +26,10 @@ impl Root {
 }
 impl RootHandler for Root {
 	fn frame(&mut self, info: FrameInfo) {
-		self.flatland.lock_wrapped().frame(info);
+		let item_ui = self.flatland.node().clone();
+		self.flatland
+			.lock_wrapped()
+			.frame(info, &*item_ui.acceptors());
 	}
 }
 

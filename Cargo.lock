@@ -148,6 +148,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "colorgrad"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a5f405d474b9d05e0a093d3120e77e9bf26461b57a84b40aa2a221ac5617fb6"
+dependencies = [
+ "csscolorparser",
+]
+
+[[package]]
+name = "csscolorparser"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb2a7d3066da2de787b7f032c736763eb7ae5d355f81a68bab2675a96008b0bf"
+dependencies = [
+ "phf",
+]
+
+[[package]]
 name = "dirs"
 version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -226,10 +244,13 @@ name = "flatland"
 version = "0.8.0"
 dependencies = [
  "color-eyre",
+ "color-rs",
+ "colorgrad",
  "glam",
  "input-event-codes",
  "lazy_static",
  "manifest-dir-macros",
+ "map-range",
  "mint",
  "rustc-hash",
  "stardust-xr-fusion",
@@ -279,6 +300,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "global_counter"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a77c0a6d353621e0ba32c0eb64a5ed3832d900135712779e38bd2ea31d6509f"
+dependencies = [
+ "once_cell",
+ "parking_lot 0.11.2",
+]
+
+[[package]]
 name = "half"
 version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -323,6 +354,15 @@ name = "input-event-codes"
 version = "5.16.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b6b0f8557f596a2db592f172015c40d0c149e16a956c7848e733d663f2c6636"
+
+[[package]]
+name = "instant"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
+dependencies = [
+ "cfg-if",
+]
 
 [[package]]
 name = "itertools"
@@ -576,12 +616,37 @@ checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
 
 [[package]]
 name = "parking_lot"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d17b78036a60663b797adeaee46f5c9dfebb86948d1255007a1d6be0271ff99"
+dependencies = [
+ "instant",
+ "lock_api",
+ "parking_lot_core 0.8.6",
+]
+
+[[package]]
+name = "parking_lot"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3742b2c103b9f06bc9fff0a37ff4912935851bee6d36f3c02bcc755bcfec228f"
 dependencies = [
  "lock_api",
- "parking_lot_core",
+ "parking_lot_core 0.9.8",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60a2cfe6f0ad2bfc16aefa463b497d5c7a5ecd44a23efa72aa342d90177356dc"
+dependencies = [
+ "cfg-if",
+ "instant",
+ "libc",
+ "redox_syscall 0.2.16",
+ "smallvec",
+ "winapi",
 ]
 
 [[package]]
@@ -595,6 +660,48 @@ dependencies = [
  "redox_syscall 0.3.5",
  "smallvec",
  "windows-targets",
+]
+
+[[package]]
+name = "phf"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ade2d8b8f33c7333b51bcf0428d37e217e9f32192ae4772156f65063b8ce03dc"
+dependencies = [
+ "phf_macros",
+ "phf_shared",
+]
+
+[[package]]
+name = "phf_generator"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48e4cc64c2ad9ebe670cb8fd69dd50ae301650392e81c05f9bfcb2d5bdbc24b0"
+dependencies = [
+ "phf_shared",
+ "rand",
+]
+
+[[package]]
+name = "phf_macros"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3444646e286606587e49f3bcf1679b8cef1dc2c5ecc29ddacaffc305180d464b"
+dependencies = [
+ "phf_generator",
+ "phf_shared",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.31",
+]
+
+[[package]]
+name = "phf_shared"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90fcb95eef784c2ac79119d1dd819e162b5da872ce6f3c3abe1e8ca1c082f72b"
+dependencies = [
+ "siphasher",
 ]
 
 [[package]]
@@ -853,6 +960,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "siphasher"
+version = "0.3.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
+
+[[package]]
 name = "smallvec"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -870,16 +983,17 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr"
-version = "0.14.0"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "996e151a9271144684a8ccb1d23d2949c5590bc37c4a12119d4f72f64462307e"
+checksum = "368849e5163c14386d58962ba5b24f833d15b1cc7cf8186db8b1e3ade8e3abf4"
 dependencies = [
  "cluFlock",
  "color-rs",
  "dirs",
+ "global_counter",
  "mint",
  "nix",
- "parking_lot",
+ "parking_lot 0.12.1",
  "rustc-hash",
  "serde",
  "stardust-xr-schemas",
@@ -900,7 +1014,7 @@ dependencies = [
  "flagset",
  "mint",
  "nanoid",
- "parking_lot",
+ "parking_lot 0.12.1",
  "rustc-hash",
  "serde",
  "serde_repr",
@@ -1016,7 +1130,7 @@ dependencies = [
  "libc",
  "mio",
  "num_cpus",
- "parking_lot",
+ "parking_lot 0.12.1",
  "pin-project-lite",
  "signal-hook-registry",
  "socket2",
