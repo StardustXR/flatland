@@ -21,7 +21,7 @@ pub struct Cursor {
 }
 impl Cursor {
 	pub fn new(parent: &Spatial, info: &Option<Geometry>, item: &PanelItem) -> Cursor {
-		let root = Spatial::create(parent, Transform::default(), false).unwrap();
+		let root = Spatial::create(parent, Transform::none(), false).unwrap();
 		let model = Model::create(
 			&root,
 			Transform::from_scale(Vector3::from([0.1; 3])),

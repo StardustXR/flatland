@@ -59,7 +59,7 @@ impl Surface {
 
 		let keyboard = create_keyboard_panel_handler(
 			&item,
-			Transform::default(),
+			Transform::none(),
 			&touch_plane.field(),
 			&item,
 			id.clone(),
