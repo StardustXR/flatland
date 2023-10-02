@@ -2,7 +2,7 @@ use color_eyre::eyre::{bail, Result};
 use flatland::Flatland;
 use manifest_dir_macros::directory_relative_path;
 use stardust_xr_fusion::{
-	client::{Client, FrameInfo, RootHandler},
+	client::{Client, ClientState, FrameInfo, RootHandler},
 	items::{panel::PanelItem, ItemUI},
 	HandlerWrapper,
 };
@@ -30,6 +30,9 @@ impl RootHandler for Root {
 		self.flatland
 			.lock_wrapped()
 			.frame(info, &*item_ui.acceptors());
+	}
+	fn save_state(&mut self) -> ClientState {
+		ClientState::default()
 	}
 }
 

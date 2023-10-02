@@ -59,11 +59,13 @@ impl ItemUIHandler<PanelItem> for Flatland {
 		self.remove_item(uid);
 	}
 
-	fn item_captured(&mut self, uid: &str, _acceptor_uid: &str, _item: PanelItem) {
+	fn item_captured(&mut self, uid: &str, _acceptor_uid: &str, item: PanelItem) {
+		let _ = item.reset_touches();
 		let Some(toplevel) = self.panel_items.get(uid) else {return};
 		toplevel.lock_wrapped().set_enabled(false);
 	}
-	fn item_released(&mut self, uid: &str, _acceptor_uid: &str, _item: PanelItem) {
+	fn item_released(&mut self, uid: &str, _acceptor_uid: &str, item: PanelItem) {
+		let _ = item.reset_touches();
 		let Some(toplevel) = self.panel_items.get(uid) else {return};
 		toplevel.lock_wrapped().set_enabled(true);
 	}
