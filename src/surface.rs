@@ -33,13 +33,14 @@ fn hash_input_data(input_data: &InputData) -> u32 {
 
 // Pixels per meter, screen density
 pub const PPM: f32 = 3000.0;
-pub const THICKNESS: f32 = 0.01;
 pub struct Surface {
 	root: Spatial,
 	item: PanelItem,
 	id: SurfaceID,
+	parent_thickness: f32,
+	thickness: f32,
 	model: Model,
-	touch_plane: TouchPlane,
+	pub touch_plane: TouchPlane,
 	touches: FxHashSet<Arc<InputData>>,
 	keyboard: KeyboardPanelHandler,
 	physical_size: Vec2,
@@ -51,10 +52,11 @@ impl Surface {
 		item: PanelItem,
 		id: SurfaceID,
 		px_size: Vector2<u32>,
+		thickness: f32,
 	) -> Result<Self, NodeError> {
 		let physical_size: Vec2 = vec2(px_size.x as f32, px_size.y as f32) / PPM;
 		let root = Spatial::create(parent, transform, false)?;
-		let panel_size = vec3(physical_size.x, physical_size.y, THICKNESS);
+		let panel_size = vec3(physical_size.x, physical_size.y, thickness);
 		let model = Model::create(
 			&root,
 			Transform::from_position_scale(panel_size * vec3(0.5, -0.5, -0.5), panel_size),
@@ -65,7 +67,7 @@ impl Surface {
 			&root,
 			Transform::from_position(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0),
 			physical_size,
-			THICKNESS,
+			thickness,
 			0.0..px_size.x as f32,
 			0.0..px_size.y as f32,
 		)?;
@@ -83,6 +85,8 @@ impl Surface {
 			root,
 			item,
 			id,
+			parent_thickness: 0.0,
+			thickness,
 			model,
 			touch_plane,
 			touches: FxHashSet::default(),
@@ -94,19 +98,23 @@ impl Surface {
 		parent: &Surface,
 		uid: String,
 		geometry: &Geometry,
+		thickness: f32,
 	) -> Result<Self, NodeError> {
 		let position = [
 			geometry.origin.x as f32 / PPM,
 			geometry.origin.y as f32 / PPM,
-			THICKNESS,
+			thickness,
 		];
-		Self::create(
+		let mut surface = Self::create(
 			&parent.root,
 			Transform::from_position(position),
 			parent.item.alias(),
 			SurfaceID::Child(uid),
 			geometry.size,
-		)
+			thickness,
+		)?;
+		surface.parent_thickness = parent.thickness;
+		Ok(surface)
 	}
 
 	pub fn update(&mut self) {
@@ -217,13 +225,13 @@ impl Surface {
 			[
 				px_offset.x as f32 / PPM,
 				px_offset.y as f32 / PPM,
-				THICKNESS,
+				self.parent_thickness,
 			],
 		)
 	}
 	pub fn resize(&mut self, px_size: Vector2<u32>) -> Result<(), NodeError> {
 		let physical_size: Vec2 = vec2(px_size.x as f32, px_size.y as f32) / PPM;
-		let panel_size = vec3(physical_size.x, physical_size.y, THICKNESS);
+		let panel_size = vec3(physical_size.x, physical_size.y, self.thickness);
 		self.model.set_transform(
 			None,
 			Transform::from_position_scale(panel_size * vec3(0.5, -0.5, -0.5), panel_size),

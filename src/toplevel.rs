@@ -1,9 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::{
-	panel_shell_grab_ball::PanelShellGrabBall,
-	surface::{Surface, THICKNESS},
-};
+use crate::{panel_shell_grab_ball::PanelShellGrabBall, surface::Surface};
 use glam::{vec3, Quat, Vec3};
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
@@ -19,6 +16,9 @@ use stardust_xr_fusion::{
 	spatial::Spatial,
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings, PointerMode};
+
+pub const TOPLEVEL_THICKNESS: f32 = 0.015;
+pub const CHILD_THICKNESS: f32 = 0.005;
 
 pub struct Toplevel {
 	_item: PanelItem,
@@ -41,6 +41,7 @@ impl Toplevel {
 			item.alias(),
 			SurfaceID::Toplevel,
 			data.toplevel.size,
+			TOPLEVEL_THICKNESS,
 		)?;
 		surface.root().set_position(
 			None,
@@ -55,7 +56,7 @@ impl Toplevel {
 				angular_momentum: None,
 				magnet: true,
 				pointer_mode: PointerMode::Move,
-				max_distance: 0.01,
+				max_distance: 0.0254,
 				..Default::default()
 			},
 		)?;
@@ -63,7 +64,7 @@ impl Toplevel {
 		item.auto_size_toplevel()?;
 
 		let title_style = TextStyle {
-			character_height: THICKNESS, // * 1.5,
+			character_height: CHILD_THICKNESS, // * 1.5,
 			text_align: Alignment::XLeft | Alignment::YBottom,
 			..Default::default()
 		};
@@ -73,7 +74,7 @@ impl Toplevel {
 				[
 					surface.physical_size().x * 0.5,
 					surface.physical_size().y * 0.5,
-					-THICKNESS,
+					-CHILD_THICKNESS,
 				],
 				Quat::from_rotation_x(-PI * 0.5) * Quat::from_rotation_y(-PI * 0.5),
 			),
@@ -196,7 +197,7 @@ impl PanelItemHandler for Toplevel {
 				[
 					self.surface.physical_size().x * 0.5,
 					self.surface.physical_size().y * 0.5,
-					-THICKNESS,
+					-CHILD_THICKNESS,
 				],
 			)
 			.unwrap();
@@ -218,8 +219,10 @@ impl PanelItemHandler for Toplevel {
 				}
 			}
 		};
-		let surface = Surface::new_child(parent, uid.to_string(), &info.geometry).unwrap();
+		let surface =
+			Surface::new_child(parent, uid.to_string(), &info.geometry, CHILD_THICKNESS).unwrap();
 		self.children.insert(uid.to_string(), surface);
+		let _ = self.surface.touch_plane.set_enabled(false);
 	}
 	fn reposition_child(&mut self, uid: &str, geometry: Geometry) {
 		let Some(child) = self.children.get_mut(uid) else {return};
@@ -228,5 +231,8 @@ impl PanelItemHandler for Toplevel {
 	}
 	fn drop_child(&mut self, uid: &str) {
 		self.children.remove(uid);
+		if self.children.is_empty() {
+			let _ = self.surface.touch_plane.set_enabled(true);
+		}
 	}
 }
