@@ -9,6 +9,7 @@ use stardust_xr_fusion::{
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
 
+pub mod close_button;
 pub mod cursor;
 pub mod flatland;
 pub mod panel_shell_grab_ball;

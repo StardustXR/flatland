@@ -984,7 +984,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr"
 version = "0.14.1"
-source = "git+https://github.com/StardustXR/core.git#7b6c7b1b77075a7035f8a3ef07b430863ed9d60e"
+source = "git+https://github.com/StardustXR/core.git#615d4b098f848b1699ac6763b22d6c8783328f10"
 dependencies = [
  "cluFlock",
  "color-rs",
@@ -1004,7 +1004,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.43.2"
-source = "git+https://github.com/StardustXR/core.git#7b6c7b1b77075a7035f8a3ef07b430863ed9d60e"
+source = "git+https://github.com/StardustXR/core.git#615d4b098f848b1699ac6763b22d6c8783328f10"
 dependencies = [
  "color-eyre",
  "color-rs",
@@ -1025,7 +1025,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.29.0"
-source = "git+https://github.com/StardustXR/molecules.git#675957cf4160d155e85489a4942d4b5f768717fe"
+source = "git+https://github.com/StardustXR/molecules.git#c6f4c22452dd130745bfe187af69980bee9740da"
 dependencies = [
  "color-rs",
  "glam",
@@ -1044,7 +1044,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-schemas"
 version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git#7b6c7b1b77075a7035f8a3ef07b430863ed9d60e"
+source = "git+https://github.com/StardustXR/core.git#615d4b098f848b1699ac6763b22d6c8783328f10"
 dependencies = [
  "flatbuffers",
  "flexbuffers",
