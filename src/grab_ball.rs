@@ -1,32 +1,41 @@
-use color::rgba;
+use color::{color_space::LinearRgb, rgba_linear, Rgba};
 use glam::Vec3;
 use mint::Vector3;
 use stardust_xr_fusion::{
 	core::values::Transform,
 	drawable::{LinePoint, Lines},
 	fields::SphereField,
-	input::{
-		action::{BaseInputAction, InputAction, InputActionHandler},
-		InputDataType, InputHandler,
-	},
+	input::{InputDataType, InputHandler},
 	node::{NodeError, NodeType},
 	spatial::Spatial,
 	HandlerWrapper,
 };
-use stardust_xr_molecules::SingleActorAction;
+use stardust_xr_molecules::input_action::{
+	BaseInputAction, InputAction, InputActionHandler, SingleActorAction,
+};
 
 pub trait GrabBallHead {
 	fn root(&self) -> &Spatial;
 	fn set_enabled(&mut self, enabled: bool);
-	fn on_grab(&mut self);
-	fn update(&mut self);
-	fn on_release(&mut self);
+	fn update(&mut self, grab_action: &SingleActorAction<GrabBallSettings>);
 }
 
 #[derive(Debug, Clone)]
 pub struct GrabBallSettings {
 	pub radius: f32,
+	pub connector_thickness: f32,
+	pub connector_color: Rgba<f32, LinearRgb>,
 }
+impl Default for GrabBallSettings {
+	fn default() -> Self {
+		Self {
+			radius: 0.02,
+			connector_thickness: 0.0025,
+			connector_color: rgba_linear!(1.0, 1.0, 1.0, 1.0),
+		}
+	}
+}
+
 pub struct GrabBall<H: GrabBallHead> {
 	connect_root: Spatial,
 	pub head: H,
@@ -47,21 +56,22 @@ impl<H: GrabBallHead> GrabBall<H> {
 		settings: GrabBallSettings,
 	) -> Result<Self, NodeError> {
 		let offset = Vec3::from(offset.into());
-		let ball_root = Spatial::create(&connect_root, Transform::from_position(offset), false)?;
+		head.root().set_spatial_parent(&connect_root)?;
+		head.root().set_position(None, offset)?;
 		let connector_points = [
 			LinePoint {
 				point: [0.0; 3].into(),
-				thickness: 0.0025,
-				color: rgba!(0.0, 1.0, 0.5, 1.0),
+				thickness: settings.connector_thickness,
+				color: settings.connector_color,
 			},
 			LinePoint {
 				point: (offset.normalize_or_zero() * (offset.length() - settings.radius)).into(),
-				thickness: 0.0025,
-				color: rgba!(0.0, 1.0, 0.5, 1.0),
+				thickness: settings.connector_thickness,
+				color: settings.connector_color,
 			},
 		];
 		let connector = Lines::create(&connect_root, Transform::none(), &connector_points, false)?;
-		let _field = SphereField::create(&ball_root, [0.0; 3], settings.radius)?;
+		let _field = SphereField::create(head.root(), [0.0; 3], settings.radius)?;
 		let input_handler = InputHandler::create(&connect_root, Transform::none(), &_field)?
 			.wrap(InputActionHandler::new(settings.clone()))?;
 		let condition_action = BaseInputAction::new(false, |input, data: &GrabBallSettings| {
@@ -110,7 +120,9 @@ impl<H: GrabBallHead> GrabBall<H> {
 			let _ = self.connector.update_points(&self.connector_points);
 			return;
 		}
-		let Some(grabbing) = self.grab_action.actor() else {return};
+		let Some(grabbing) = self.grab_action.actor() else {
+			return;
+		};
 		let grab_point = match &grabbing.input {
 			InputDataType::Pointer(_) => return,
 			InputDataType::Hand(h) => {
@@ -126,14 +138,20 @@ impl<H: GrabBallHead> GrabBall<H> {
 			grab_point.normalize_or_zero() * (grab_point.length() - self.settings.radius);
 		self.connector_points[1].point = line_end.into();
 		let _ = self.connector.update_points(&self.connector_points);
+		self.head.update(&self.grab_action);
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {
 		let _ = self.input_handler.node().set_enabled(enabled);
 		let _ = self.connector.set_enabled(enabled);
+		self.head.set_enabled(enabled);
 	}
 
 	pub fn connect_root(&self) -> &Spatial {
 		&self.connect_root
+	}
+
+	pub fn grab_action(&self) -> &SingleActorAction<GrabBallSettings> {
+		&self.grab_action
 	}
 }

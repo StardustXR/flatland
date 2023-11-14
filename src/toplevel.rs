@@ -1,8 +1,12 @@
 use std::f32::consts::PI;
 
 use crate::{
-	close_button::CloseButton, panel_shell_grab_ball::PanelShellGrabBall, surface::Surface,
+	close_button::CloseButton,
+	grab_ball::{GrabBall, GrabBallSettings},
+	panel_shell_transfer::PanelShellTransfer,
+	surface::Surface,
 };
+use color::rgba_linear;
 use glam::{vec3, Quat, Vec3};
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
@@ -19,7 +23,7 @@ use stardust_xr_fusion::{
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings, PointerMode};
 
-pub const TOPLEVEL_THICKNESS: f32 = 0.025;
+pub const TOPLEVEL_THICKNESS: f32 = 0.01;
 pub const CHILD_THICKNESS: f32 = 0.005;
 
 pub struct Toplevel {
@@ -30,13 +34,12 @@ pub struct Toplevel {
 	title: Option<String>,
 	app_id: Option<String>,
 	children: FxHashMap<String, Surface>,
-	panel_shell_grab_ball: PanelShellGrabBall,
+	panel_shell_grab_ball: GrabBall<PanelShellTransfer>,
 	close_button: CloseButton,
 }
 impl Toplevel {
 	pub fn create(item: PanelItem, data: PanelItemInitData) -> Result<Self, NodeError> {
 		let client = item.client()?;
-		Self::initial_position_item(&client, &item)?;
 
 		let surface = Surface::create(
 			&item,
@@ -57,14 +60,15 @@ impl Toplevel {
 			GrabbableSettings {
 				linear_momentum: None,
 				angular_momentum: None,
-				magnet: true,
-				pointer_mode: PointerMode::Move,
+				magnet: false,
+				pointer_mode: PointerMode::Align,
 				max_distance: 0.0254,
 				..Default::default()
 			},
 		)?;
 		item.set_spatial_parent_in_place(grabbable.content_parent())?;
 		item.auto_size_toplevel()?;
+		Self::initial_position_item(&client, grabbable.content_parent())?;
 
 		let title_style = TextStyle {
 			character_height: CHILD_THICKNESS, // * 1.5,
@@ -92,10 +96,17 @@ impl Toplevel {
 			false,
 		)
 		.unwrap();
-		let panel_shell_grab_ball = PanelShellGrabBall::create(
+		let panel_shell_transfer =
+			PanelShellTransfer::create(&surface.root(), item.alias()).unwrap();
+		let panel_shell_grab_ball = GrabBall::create(
 			panel_shell_grab_ball_anchor,
 			[0.0, -0.02, 0.0],
-			item.alias(),
+			panel_shell_transfer,
+			GrabBallSettings {
+				radius: 0.01252,
+				connector_thickness: 0.0025,
+				connector_color: rgba_linear!(0.0, 1.0, 0.5, 1.0),
+			},
 		)
 		.unwrap();
 		let close_button =
@@ -114,17 +125,22 @@ impl Toplevel {
 		})
 	}
 
-	fn initial_position_item(client: &Client, item: &Spatial) -> Result<(), NodeError> {
+	fn initial_position_item(
+		client: &Client,
+		grabbable_content_parent: &Spatial,
+	) -> Result<(), NodeError> {
 		let hmd_alias = client.get_hmd().alias();
-		let item_alias = item.alias();
-		let future = item.get_position_rotation_scale(client.get_root())?;
+		let grabbable_content_parent_alias = grabbable_content_parent.alias();
+		let future = grabbable_content_parent.get_position_rotation_scale(client.get_root())?;
 		tokio::spawn(async move {
-			let Ok((position, _, _)) = future.await else {return};
+			let Ok((position, _, _)) = future.await else {
+				return;
+			};
 			let position = Vec3::from(position);
 			// if the distance between the panel item and the client origin is basically nothing, it must be unpositioned
 			if position.length_squared() < 0.01 {
 				// so we want to position it in front of the user
-				let _ = item_alias.set_transform(
+				let _ = grabbable_content_parent_alias.set_transform(
 					Some(&hmd_alias),
 					Transform::from_position_rotation(vec3(0.0, 0.0, -0.25), Quat::IDENTITY),
 				);
@@ -143,15 +159,18 @@ impl Toplevel {
 		info: &FrameInfo,
 		acceptors: &FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
 	) {
-		self.close_button.update(info);
 		self.grabbable.update(info).unwrap();
-		self.panel_shell_grab_ball.update(acceptors);
 		if !self.grabbable.grab_action().actor_acting() {
 			self.surface.update();
 			for popup in self.children.values_mut() {
 				popup.update();
 			}
 		}
+		self.close_button.update(info);
+		self.panel_shell_grab_ball.update();
+		self.panel_shell_grab_ball
+			.head
+			.update_distances(self.panel_shell_grab_ball.grab_action(), acceptors);
 	}
 
 	pub fn update_title(&mut self) {
@@ -234,7 +253,9 @@ impl PanelItemHandler for Toplevel {
 		let _ = self.surface.touch_plane.set_enabled(false);
 	}
 	fn reposition_child(&mut self, uid: &str, geometry: Geometry) {
-		let Some(child) = self.children.get_mut(uid) else {return};
+		let Some(child) = self.children.get_mut(uid) else {
+			return;
+		};
 		child.set_offset(geometry.origin).unwrap();
 		child.resize(geometry.size).unwrap();
 	}

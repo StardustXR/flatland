@@ -1,19 +1,19 @@
+use color::rgba_linear;
 use glam::Vec2;
 use stardust_xr_fusion::{
 	client::FrameInfo,
 	core::values::Transform,
 	drawable::{MaterialParameter, Model, ModelPart, ResourceID},
 	fields::BoxField,
-	input::{
-		action::{BaseInputAction, InputAction, InputActionHandler},
-		InputDataType::Pointer,
-		InputHandler,
-	},
+	input::{InputDataType::Pointer, InputHandler},
 	items::panel::PanelItem,
 	node::{NodeError, NodeType},
 	HandlerWrapper,
 };
-use stardust_xr_molecules::Exposure;
+use stardust_xr_molecules::{
+	input_action::{BaseInputAction, InputAction, InputActionHandler},
+	Exposure,
+};
 
 use crate::{surface::Surface, toplevel::TOPLEVEL_THICKNESS};
 
@@ -76,7 +76,7 @@ impl CloseButton {
 			.update_actions([self.distance_action.type_erase()]);
 		let exposure: f32 = self
 			.distance_action
-			.actively_acting
+			.currently_acting
 			.iter()
 			.map(|d| d.distance.abs().powf(1.0 / 2.2))
 			.sum();
@@ -88,14 +88,15 @@ impl CloseButton {
 		if self.exposure.exposure > 1.0 {
 			let _ = self.item.close_toplevel();
 		} else if self.exposure.exposure > 0.0 {
+			let color = colorgrad::magma().at(self.exposure.exposure.into());
 			let _ = self.shell.set_material_parameter(
 				"emission_factor",
-				MaterialParameter::Color(
-					colorgrad::magma()
-						.at(self.exposure.exposure.into())
-						.to_array()
-						.map(|c| c as f32),
-				),
+				MaterialParameter::Color(rgba_linear!(
+					color.r as f32,
+					color.g as f32,
+					color.b as f32,
+					color.a as f32
+				)),
 			);
 		}
 	}

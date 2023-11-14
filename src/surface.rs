@@ -167,14 +167,14 @@ impl Surface {
 			.touch_plane
 			.hovering_inputs()
 			.into_iter()
-			.chain(self.touch_plane.interacting_inputs())
+			.chain(self.touch_plane.interacting_inputs().clone())
 			.filter(|i| match i.input {
 				InputDataType::Hand(_) => false,
 				_ => true,
 			})
 			.reduce(|a, b| if a.distance > b.distance { b } else { a })
 		{
-			let (interact_point, _depth) = self.touch_plane.interact_point(closest_hover);
+			let (interact_point, _depth) = self.touch_plane.interact_point(&closest_hover);
 			self.item.pointer_motion(&self.id, interact_point).unwrap();
 		}
 
@@ -182,7 +182,7 @@ impl Surface {
 			.touch_plane
 			.hovering_inputs()
 			.into_iter()
-			.chain(self.touch_plane.interacting_inputs())
+			.chain(self.touch_plane.interacting_inputs().clone())
 		{
 			let scroll_continous = input.datamap.with_data(|r| {
 				let scroll_continous = r.index("scroll_continous").ok()?.as_vector();
