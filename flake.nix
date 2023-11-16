@@ -32,9 +32,9 @@
 
             STARDUST_RES_PREFIXES = ./res;
 
-            buildInputs = with pkgs; [
-              libxkbcommon xorg.libxcb
-            ];
+            # buildInputs = with pkgs; [
+            #   libxkbcommon xorg.libxcb
+            # ];
             # ---- END package specific settings ----
           };
     in
