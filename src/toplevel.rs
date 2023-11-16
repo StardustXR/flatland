@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::{f32::consts::PI, sync::Arc};
 
 use crate::{
 	close_button::CloseButton,
@@ -22,6 +22,13 @@ use stardust_xr_fusion::{
 	spatial::Spatial,
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings, PointerMode};
+use tokio::task::JoinHandle;
+
+fn look_direction(direction: Vec3) -> Quat {
+	let pitch = direction.y.asin();
+	let yaw = direction.z.atan2(direction.x);
+	Quat::from_rotation_y(-yaw - PI / 2.0) * Quat::from_rotation_x(pitch)
+}
 
 pub const TOPLEVEL_THICKNESS: f32 = 0.01;
 pub const CHILD_THICKNESS: f32 = 0.005;
@@ -54,7 +61,7 @@ impl Toplevel {
 			vec3(surface.physical_size().x, -surface.physical_size().y, 0.0) * -0.5,
 		)?;
 		let grabbable = Grabbable::create(
-			item.node().client()?.get_root(),
+			client.get_root(),
 			Transform::none(),
 			&surface.field(),
 			GrabbableSettings {
@@ -66,9 +73,14 @@ impl Toplevel {
 				..Default::default()
 			},
 		)?;
-		item.set_spatial_parent_in_place(grabbable.content_parent())?;
+		grabbable
+			.content_parent()
+			.set_transform(Some(&item), Transform::identity())?;
+		item.set_spatial_parent(grabbable.content_parent())?;
+		item.set_transform(None, Transform::identity())?;
 		item.auto_size_toplevel()?;
-		Self::initial_position_item(&client, grabbable.content_parent())?;
+
+		Self::initial_position_item(client.clone(), grabbable.content_parent().alias())?;
 
 		let title_style = TextStyle {
 			character_height: CHILD_THICKNESS, // * 1.5,
@@ -126,30 +138,36 @@ impl Toplevel {
 	}
 
 	fn initial_position_item(
-		client: &Client,
-		grabbable_content_parent: &Spatial,
+		client: Arc<Client>,
+		grabbable_content_parent: Spatial,
 	) -> Result<(), NodeError> {
-		let hmd_alias = client.get_hmd().alias();
-		let grabbable_content_parent_alias = grabbable_content_parent.alias();
-		let future = grabbable_content_parent.get_position_rotation_scale(client.get_root())?;
-		tokio::spawn(async move {
-			let Ok((position, _, _)) = future.await else {
-				return;
-			};
-			let position = Vec3::from(position);
+		let distance_future =
+			grabbable_content_parent.get_position_rotation_scale(client.get_root())?;
+		let hmd_future = client
+			.get_hmd()
+			.get_position_rotation_scale(client.get_root())?;
+
+		let _: JoinHandle<Result<(), NodeError>> = tokio::spawn(async move {
+			let (item_position, _, _) = distance_future.await?;
 			// if the distance between the panel item and the client origin is basically nothing, it must be unpositioned
-			if position.length_squared() < 0.01 {
+			if Vec3::from(item_position).length_squared() < 0.001 {
 				// so we want to position it in front of the user
-				let _ = grabbable_content_parent_alias.set_transform(
-					Some(&hmd_alias),
+				let _ = grabbable_content_parent.set_transform(
+					Some(&client.get_hmd()),
 					Transform::from_position_rotation(vec3(0.0, 0.0, -0.25), Quat::IDENTITY),
 				);
-				return;
+				return Ok(());
 			}
-			// otherwise make the panel look at the user
 
-			// let _ = item_alias
-			// .set_transform(Some(&hmd_alias), Transform::from_rotation(Quat::IDENTITY));
+			// otherwise make the panel look at the user
+			let (hmd_position, _, _) = hmd_future.await?;
+			let look_rotation =
+				look_direction((Vec3::from(item_position) - Vec3::from(hmd_position)).normalize());
+			let _ = grabbable_content_parent.set_transform(
+				Some(client.get_root()),
+				Transform::from_rotation(look_rotation),
+			);
+			Ok(())
 		});
 		Ok(())
 	}
