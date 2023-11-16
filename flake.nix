@@ -1,5 +1,5 @@
 {
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   inputs.fenix.url = "github:nix-community/fenix";
   inputs.fenix.inputs.nixpkgs.follows = "nixpkgs";
@@ -28,13 +28,10 @@
             version = "0.8.0";
             cargoLock = {
               lockFile = ./Cargo.lock;
+              allowBuiltinFetchGit = true;
             };
 
             STARDUST_RES_PREFIXES = ./res;
-
-            # buildInputs = with pkgs; [
-            #   libxkbcommon xorg.libxcb
-            # ];
             # ---- END package specific settings ----
           };
     in

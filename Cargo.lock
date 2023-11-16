@@ -1243,7 +1243,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.29.0"
-source = "git+https://github.com/StardustXR/molecules.git#2e60ed7f75a1a79d89b83237dea4d208bc1ab01c"
+source = "git+https://github.com/StardustXR/molecules.git#c23245a8830df48b819f8dcbffbb486bd938f771"
 dependencies = [
  "color-rs",
  "glam",
@@ -1256,7 +1256,6 @@ dependencies = [
  "stardust-xr-fusion",
  "tokio",
  "tracing",
- "xkbcommon",
 ]
 
 [[package]]
@@ -1670,19 +1669,3 @@ checksum = "7c2e3184b9c4e92ad5167ca73039d0c42476302ab603e2fec4487511f38ccefc"
 dependencies = [
  "memchr",
 ]
-
-[[package]]
-name = "xkbcommon"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c286371c44b3572d19b09196c129a8fff47d7704d6494daefb44fec10f0278ab"
-dependencies = [
- "libc",
- "xkeysym",
-]
-
-[[package]]
-name = "xkeysym"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "054a8e68b76250b253f671d1268cb7f1ae089ec35e195b2efb2a4e9a836d0621"
