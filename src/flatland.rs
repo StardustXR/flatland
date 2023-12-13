@@ -1,50 +1,31 @@
+use crate::toplevel::Toplevel;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
-	client::FrameInfo,
+	client::{ClientState, FrameInfo, RootHandler},
 	fields::UnknownField,
 	items::{
 		panel::{PanelItem, PanelItemInitData},
-		ItemAcceptor, ItemAcceptorHandler, ItemUIHandler,
+		ItemAcceptor, ItemUIHandler,
 	},
 	node::NodeType,
 	HandlerWrapper,
 };
 
-use crate::toplevel::Toplevel;
-
 pub struct Flatland {
 	panel_items: FxHashMap<String, HandlerWrapper<PanelItem, Toplevel>>,
+	acceptors: FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
 }
 impl Flatland {
 	pub fn new() -> Self {
 		Flatland {
 			panel_items: FxHashMap::default(),
+			acceptors: FxHashMap::default(),
 		}
-	}
-
-	pub fn frame(
-		&mut self,
-		info: FrameInfo,
-		acceptors: &FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
-	) {
-		for item in self.panel_items.values() {
-			item.lock_wrapped().update(&info, acceptors);
-		}
-		// let items = self.panel_items.items();
-		// let focus = items
-		// 	.iter()
-		// 	.map(|(_, wrapper)| (wrapper, wrapper.lock_inner().step()))
-		// 	.reduce(|a, b| if a.1 > b.1 { b } else { a });
-		// if let Some((focus, _)) = focus {
-		// 	self.focused = focus.weak_wrapped();
-		// }
 	}
 
 	fn add_item(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
 		let Ok(toplevel) = Toplevel::create(item.alias(), init_data) else {return};
 		let handler = item.wrap(toplevel).unwrap();
-		// handler.lock_wrapped().mouse.lock_wrapped().panel_item_ui =
-		// 	Arc::downgrade(handler.wrapped());
 		self.panel_items.insert(uid.to_string(), handler);
 	}
 	fn remove_item(&mut self, uid: &str) {
@@ -59,22 +40,45 @@ impl ItemUIHandler<PanelItem> for Flatland {
 		self.remove_item(uid);
 	}
 
-	fn item_captured(&mut self, uid: &str, _acceptor_uid: &str, item: PanelItem) {
-		let _ = item.reset_touches();
+	fn item_captured(&mut self, uid: &str, _acceptor_uid: &str) {
 		let Some(toplevel) = self.panel_items.get(uid) else {return};
 		toplevel.lock_wrapped().set_enabled(false);
 	}
-	fn item_released(&mut self, uid: &str, _acceptor_uid: &str, item: PanelItem) {
-		let _ = item.reset_touches();
+	fn item_released(&mut self, uid: &str, _acceptor_uid: &str) {
 		let Some(toplevel) = self.panel_items.get(uid) else {return};
 		toplevel.lock_wrapped().set_enabled(true);
 	}
-}
-impl ItemAcceptorHandler<PanelItem> for Flatland {
-	fn captured(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
-		self.add_item(uid, item, init_data);
+
+	fn acceptor_created(
+		&mut self,
+		acceptor_uid: &str,
+		acceptor: ItemAcceptor<PanelItem>,
+		field: UnknownField,
+	) {
+		self.acceptors
+			.insert(acceptor_uid.to_string(), (acceptor, field));
 	}
-	fn released(&mut self, uid: &str) {
-		self.remove_item(uid);
+
+	fn acceptor_destroyed(&mut self, acceptor_uid: &str) {
+		self.acceptors.remove(acceptor_uid);
+	}
+}
+// impl ItemAcceptorHandler<PanelItem> for Flatland {
+// 	fn captured(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
+// 		self.add_item(uid, item, init_data);
+// 	}
+// 	fn released(&mut self, uid: &str) {
+// 		self.remove_item(uid);
+// 	}
+// }
+impl RootHandler for Flatland {
+	fn frame(&mut self, info: FrameInfo) {
+		for item in self.panel_items.values() {
+			item.lock_wrapped().update(&info, &self.acceptors);
+		}
+	}
+
+	fn save_state(&mut self) -> ClientState {
+		ClientState::default()
 	}
 }

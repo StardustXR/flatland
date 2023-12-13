@@ -11,7 +11,7 @@ use stardust_xr_fusion::{
 	HandlerWrapper,
 };
 use stardust_xr_molecules::{
-	input_action::{BaseInputAction, InputAction, InputActionHandler},
+	input_action::{BaseInputAction, InputActionHandler},
 	Exposure,
 };
 
@@ -73,7 +73,7 @@ impl CloseButton {
 	pub fn update(&mut self, frame_info: &FrameInfo) {
 		self.handler
 			.lock_wrapped()
-			.update_actions([self.distance_action.type_erase()]);
+			.update_actions([&mut self.distance_action]);
 		let exposure: f32 = self
 			.distance_action
 			.currently_acting

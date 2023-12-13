@@ -175,7 +175,7 @@ impl Surface {
 			.reduce(|a, b| if a.distance > b.distance { b } else { a })
 		{
 			let (interact_point, _depth) = self.touch_plane.interact_point(&closest_hover);
-			self.item.pointer_motion(&self.id, interact_point).unwrap();
+			let _ = self.item.pointer_motion(&self.id, interact_point);
 		}
 
 		for input in self
@@ -204,19 +204,29 @@ impl Surface {
 					.into(),
 				)
 			});
-			self.item
-				.pointer_scroll(&self.id, scroll_continous, scroll_discrete)
-				.unwrap();
+			let _ = self
+				.item
+				.pointer_scroll(&self.id, scroll_continous, scroll_discrete);
+
+			// for input in input.datamap.with_data(|r| {
+			// 	r.idx("raw_input_events")
+			// 		.as_vector()
+			// 		.iter()
+			// 		.map(|i| i.as_f32())
+			// 		.collect::<Vec<_>>()
+			// }) {
+			// 	pointer
+			// }
 		}
 
 		if self.touch_plane.touch_started() {
-			self.item
-				.pointer_button(&self.id, input_event_codes::BTN_LEFT!(), true)
-				.unwrap();
+			let _ = self
+				.item
+				.pointer_button(&self.id, input_event_codes::BTN_LEFT!(), true);
 		} else if self.touch_plane.touch_stopped() {
-			self.item
-				.pointer_button(&self.id, input_event_codes::BTN_LEFT!(), false)
-				.unwrap();
+			let _ = self
+				.item
+				.pointer_button(&self.id, input_event_codes::BTN_LEFT!(), false);
 		}
 	}
 	pub fn set_offset(&self, px_offset: Vector2<i32>) -> Result<(), NodeError> {
