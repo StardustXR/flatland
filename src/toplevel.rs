@@ -11,15 +11,14 @@ use glam::{vec3, Quat, Vec3};
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	client::{Client, FrameInfo},
-	core::values::Transform,
-	drawable::{Alignment, Text, TextStyle},
+	drawable::{Text, TextAspect, TextStyle, XAlign, YAlign},
 	fields::UnknownField,
 	items::{
 		panel::{ChildInfo, Geometry, PanelItem, PanelItemHandler, PanelItemInitData, SurfaceID},
 		ItemAcceptor,
 	},
 	node::{NodeError, NodeType},
-	spatial::Spatial,
+	spatial::{Spatial, SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings, PointerMode};
 use tokio::task::JoinHandle;
@@ -56,10 +55,11 @@ impl Toplevel {
 			data.toplevel.size,
 			TOPLEVEL_THICKNESS,
 		)?;
-		surface.root().set_position(
-			None,
-			vec3(surface.physical_size().x, -surface.physical_size().y, 0.0) * -0.5,
-		)?;
+		surface
+			.root()
+			.set_local_transform(Transform::from_translation(
+				vec3(surface.physical_size().x, -surface.physical_size().y, 0.0) * -0.5,
+			))?;
 		let grabbable = Grabbable::create(
 			client.get_root(),
 			Transform::none(),
@@ -75,21 +75,22 @@ impl Toplevel {
 		)?;
 		grabbable
 			.content_parent()
-			.set_transform(Some(&item), Transform::identity())?;
+			.set_relative_transform(&item, Transform::identity())?;
 		item.set_spatial_parent(grabbable.content_parent())?;
-		item.set_transform(None, Transform::identity())?;
+		item.set_local_transform(Transform::identity())?;
 		item.auto_size_toplevel()?;
 
 		Self::initial_position_item(client.clone(), grabbable.content_parent().alias())?;
 
 		let title_style = TextStyle {
 			character_height: CHILD_THICKNESS, // * 1.5,
-			text_align: Alignment::XLeft | Alignment::YBottom,
+			text_align_x: XAlign::Left,
+			text_align_y: YAlign::Bottom,
 			..Default::default()
 		};
 		let title_text = Text::create(
 			&item,
-			Transform::from_position_rotation(
+			Transform::from_translation_rotation(
 				[
 					surface.physical_size().x * 0.5,
 					surface.physical_size().y * 0.5,
@@ -104,12 +105,12 @@ impl Toplevel {
 
 		let panel_shell_grab_ball_anchor = Spatial::create(
 			&item,
-			Transform::from_position([0.0, -surface.physical_size().y * 0.5, 0.0]),
+			Transform::from_translation([0.0, -surface.physical_size().y * 0.5, 0.0]),
 			false,
 		)
 		.unwrap();
 		let panel_shell_transfer =
-			PanelShellTransfer::create(&surface.root(), item.alias()).unwrap();
+			PanelShellTransfer::create(surface.root(), item.alias()).unwrap();
 		let panel_shell_grab_ball = GrabBall::create(
 			panel_shell_grab_ball_anchor,
 			[0.0, -0.02, 0.0],
@@ -141,32 +142,35 @@ impl Toplevel {
 		client: Arc<Client>,
 		grabbable_content_parent: Spatial,
 	) -> Result<(), NodeError> {
-		let distance_future =
-			grabbable_content_parent.get_position_rotation_scale(client.get_root())?;
-		let hmd_future = client
-			.get_hmd()
-			.get_position_rotation_scale(client.get_root())?;
-
 		let _: JoinHandle<Result<(), NodeError>> = tokio::spawn(async move {
-			let (item_position, _, _) = distance_future.await?;
+			let distance_future = grabbable_content_parent.get_transform(client.get_root());
+			let hmd_future = client.get_hmd().get_transform(client.get_root());
+
+			let Transform {
+				translation: item_translation,
+				..
+			} = distance_future.await?;
 			// if the distance between the panel item and the client origin is basically nothing, it must be unpositioned
-			if Vec3::from(item_position).length_squared() < 0.001 {
+			if Vec3::from(item_translation.unwrap()).length_squared() < 0.001 {
 				// so we want to position it in front of the user
-				let _ = grabbable_content_parent.set_transform(
-					Some(&client.get_hmd()),
-					Transform::from_position_rotation(vec3(0.0, 0.0, -0.25), Quat::IDENTITY),
+				let _ = grabbable_content_parent.set_relative_transform(
+					client.get_hmd(),
+					Transform::from_translation_rotation(vec3(0.0, 0.0, -0.25), Quat::IDENTITY),
 				);
 				return Ok(());
 			}
 
 			// otherwise make the panel look at the user
-			let (hmd_position, _, _) = hmd_future.await?;
-			let look_rotation =
-				look_direction((Vec3::from(item_position) - Vec3::from(hmd_position)).normalize());
-			let _ = grabbable_content_parent.set_transform(
-				Some(client.get_root()),
-				Transform::from_rotation(look_rotation),
+			let Transform {
+				translation: hmd_translation,
+				..
+			} = hmd_future.await?;
+			let look_rotation = look_direction(
+				(Vec3::from(item_translation.unwrap()) - Vec3::from(hmd_translation.unwrap()))
+					.normalize(),
 			);
+			let _ = grabbable_content_parent
+				.set_relative_transform(client.get_root(), Transform::from_rotation(look_rotation));
 			Ok(())
 		});
 		Ok(())
@@ -209,7 +213,7 @@ impl Toplevel {
 			(None, None) => String::new(),
 		};
 
-		self.title_text.set_text(title).unwrap();
+		self.title_text.set_text(&title).unwrap();
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {
@@ -237,18 +241,19 @@ impl PanelItemHandler for Toplevel {
 	fn toplevel_size_changed(&mut self, size: mint::Vector2<u32>) {
 		self.surface.resize(size).unwrap();
 		self.title_text
-			.set_position(
-				None,
-				[
-					self.surface.physical_size().x * 0.5,
-					self.surface.physical_size().y * 0.5,
-					-CHILD_THICKNESS,
-				],
-			)
+			.set_local_transform(Transform::from_translation([
+				self.surface.physical_size().x * 0.5,
+				self.surface.physical_size().y * 0.5,
+				-CHILD_THICKNESS,
+			]))
 			.unwrap();
 		self.panel_shell_grab_ball
 			.connect_root()
-			.set_position(None, [0.0, -self.surface.physical_size().y * 0.5, 0.0])
+			.set_local_transform(Transform::from_translation([
+				0.0,
+				-self.surface.physical_size().y * 0.5,
+				0.0,
+			]))
 			.unwrap();
 		self.close_button.resize(&self.surface);
 	}

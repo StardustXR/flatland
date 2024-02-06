@@ -23,35 +23,41 @@ impl Flatland {
 		}
 	}
 
-	fn add_item(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
-		let Ok(toplevel) = Toplevel::create(item.alias(), init_data) else {return};
+	fn add_item(&mut self, uid: String, item: PanelItem, init_data: PanelItemInitData) {
+		let Ok(toplevel) = Toplevel::create(item.alias(), init_data) else {
+			return;
+		};
 		let handler = item.wrap(toplevel).unwrap();
-		self.panel_items.insert(uid.to_string(), handler);
+		self.panel_items.insert(uid, handler);
 	}
 	fn remove_item(&mut self, uid: &str) {
 		self.panel_items.remove(uid);
 	}
 }
 impl ItemUIHandler<PanelItem> for Flatland {
-	fn item_created(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
+	fn item_created(&mut self, uid: String, item: PanelItem, init_data: PanelItemInitData) {
 		self.add_item(uid, item, init_data);
 	}
-	fn item_destroyed(&mut self, uid: &str) {
-		self.remove_item(uid);
+	fn item_destroyed(&mut self, uid: String) {
+		self.remove_item(&uid);
 	}
 
-	fn item_captured(&mut self, uid: &str, _acceptor_uid: &str) {
-		let Some(toplevel) = self.panel_items.get(uid) else {return};
+	fn item_captured(&mut self, uid: String, _acceptor_uid: String) {
+		let Some(toplevel) = self.panel_items.get(&uid) else {
+			return;
+		};
 		toplevel.lock_wrapped().set_enabled(false);
 	}
-	fn item_released(&mut self, uid: &str, _acceptor_uid: &str) {
-		let Some(toplevel) = self.panel_items.get(uid) else {return};
+	fn item_released(&mut self, uid: String, _acceptor_uid: String) {
+		let Some(toplevel) = self.panel_items.get(&uid) else {
+			return;
+		};
 		toplevel.lock_wrapped().set_enabled(true);
 	}
 
 	fn acceptor_created(
 		&mut self,
-		acceptor_uid: &str,
+		acceptor_uid: String,
 		acceptor: ItemAcceptor<PanelItem>,
 		field: UnknownField,
 	) {
@@ -59,15 +65,15 @@ impl ItemUIHandler<PanelItem> for Flatland {
 			.insert(acceptor_uid.to_string(), (acceptor, field));
 	}
 
-	fn acceptor_destroyed(&mut self, acceptor_uid: &str) {
-		self.acceptors.remove(acceptor_uid);
+	fn acceptor_destroyed(&mut self, acceptor_uid: String) {
+		self.acceptors.remove(&acceptor_uid);
 	}
 }
 // impl ItemAcceptorHandler<PanelItem> for Flatland {
-// 	fn captured(&mut self, uid: &str, item: PanelItem, init_data: PanelItemInitData) {
+// 	fn captured(&mut self, uid: String, item: PanelItem, init_data: PanelItemInitData) {
 // 		self.add_item(uid, item, init_data);
 // 	}
-// 	fn released(&mut self, uid: &str) {
+// 	fn released(&mut self, uid: String) {
 // 		self.remove_item(uid);
 // 	}
 // }

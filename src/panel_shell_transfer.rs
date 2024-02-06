@@ -2,14 +2,15 @@ use color::rgba_linear;
 use map_range::MapRange;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
-	core::values::Transform,
-	drawable::{MaterialParameter, Model, ModelPart, ResourceID},
-	fields::UnknownField,
+	core::values::ResourceID,
+	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
+	fields::{FieldAspect, UnknownField},
 	items::{panel::PanelItem, ItemAcceptor},
 	node::{NodeError, NodeType},
-	spatial::Spatial,
+	spatial::{SpatialAspect, Transform},
 };
 use stardust_xr_molecules::input_action::SingleActorAction;
+use tokio::task::JoinSet;
 
 use crate::grab_ball::{GrabBallHead, GrabBallSettings};
 
@@ -20,9 +21,12 @@ pub struct PanelShellTransfer {
 	outside: ModelPart,
 }
 impl PanelShellTransfer {
-	pub fn create(connect_root: &Spatial, panel_item: PanelItem) -> Result<Self, NodeError> {
+	pub fn create(
+		connect_root: &impl SpatialAspect,
+		panel_item: PanelItem,
+	) -> Result<Self, NodeError> {
 		let model = Model::create(
-			&connect_root,
+			connect_root,
 			Transform::identity(),
 			&ResourceID::new_namespaced("flatland", "panel_shell"),
 		)?;
@@ -40,33 +44,31 @@ impl PanelShellTransfer {
 		grab_action: &SingleActorAction<GrabBallSettings>,
 		acceptors: &FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
 	) {
-		let fields: Vec<_> = acceptors.values().map(|(_, f)| f.alias()).collect();
-		let Ok(future) = self.model.field_distance([0.0; 3], fields) else {
-			return;
-		};
+		let mut fields: JoinSet<Result<(f32, ItemAcceptor<PanelItem>), NodeError>> = JoinSet::new();
+		for (acceptor, field) in acceptors.values() {
+			let model = self.model.alias();
+			let acceptor = acceptor.alias();
+			let field = field.alias();
+			fields.spawn(async move {
+				let distance = field.distance(&model, [0.0; 3]).await?;
+				Ok((distance, acceptor))
+			});
+		}
 		let panel_item = self.panel_item.alias();
-		let item_acceptors: FxHashMap<String, ItemAcceptor<PanelItem>> = acceptors
-			.keys()
-			.filter_map(|k| Some((k.clone(), acceptors.get(k)?.0.alias())))
-			.collect();
 		let outside = self.outside.alias();
 		let released = grab_action.actor_stopped();
 		tokio::spawn(async move {
-			let Ok(distances) = future.await else { return };
-			// dbg!(&distances);
-			let closest_acceptor = item_acceptors
-				.keys()
-				.zip(distances.into_iter().flatten().map(f32::abs))
-				.reduce(
-					|(ak, av), (bk, bv)| {
-						if av > bv {
-							(bk, bv)
-						} else {
-							(ak, av)
-						}
-					},
-				);
-			let Some((uid, distance)) = closest_acceptor else {
+			let mut closest_distance = f32::INFINITY;
+			let mut closest_acceptor = None;
+			while let Some(distance_pair) = fields.join_next().await {
+				if let Ok(Ok((distance, acceptor))) = distance_pair {
+					if distance < closest_distance {
+						closest_distance = distance;
+						closest_acceptor.replace(acceptor);
+					}
+				}
+			}
+			let Some(acceptor) = closest_acceptor else {
 				let _ = outside.set_material_parameter(
 					"color",
 					MaterialParameter::Color(rgba_linear!(1.0, 1.0, 1.0, 1.0)),
@@ -75,7 +77,8 @@ impl PanelShellTransfer {
 			};
 
 			let gradient = colorgrad::magma();
-			let color = gradient.at(distance.map_range(0.25..MAX_ACCEPT_DISTANCE, 0.0..1.0) as f64);
+			let color =
+				gradient.at(closest_distance.map_range(0.25..MAX_ACCEPT_DISTANCE, 0.0..1.0) as f64);
 			let _ = outside.set_material_parameter(
 				"emission_factor",
 				MaterialParameter::Color(rgba_linear!(
@@ -85,17 +88,14 @@ impl PanelShellTransfer {
 					color.a as f32
 				)),
 			);
-			if released && dbg!(distance) < MAX_ACCEPT_DISTANCE {
-				let Some(acceptor) = item_acceptors.get(uid) else {
-					return;
-				};
+			if released && dbg!(closest_distance) < MAX_ACCEPT_DISTANCE {
 				let _ = acceptor.capture(&panel_item);
 			}
 		});
 	}
 }
 impl GrabBallHead for PanelShellTransfer {
-	fn root(&self) -> &Spatial {
+	fn root(&self) -> &impl SpatialAspect {
 		&self.model
 	}
 

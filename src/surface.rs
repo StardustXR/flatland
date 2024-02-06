@@ -3,13 +3,13 @@ use lazy_static::lazy_static;
 use mint::Vector2;
 use rustc_hash::FxHashSet;
 use stardust_xr_fusion::{
-	core::values::Transform,
-	drawable::{Model, ResourceID},
+	core::values::ResourceID,
+	drawable::Model,
 	fields::UnknownField,
 	input::{InputData, InputDataType},
 	items::panel::{Geometry, PanelItem, SurfaceID},
 	node::{NodeError, NodeType},
-	spatial::Spatial,
+	spatial::{Spatial, SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{
 	keyboard::{create_keyboard_panel_handler, KeyboardPanelHandler},
@@ -47,7 +47,7 @@ pub struct Surface {
 }
 impl Surface {
 	pub fn create(
-		parent: &Spatial,
+		parent: &impl SpatialAspect,
 		transform: Transform,
 		item: PanelItem,
 		id: SurfaceID,
@@ -59,13 +59,13 @@ impl Surface {
 		let panel_size = vec3(physical_size.x, physical_size.y, thickness);
 		let model = Model::create(
 			&root,
-			Transform::from_position_scale(panel_size * vec3(0.5, -0.5, -0.5), panel_size),
+			Transform::from_translation_scale(panel_size * vec3(0.5, -0.5, -0.5), panel_size),
 			&PANEL_RESOURCE,
 		)?;
 		item.apply_surface_material(&id, &model.model_part("Panel")?)?;
 		let touch_plane = TouchPlane::create(
 			&root,
-			Transform::from_position(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0),
+			Transform::from_translation(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0),
 			physical_size,
 			thickness,
 			0.0..px_size.x as f32,
@@ -107,7 +107,7 @@ impl Surface {
 		];
 		let mut surface = Self::create(
 			&parent.root,
-			Transform::from_position(position),
+			Transform::from_translation(position),
 			parent.item.alias(),
 			SurfaceID::Child(uid),
 			geometry.size,
@@ -230,31 +230,35 @@ impl Surface {
 		}
 	}
 	pub fn set_offset(&self, px_offset: Vector2<i32>) -> Result<(), NodeError> {
-		self.root.set_position(
-			None,
-			[
-				px_offset.x as f32 / PPM,
-				px_offset.y as f32 / PPM,
-				self.parent_thickness,
-			],
-		)
+		self.root.set_local_transform(Transform::from_translation([
+			px_offset.x as f32 / PPM,
+			px_offset.y as f32 / PPM,
+			self.parent_thickness,
+		]))
 	}
 	pub fn resize(&mut self, px_size: Vector2<u32>) -> Result<(), NodeError> {
 		let physical_size: Vec2 = vec2(px_size.x as f32, px_size.y as f32) / PPM;
 		let panel_size = vec3(physical_size.x, physical_size.y, self.thickness);
-		self.model.set_transform(
-			None,
-			Transform::from_position_scale(panel_size * vec3(0.5, -0.5, -0.5), panel_size),
-		)?;
+		self.model
+			.set_local_transform(Transform::from_translation_scale(
+				panel_size * vec3(0.5, -0.5, -0.5),
+				panel_size,
+			))?;
 		self.touch_plane
 			.root()
-			.set_position(None, vec3(physical_size.x, -physical_size.y, 0.0) / 2.0)?;
+			.set_local_transform(Transform::from_translation(
+				vec3(physical_size.x, -physical_size.y, 0.0) / 2.0,
+			))?;
 		self.touch_plane.set_size(physical_size)?;
 		self.touch_plane.x_range = 0.0..px_size.x as f32;
 		self.touch_plane.y_range = 0.0..px_size.y as f32;
 		self.physical_size = physical_size;
 		self.keyboard
-			.set_position(None, [-0.01, physical_size.y * -0.5, 0.0])
+			.set_local_transform(Transform::from_translation([
+				-0.01,
+				physical_size.y * -0.5,
+				0.0,
+			]))
 			.unwrap();
 		// self.touch_plane.set_debug(Some(DebugSettings::default()));
 

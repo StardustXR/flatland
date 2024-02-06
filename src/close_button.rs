@@ -2,12 +2,13 @@ use color::rgba_linear;
 use glam::Vec2;
 use stardust_xr_fusion::{
 	client::FrameInfo,
-	core::values::Transform,
-	drawable::{MaterialParameter, Model, ModelPart, ResourceID},
-	fields::BoxField,
+	core::values::ResourceID,
+	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
+	fields::{BoxField, BoxFieldAspect},
 	input::{InputDataType::Pointer, InputHandler},
 	items::panel::PanelItem,
 	node::{NodeError, NodeType},
+	spatial::{SpatialAspect, Transform},
 	HandlerWrapper,
 };
 use stardust_xr_molecules::{
@@ -30,7 +31,7 @@ impl CloseButton {
 	pub fn new(item: PanelItem, thickness: f32, panel_size: Vec2) -> Result<Self, NodeError> {
 		let model = Model::create(
 			&item,
-			Transform::from_position_scale(
+			Transform::from_translation_scale(
 				[panel_size.x, -panel_size.y, 0.0],
 				[0.025, 0.025, thickness],
 			),
@@ -46,11 +47,11 @@ impl CloseButton {
 		// compensate for the server not being able to handle scaled fields
 		let field = BoxField::create(&shell, Transform::none(), [1.5, 1.0, 1.0])?;
 		field.set_spatial_parent_in_place(&item)?;
-		field.set_scale(None, [1.0; 3])?;
+		field.set_local_transform(Transform::from_scale([1.0; 3]))?;
 		field.set_size([1.5 * 0.025, 0.025, thickness])?;
 
-		let handler = InputHandler::create(&shell, Transform::none(), &field)?
-			.wrap(InputActionHandler::new(()))?;
+		let handler =
+			InputActionHandler::wrap(InputHandler::create(&shell, Transform::none(), &field)?, ())?;
 		let distance_action = BaseInputAction::new(true, |data, _| {
 			data.distance < 0.0
 				&& match &data.input {
@@ -103,13 +104,17 @@ impl CloseButton {
 
 	pub fn resize(&mut self, surface: &Surface) {
 		self.model
-			.set_position(
-				Some(surface.root()),
-				[surface.physical_size().x, -surface.physical_size().y, 0.0],
+			.set_relative_transform(
+				surface.root(),
+				Transform::from_translation([
+					surface.physical_size().x,
+					-surface.physical_size().y,
+					0.0,
+				]),
 			)
 			.unwrap();
 		self.field
-			.set_position(Some(&self.shell), [0.0; 3])
+			.set_relative_transform(&self.shell, Transform::from_translation([0.0; 3]))
 			.unwrap();
 	}
 
