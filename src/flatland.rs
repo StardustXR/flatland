@@ -8,16 +8,19 @@ use stardust_xr_fusion::{
 		ItemAcceptor, ItemUIHandler,
 	},
 	node::NodeType,
+	spatial::Spatial,
 	HandlerWrapper,
 };
 
 pub struct Flatland {
+	root: Spatial,
 	panel_items: FxHashMap<String, HandlerWrapper<PanelItem, Toplevel>>,
 	acceptors: FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
 }
 impl Flatland {
-	pub fn new() -> Self {
+	pub fn new(root: &Spatial) -> Self {
 		Flatland {
+			root: root.alias(),
 			panel_items: FxHashMap::default(),
 			acceptors: FxHashMap::default(),
 		}
@@ -85,6 +88,6 @@ impl RootHandler for Flatland {
 	}
 
 	fn save_state(&mut self) -> ClientState {
-		ClientState::default()
+		ClientState::from_root(&self.root)
 	}
 }

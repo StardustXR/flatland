@@ -122,8 +122,7 @@ impl Toplevel {
 			},
 		)
 		.unwrap();
-		let close_button =
-			CloseButton::new(item.alias(), TOPLEVEL_THICKNESS, surface.physical_size())?;
+		let close_button = CloseButton::new(item.alias(), TOPLEVEL_THICKNESS, &surface)?;
 
 		Ok(Toplevel {
 			_item: item,

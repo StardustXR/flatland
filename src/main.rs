@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
 	client.set_base_prefixes(&[directory_relative_path!("res")]);
 
-	let flatland = client.wrap_root(Flatland::new())?;
+	let flatland = client.wrap_root(Flatland::new(client.get_root()))?;
 	let _item_ui_wrapped = ItemUI::register(&client)?.wrap_raw(flatland)?;
 
 	tokio::select! {
