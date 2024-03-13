@@ -1,5 +1,3 @@
-use std::{f32::consts::PI, sync::Arc};
-
 use crate::{
 	close_button::CloseButton,
 	grab_ball::{GrabBall, GrabBallSettings},
@@ -11,8 +9,8 @@ use glam::{vec3, Quat, Vec3};
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	client::{Client, FrameInfo},
-	drawable::{Text, TextAspect, TextStyle, XAlign, YAlign},
-	fields::UnknownField,
+	drawable::{Text, TextAspect, TextBounds, TextFit, TextStyle, XAlign, YAlign},
+	fields::{BoxField, BoxFieldAspect, UnknownField},
 	items::{
 		panel::{ChildInfo, Geometry, PanelItem, PanelItemHandler, PanelItemInitData, SurfaceID},
 		ItemAcceptor,
@@ -21,6 +19,7 @@ use stardust_xr_fusion::{
 	spatial::{Spatial, SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings, PointerMode};
+use std::{f32::consts::PI, sync::Arc};
 use tokio::task::JoinHandle;
 
 fn look_direction(direction: Vec3) -> Quat {
@@ -35,6 +34,7 @@ pub const CHILD_THICKNESS: f32 = 0.005;
 pub struct Toplevel {
 	_item: PanelItem,
 	surface: Surface,
+	grab_field: BoxField,
 	grabbable: Grabbable,
 	title_text: Text,
 	title: Option<String>,
@@ -60,10 +60,19 @@ impl Toplevel {
 			.set_local_transform(Transform::from_translation(
 				vec3(surface.physical_size().x, -surface.physical_size().y, 0.0) * -0.5,
 			))?;
+		let grab_field = BoxField::create(
+			&item,
+			Transform::from_translation([0.0, 0.0, TOPLEVEL_THICKNESS * -1.5]),
+			[
+				surface.physical_size().x,
+				surface.physical_size().y,
+				TOPLEVEL_THICKNESS,
+			],
+		)?;
 		let grabbable = Grabbable::create(
 			client.get_root(),
 			Transform::none(),
-			&surface.field(),
+			&grab_field,
 			GrabbableSettings {
 				linear_momentum: None,
 				angular_momentum: None,
@@ -86,6 +95,12 @@ impl Toplevel {
 			character_height: CHILD_THICKNESS, // * 1.5,
 			text_align_x: XAlign::Left,
 			text_align_y: YAlign::Bottom,
+			bounds: Some(TextBounds {
+				bounds: [surface.physical_size().y, CHILD_THICKNESS].into(),
+				fit: TextFit::Squeeze,
+				anchor_align_x: XAlign::Left,
+				anchor_align_y: YAlign::Bottom,
+			}),
 			..Default::default()
 		};
 		let title_text = Text::create(
@@ -127,6 +142,7 @@ impl Toplevel {
 		Ok(Toplevel {
 			_item: item,
 			surface,
+			grab_field,
 			grabbable,
 			title_text,
 			title: data.toplevel.title.clone(),
@@ -180,6 +196,13 @@ impl Toplevel {
 		info: &FrameInfo,
 		acceptors: &FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
 	) {
+		self.grab_field
+			.set_size([
+				self.surface.physical_size().x,
+				self.surface.physical_size().y,
+				TOPLEVEL_THICKNESS,
+			])
+			.unwrap();
 		self.grabbable.update(info).unwrap();
 		if !self.grabbable.grab_action().actor_acting() {
 			self.surface.update();
@@ -272,6 +295,7 @@ impl PanelItemHandler for Toplevel {
 		let surface =
 			Surface::new_child(parent, uid.to_string(), &info.geometry, CHILD_THICKNESS).unwrap();
 		self.children.insert(uid.to_string(), surface);
+		let _ = self.surface.hover_plane.set_enabled(false);
 		let _ = self.surface.touch_plane.set_enabled(false);
 	}
 	fn reposition_child(&mut self, uid: &str, geometry: Geometry) {
@@ -284,6 +308,7 @@ impl PanelItemHandler for Toplevel {
 	fn drop_child(&mut self, uid: &str) {
 		self.children.remove(uid);
 		if self.children.is_empty() {
+			let _ = self.surface.hover_plane.set_enabled(true);
 			let _ = self.surface.touch_plane.set_enabled(true);
 		}
 	}
