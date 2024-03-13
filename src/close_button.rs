@@ -31,11 +31,7 @@ impl CloseButton {
 		let model = Model::create(
 			&item,
 			Transform::from_translation_scale(
-				[
-					surface.physical_size().x * 0.5,
-					surface.physical_size().y * -0.5,
-					0.0,
-				],
+				[surface.physical_size().x, -surface.physical_size().y, 0.0],
 				[0.025, 0.025, thickness],
 			),
 			&ResourceID::new_namespaced("flatland", "close_button"),
@@ -110,8 +106,8 @@ impl CloseButton {
 			.set_relative_transform(
 				surface.root(),
 				Transform::from_translation([
-					surface.physical_size().x * 0.5,
-					surface.physical_size().y * -0.5,
+					surface.physical_size().x,
+					-surface.physical_size().y,
 					0.0,
 				]),
 			)

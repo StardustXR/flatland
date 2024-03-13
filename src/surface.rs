@@ -12,6 +12,7 @@ use stardust_xr_fusion::{
 	spatial::{Spatial, SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{
+	hover_plane::{HoverPlane, HoverPlaneSettings},
 	keyboard::{create_keyboard_panel_handler, KeyboardPanelHandler},
 	touch_plane::TouchPlane,
 };
@@ -40,6 +41,7 @@ pub struct Surface {
 	parent_thickness: f32,
 	thickness: f32,
 	model: Model,
+	pub hover_plane: HoverPlane,
 	pub touch_plane: TouchPlane,
 	touches: FxHashSet<Arc<InputData>>,
 	keyboard: KeyboardPanelHandler,
@@ -63,9 +65,23 @@ impl Surface {
 			&PANEL_RESOURCE,
 		)?;
 		item.apply_surface_material(&id, &model.model_part("Panel")?)?;
+		let plane_transform =
+			Transform::from_translation(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0);
+		let hover_plane = HoverPlane::create(
+			&root,
+			plane_transform.clone(),
+			physical_size,
+			thickness,
+			0.0..px_size.x as f32,
+			0.0..px_size.y as f32,
+			HoverPlaneSettings {
+				distance_range: 0.05..1.0,
+				..Default::default()
+			},
+		)?;
 		let touch_plane = TouchPlane::create(
 			&root,
-			Transform::from_translation(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0),
+			plane_transform.clone(),
 			physical_size,
 			thickness,
 			0.0..px_size.x as f32,
@@ -88,6 +104,7 @@ impl Surface {
 			parent_thickness: 0.0,
 			thickness,
 			model,
+			hover_plane,
 			touch_plane,
 			touches: FxHashSet::default(),
 			keyboard,
@@ -117,72 +134,50 @@ impl Surface {
 		Ok(surface)
 	}
 
+	fn filter_touch(t: &&Arc<InputData>) -> bool {
+		match t.input {
+			InputDataType::Pointer(_) => false,
+			_ => true,
+		}
+	}
+
 	pub fn update(&mut self) {
+		self.hover_plane.update();
 		self.touch_plane.update();
 
-		// proper touches
-		for input_data in self
-			.touch_plane
-			.started_inputs()
-			.into_iter()
-			.filter(|t| match t.input {
-				InputDataType::Hand(_) => true,
-				_ => false,
-			}) {
-			self.touches.insert(input_data.clone());
-			let uid = hash_input_data(input_data);
-			let position = self.touch_plane.interact_point(&input_data).0;
-			let _ = self.item.touch_down(&self.id, uid, position);
-		}
-		for input_data in self
-			.touch_plane
-			.interacting_inputs()
-			.into_iter()
-			.filter(|t| match t.input {
-				InputDataType::Hand(_) => true,
-				_ => false,
-			}) {
-			if !self.touches.contains(input_data) {
-				return;
-			}
-			let uid = hash_input_data(input_data);
-			let position = self.touch_plane.interact_point(&input_data).0;
-			let _ = self.item.touch_move(uid, position);
-		}
-		for input_data in self
-			.touch_plane
-			.stopped_inputs()
-			.into_iter()
-			.filter(|t| match t.input {
-				InputDataType::Hand(_) => true,
-				_ => false,
-			}) {
-			self.touches.remove(input_data);
-			let uid = hash_input_data(input_data);
-			let _ = self.item.touch_up(uid);
-		}
+		self.update_pointer();
+		self.update_touches();
+	}
 
-		// "touches" but actually use the pointer instead
+	pub fn update_pointer(&mut self) {
+		// set pointer position with the closest thing that's hovering
 		if let Some(closest_hover) = self
-			.touch_plane
+			.hover_plane
 			.hovering_inputs()
 			.into_iter()
-			.chain(self.touch_plane.interacting_inputs().clone())
-			.filter(|i| match i.input {
-				InputDataType::Hand(_) => false,
-				_ => true,
-			})
+			.chain(self.hover_plane.interact_status().actor().cloned())
 			.reduce(|a, b| if a.distance > b.distance { b } else { a })
 		{
-			let (interact_point, _depth) = self.touch_plane.interact_point(&closest_hover);
+			let (interact_point, _depth) = self.hover_plane.interact_point(&closest_hover);
 			let _ = self.item.pointer_motion(&self.id, interact_point);
 		}
 
+		// left mouse button
+		if self.hover_plane.interact_status().actor_started() {
+			let _ = self
+				.item
+				.pointer_button(&self.id, input_event_codes::BTN_LEFT!(), true);
+		} else if self.hover_plane.interact_status().actor_stopped() {
+			let _ = self
+				.item
+				.pointer_button(&self.id, input_event_codes::BTN_LEFT!(), false);
+		}
+
 		for input in self
-			.touch_plane
+			.hover_plane
 			.hovering_inputs()
 			.into_iter()
-			.chain(self.touch_plane.interacting_inputs().clone())
+			.chain(self.hover_plane.interact_status().actor().cloned())
 		{
 			let scroll_continous = input.datamap.with_data(|r| {
 				let scroll_continous = r.index("scroll_continous").ok()?.as_vector();
@@ -218,17 +213,45 @@ impl Surface {
 			// 	pointer
 			// }
 		}
-
-		if self.touch_plane.touch_started() {
-			let _ = self
-				.item
-				.pointer_button(&self.id, input_event_codes::BTN_LEFT!(), true);
-		} else if self.touch_plane.touch_stopped() {
-			let _ = self
-				.item
-				.pointer_button(&self.id, input_event_codes::BTN_LEFT!(), false);
+	}
+	pub fn update_touches(&mut self) {
+		// proper touches
+		for input_data in self
+			.touch_plane
+			.started_inputs()
+			.into_iter()
+			.filter(Self::filter_touch)
+		{
+			self.touches.insert(input_data.clone());
+			let uid = hash_input_data(input_data);
+			let position = self.touch_plane.interact_point(&input_data).0;
+			let _ = self.item.touch_down(&self.id, uid, position);
+		}
+		for input_data in self
+			.touch_plane
+			.interacting_inputs()
+			.into_iter()
+			.filter(Self::filter_touch)
+		{
+			if !self.touches.contains(input_data) {
+				return;
+			}
+			let uid = hash_input_data(input_data);
+			let position = self.touch_plane.interact_point(&input_data).0;
+			let _ = self.item.touch_move(uid, position);
+		}
+		for input_data in self
+			.touch_plane
+			.stopped_inputs()
+			.into_iter()
+			.filter(Self::filter_touch)
+		{
+			self.touches.remove(input_data);
+			let uid = hash_input_data(input_data);
+			let _ = self.item.touch_up(uid);
 		}
 	}
+
 	pub fn set_offset(&self, px_offset: Vector2<i32>) -> Result<(), NodeError> {
 		self.root.set_local_transform(Transform::from_translation([
 			px_offset.x as f32 / PPM,
@@ -244,12 +267,20 @@ impl Surface {
 				panel_size * vec3(0.5, -0.5, -0.5),
 				panel_size,
 			))?;
+		self.hover_plane
+			.root()
+			.set_local_transform(Transform::from_translation(
+				vec3(physical_size.x, -physical_size.y, 0.0) / 2.0,
+			))?;
 		self.touch_plane
 			.root()
 			.set_local_transform(Transform::from_translation(
 				vec3(physical_size.x, -physical_size.y, 0.0) / 2.0,
 			))?;
+		self.hover_plane.set_size(physical_size)?;
 		self.touch_plane.set_size(physical_size)?;
+		self.hover_plane.x_range = 0.0..px_size.x as f32;
+		self.hover_plane.y_range = 0.0..px_size.y as f32;
 		self.touch_plane.x_range = 0.0..px_size.x as f32;
 		self.touch_plane.y_range = 0.0..px_size.y as f32;
 		self.physical_size = physical_size;
