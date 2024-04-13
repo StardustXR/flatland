@@ -1,51 +1,45 @@
 {
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-
-  inputs.fenix.url = "github:nix-community/fenix";
-  inputs.fenix.inputs.nixpkgs.follows = "nixpkgs";
-
-  outputs = { self, nixpkgs, fenix }:
-    let
-      name = "flatland";
-      pkgs = system: import nixpkgs {
-        inherit system;
-      };
-      shell = pkgs: pkgs.mkShell {
-        inputsFrom = [ self.packages.${pkgs.system}.default ];
-      };
-      package = pkgs:
-        let
-          toolchain = fenix.packages.${pkgs.system}.minimal.toolchain;
-        in
-          (pkgs.makeRustPlatform {
-            cargo = toolchain;
-            rustc = toolchain;
-          }).buildRustPackage rec {
-            pname = name;
-            src = ./.;
-
-            # ---- START package specific settings ----
-            version = "0.8.0";
-            cargoLock = {
-              lockFile = ./Cargo.lock;
-              allowBuiltinFetchGit = true;
-            };
-
-            STARDUST_RES_PREFIXES = ./res;
-            # ---- END package specific settings ----
-          };
-    in
-    {
-      overlays.default = final: prev: {
-        stardust-xr = (prev.stardust-xr or {}) // {
-          ${name} = package final;
-        };
-      };
-
-      packages."x86_64-linux".default = package (pkgs "x86_64-linux");
-      packages."aarch64-linux".default = package (pkgs "aarch64-linux");
-
-      devShells."x86_64-linux".default = shell (pkgs "x86_64-linux");
-      devShells."aarch64-linux".default = shell (pkgs "aarch64-linux");
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    crane = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:ipetkov/crane";
     };
+  };
+
+
+  outputs = { self, nixpkgs, crane }:
+  let supportedSystems = [ "aarch64-linux" "x86_64-linux" ];
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+      nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
+  in {
+    packages = forAllSystems (system: let pkgs = nixpkgsFor.${system}; in 
+                                      let resources = import ./res.nix pkgs; in {
+      default = crane.lib.${system}.buildPackage {
+        src = ./.;
+        
+        STARDUST_RES_PREFIXES = resources;
+        buildInputs = [
+          resources
+        ];
+        
+        # resources
+        # STARDUST_RES_PREFIXES = pkgs.stdenvNoCC.mkDerivation {
+        #   name = "resources";
+        #   src = ./.;
+  
+        #   buildPhase = "cp -r $src/res $out";
+        # };
+      };
+    });
+
+    devShells = forAllSystems (system: let pkgs = nixpkgsFor.${system}; in {
+      default = pkgs.mkShell {
+        nativeBuildInputs = with pkgs; [
+          cargo
+          rustc
+        ];
+      };
+    });
+  };
 }
