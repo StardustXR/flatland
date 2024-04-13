@@ -307,6 +307,7 @@ impl Surface {
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {
+		let _ = self.hover_plane.set_enabled(enabled);
 		let _ = self.touch_plane.set_enabled(enabled);
 		let _ = self.model.set_enabled(enabled);
 	}
