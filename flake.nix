@@ -13,23 +13,16 @@
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
   in {
-    packages = forAllSystems (system: let pkgs = nixpkgsFor.${system}; in 
-                                      let resources = import ./res.nix pkgs; in {
+    packages = forAllSystems (system: let pkgs = nixpkgsFor.${system}; in {
       default = crane.lib.${system}.buildPackage {
         src = ./.;
         
-        STARDUST_RES_PREFIXES = resources;
-        buildInputs = [
-          resources
-        ];
-        
-        # resources
-        # STARDUST_RES_PREFIXES = pkgs.stdenvNoCC.mkDerivation {
-        #   name = "resources";
-        #   src = ./.;
+        STARDUST_RES_PREFIXES = pkgs.stdenvNoCC.mkDerivation {
+          name = "resources";
+          src = ./.;
   
-        #   buildPhase = "cp -r $src/res $out";
-        # };
+          buildPhase = "cp -r $src/res $out";
+        };
       };
     });
 
