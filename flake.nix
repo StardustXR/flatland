@@ -26,12 +26,8 @@
       };
     });
 
-    devShells = forAllSystems (system: let pkgs = nixpkgsFor.${system}; in {
-      default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [
-          cargo
-          rustc
-        ];
+    devShells = forAllSystems (system: {
+      default = crane.lib.${system}.devShell {
       };
     });
   };
