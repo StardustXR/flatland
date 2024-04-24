@@ -10,7 +10,7 @@ use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	client::{Client, FrameInfo},
 	drawable::{Text, TextAspect, TextBounds, TextFit, TextStyle, XAlign, YAlign},
-	fields::{BoxField, BoxFieldAspect, UnknownField},
+	fields::UnknownField,
 	items::{
 		panel::{ChildInfo, Geometry, PanelItem, PanelItemHandler, PanelItemInitData, SurfaceID},
 		ItemAcceptor,
@@ -28,13 +28,13 @@ fn look_direction(direction: Vec3) -> Quat {
 	Quat::from_rotation_y(-yaw - PI / 2.0) * Quat::from_rotation_x(pitch)
 }
 
+pub const GRAB_FIELD_PADDING: f32 = 0.01;
 pub const TOPLEVEL_THICKNESS: f32 = 0.01;
 pub const CHILD_THICKNESS: f32 = 0.005;
 
 pub struct Toplevel {
 	_item: PanelItem,
 	surface: Surface,
-	grab_field: BoxField,
 	grabbable: Grabbable,
 	title_text: Text,
 	title: Option<String>,
@@ -60,25 +60,16 @@ impl Toplevel {
 			.set_local_transform(Transform::from_translation(
 				vec3(surface.physical_size().x, -surface.physical_size().y, 0.0) * -0.5,
 			))?;
-		let grab_field = BoxField::create(
-			&item,
-			Transform::from_translation([0.0, 0.0, TOPLEVEL_THICKNESS * -1.5]),
-			[
-				surface.physical_size().x,
-				surface.physical_size().y,
-				TOPLEVEL_THICKNESS,
-			],
-		)?;
 		let grabbable = Grabbable::create(
 			client.get_root(),
 			Transform::none(),
-			&grab_field,
+			&surface.field(),
 			GrabbableSettings {
 				linear_momentum: None,
 				angular_momentum: None,
 				magnet: false,
 				pointer_mode: PointerMode::Align,
-				max_distance: 0.0254,
+				max_distance: 0.05,
 				..Default::default()
 			},
 		)?;
@@ -142,7 +133,6 @@ impl Toplevel {
 		Ok(Toplevel {
 			_item: item,
 			surface,
-			grab_field,
 			grabbable,
 			title_text,
 			title: data.toplevel.title.clone(),
@@ -196,13 +186,6 @@ impl Toplevel {
 		info: &FrameInfo,
 		acceptors: &FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
 	) {
-		self.grab_field
-			.set_size([
-				self.surface.physical_size().x,
-				self.surface.physical_size().y,
-				TOPLEVEL_THICKNESS,
-			])
-			.unwrap();
 		self.grabbable.update(info).unwrap();
 		if !self.grabbable.grab_action().actor_acting() {
 			self.surface.update();
