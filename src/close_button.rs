@@ -1,17 +1,15 @@
-use color::rgba_linear;
 use stardust_xr_fusion::{
 	client::FrameInfo,
-	core::values::ResourceID,
+	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
 	fields::{BoxField, BoxFieldAspect},
 	input::{InputDataType::Pointer, InputHandler},
-	items::panel::PanelItem,
+	items::panel::{PanelItem, PanelItemAspect},
 	node::{NodeError, NodeType},
 	spatial::{SpatialAspect, Transform},
-	HandlerWrapper,
 };
 use stardust_xr_molecules::{
-	input_action::{BaseInputAction, InputActionHandler},
+	input_action::{InputQueue, InputQueueable, MultiActorAction},
 	Exposure,
 };
 
@@ -23,8 +21,8 @@ pub struct CloseButton {
 	shell: ModelPart,
 	exposure: Exposure,
 	field: BoxField,
-	handler: HandlerWrapper<InputHandler, InputActionHandler<()>>,
-	distance_action: BaseInputAction<()>,
+	input: InputQueue,
+	distance_action: MultiActorAction,
 }
 impl CloseButton {
 	pub fn new(item: PanelItem, thickness: f32, surface: &Surface) -> Result<Self, NodeError> {
@@ -49,15 +47,8 @@ impl CloseButton {
 		field.set_local_transform(Transform::from_scale([1.0; 3]))?;
 		field.set_size([1.5 * 0.025, 0.025, thickness])?;
 
-		let handler =
-			InputActionHandler::wrap(InputHandler::create(&shell, Transform::none(), &field)?, ())?;
-		let distance_action = BaseInputAction::new(true, |data, _| {
-			data.distance < 0.0
-				&& match &data.input {
-					Pointer(_) => data.datamap.with_data(|d| d.idx("select").as_f32() > 0.5),
-					_ => true,
-				}
-		});
+		let input = InputHandler::create(&shell, Transform::none(), &field)?.queue()?;
+		let interact_action = MultiActorAction::default();
 
 		Ok(CloseButton {
 			item,
@@ -65,18 +56,22 @@ impl CloseButton {
 			shell,
 			exposure,
 			field,
-			handler,
-			distance_action,
+			input,
+			distance_action: interact_action,
 		})
 	}
 
 	pub fn update(&mut self, frame_info: &FrameInfo) {
-		self.handler
-			.lock_wrapped()
-			.update_actions([&mut self.distance_action]);
+		self.distance_action.update(true, &self.input, |data| {
+			data.distance < 0.0
+				&& match &data.input {
+					Pointer(_) => data.datamap.with_data(|d| d.idx("select").as_f32() > 0.5),
+					_ => true,
+				}
+		});
 		let exposure: f32 = self
 			.distance_action
-			.currently_acting
+			.currently_acting()
 			.iter()
 			.map(|d| d.distance.abs().powf(1.0 / 2.2))
 			.sum();
@@ -84,7 +79,7 @@ impl CloseButton {
 		self.exposure
 			.expose(exposure * 2.0 / TOPLEVEL_THICKNESS, frame_info.delta as f32);
 		self.exposure
-			.expose_flash(self.distance_action.started_acting.len() as f32 * 0.25);
+			.expose_flash(self.distance_action.started_acting().len() as f32 * 0.25);
 		if self.exposure.exposure > 1.0 {
 			let _ = self.item.close_toplevel();
 		} else if self.exposure.exposure > 0.0 {
@@ -99,6 +94,7 @@ impl CloseButton {
 				)),
 			);
 		}
+		self.input.flush_queue();
 	}
 
 	pub fn resize(&mut self, surface: &Surface) {
@@ -119,6 +115,6 @@ impl CloseButton {
 
 	pub fn set_enabled(&mut self, enabled: bool) {
 		self.model.set_enabled(enabled).unwrap();
-		self.handler.node().set_enabled(enabled).unwrap();
+		self.input.handler().set_enabled(enabled).unwrap();
 	}
 }

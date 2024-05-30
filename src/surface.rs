@@ -1,19 +1,19 @@
 use glam::{vec2, vec3, Vec2};
 use lazy_static::lazy_static;
-use mint::Vector2;
 use rustc_hash::FxHashSet;
 use stardust_xr_fusion::{
-	core::values::ResourceID,
+	core::values::{ResourceID, Vector2},
 	drawable::Model,
-	fields::UnknownField,
+	fields::Field,
 	input::{InputData, InputDataType},
-	items::panel::{Geometry, PanelItem, SurfaceID},
+	items::panel::{Geometry, PanelItem, PanelItemAspect, SurfaceId},
 	node::{NodeError, NodeType},
 	spatial::{Spatial, SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{
 	hover_plane::{HoverPlane, HoverPlaneSettings},
 	keyboard::{create_keyboard_panel_handler, KeyboardPanelHandler},
+	mouse::MouseEvent,
 	touch_plane::TouchPlane,
 };
 use std::{
@@ -37,7 +37,7 @@ pub const PPM: f32 = 3000.0;
 pub struct Surface {
 	root: Spatial,
 	item: PanelItem,
-	id: SurfaceID,
+	id: SurfaceId,
 	parent_thickness: f32,
 	thickness: f32,
 	model: Model,
@@ -52,7 +52,7 @@ impl Surface {
 		parent: &impl SpatialAspect,
 		transform: Transform,
 		item: PanelItem,
-		id: SurfaceID,
+		id: SurfaceId,
 		px_size: Vector2<u32>,
 		thickness: f32,
 	) -> Result<Self, NodeError> {
@@ -64,7 +64,7 @@ impl Surface {
 			Transform::from_translation_scale(panel_size * vec3(0.5, -0.5, -0.5), panel_size),
 			&PANEL_RESOURCE,
 		)?;
-		item.apply_surface_material(&id, &model.model_part("Panel")?)?;
+		item.apply_surface_material(id.clone(), &model.model_part("Panel")?)?;
 		let plane_transform =
 			Transform::from_translation(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0);
 		let hover_plane = HoverPlane::create(
@@ -126,7 +126,7 @@ impl Surface {
 			&parent.root,
 			Transform::from_translation(position),
 			parent.item.alias(),
-			SurfaceID::Child(uid),
+			SurfaceId::Child(uid),
 			geometry.size,
 			thickness,
 		)?;
@@ -159,18 +159,18 @@ impl Surface {
 			.reduce(|a, b| if a.distance > b.distance { b } else { a })
 		{
 			let (interact_point, _depth) = self.hover_plane.interact_point(&closest_hover);
-			let _ = self.item.pointer_motion(&self.id, interact_point);
+			let _ = self.item.pointer_motion(self.id.clone(), interact_point);
 		}
 
 		// left mouse button
 		if self.hover_plane.interact_status().actor_started() {
 			let _ = self
 				.item
-				.pointer_button(&self.id, input_event_codes::BTN_LEFT!(), true);
+				.pointer_button(self.id.clone(), input_event_codes::BTN_LEFT!(), true);
 		} else if self.hover_plane.interact_status().actor_stopped() {
-			let _ = self
-				.item
-				.pointer_button(&self.id, input_event_codes::BTN_LEFT!(), false);
+			let _ =
+				self.item
+					.pointer_button(self.id.clone(), input_event_codes::BTN_LEFT!(), false);
 		}
 
 		for input in self
@@ -179,29 +179,16 @@ impl Surface {
 			.into_iter()
 			.chain(self.hover_plane.interact_status().actor().cloned())
 		{
-			let scroll_continous = input.datamap.with_data(|r| {
-				let scroll_continous = r.index("scroll_continous").ok()?.as_vector();
-				Some(
-					[
-						scroll_continous.index(0).ok()?.as_f32(),
-						scroll_continous.index(1).ok()?.as_f32(),
-					]
-					.into(),
-				)
-			});
-			let scroll_discrete = input.datamap.with_data(|r| {
-				let scroll_discrete = r.index("scroll_discrete").ok()?.as_vector();
-				Some(
-					[
-						scroll_discrete.index(0).ok()?.as_f32(),
-						scroll_discrete.index(1).ok()?.as_f32(),
-					]
-					.into(),
-				)
-			});
-			let _ = self
-				.item
-				.pointer_scroll(&self.id, scroll_continous, scroll_discrete);
+			let mouse_event = input
+				.datamap
+				.deserialize::<MouseEvent>()
+				.unwrap_or_default();
+
+			let _ = self.item.pointer_scroll(
+				self.id.clone(),
+				mouse_event.scroll_continuous.unwrap_or([0.0; 2].into()),
+				mouse_event.scroll_discrete.unwrap_or([0.0; 2].into()),
+			);
 
 			// for input in input.datamap.with_data(|r| {
 			// 	r.idx("raw_input_events")
@@ -218,18 +205,20 @@ impl Surface {
 		// proper touches
 		for input_data in self
 			.touch_plane
-			.started_inputs()
+			.touching()
+			.added()
 			.into_iter()
 			.filter(Self::filter_touch)
 		{
 			self.touches.insert(input_data.clone());
 			let uid = hash_input_data(input_data);
 			let position = self.touch_plane.interact_point(&input_data).0;
-			let _ = self.item.touch_down(&self.id, uid, position);
+			let _ = self.item.touch_down(self.id.clone(), uid, position);
 		}
 		for input_data in self
 			.touch_plane
-			.interacting_inputs()
+			.touching()
+			.current()
 			.into_iter()
 			.filter(Self::filter_touch)
 		{
@@ -242,7 +231,8 @@ impl Surface {
 		}
 		for input_data in self
 			.touch_plane
-			.stopped_inputs()
+			.touching()
+			.removed()
 			.into_iter()
 			.filter(Self::filter_touch)
 		{
@@ -299,7 +289,7 @@ impl Surface {
 	pub fn root(&self) -> &Spatial {
 		&self.root
 	}
-	pub fn field(&self) -> UnknownField {
+	pub fn field(&self) -> Field {
 		self.touch_plane.field()
 	}
 	pub fn physical_size(&self) -> Vec2 {

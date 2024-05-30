@@ -2,10 +2,12 @@ use crate::toplevel::Toplevel;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	client::{ClientState, FrameInfo, RootHandler},
-	fields::UnknownField,
+	fields::Field,
 	items::{
-		panel::{PanelItem, PanelItemInitData},
-		ItemAcceptor, ItemUIHandler,
+		panel::{
+			PanelItem, PanelItemAcceptor, PanelItemAspect, PanelItemInitData, PanelItemUiHandler,
+		},
+		ItemUiHandler,
 	},
 	node::NodeType,
 	spatial::Spatial,
@@ -15,7 +17,7 @@ use stardust_xr_fusion::{
 pub struct Flatland {
 	root: Spatial,
 	panel_items: FxHashMap<String, HandlerWrapper<PanelItem, Toplevel>>,
-	acceptors: FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
+	acceptors: FxHashMap<String, (PanelItemAcceptor, Field)>,
 }
 impl Flatland {
 	pub fn new(root: &Spatial) -> Self {
@@ -37,39 +39,34 @@ impl Flatland {
 		self.panel_items.remove(uid);
 	}
 }
-impl ItemUIHandler<PanelItem> for Flatland {
-	fn item_created(&mut self, uid: String, item: PanelItem, init_data: PanelItemInitData) {
+
+impl PanelItemUiHandler for Flatland {
+	fn create_item(&mut self, uid: String, item: PanelItem, init_data: PanelItemInitData) {
 		self.add_item(uid, item, init_data);
 	}
-	fn item_destroyed(&mut self, uid: String) {
-		self.remove_item(&uid);
+	fn create_acceptor(&mut self, acceptor_uid: String, acceptor: PanelItemAcceptor, field: Field) {
+		self.acceptors
+			.insert(acceptor_uid.to_string(), (acceptor, field));
 	}
-
-	fn item_captured(&mut self, uid: String, _acceptor_uid: String) {
-		let Some(toplevel) = self.panel_items.get(&uid) else {
+}
+impl ItemUiHandler for Flatland {
+	fn capture_item(&mut self, item_uid: String, _acceptor_uid: String) {
+		let Some(toplevel) = self.panel_items.get(&item_uid) else {
 			return;
 		};
 		toplevel.lock_wrapped().set_enabled(false);
 	}
-	fn item_released(&mut self, uid: String, _acceptor_uid: String) {
-		let Some(toplevel) = self.panel_items.get(&uid) else {
+	fn release_item(&mut self, item_uid: String, _acceptor_uid: String) {
+		let Some(toplevel) = self.panel_items.get(&item_uid) else {
 			return;
 		};
 		toplevel.lock_wrapped().set_enabled(true);
 	}
-
-	fn acceptor_created(
-		&mut self,
-		acceptor_uid: String,
-		acceptor: ItemAcceptor<PanelItem>,
-		field: UnknownField,
-	) {
-		self.acceptors
-			.insert(acceptor_uid.to_string(), (acceptor, field));
+	fn destroy_item(&mut self, uid: String) {
+		self.remove_item(&uid);
 	}
-
-	fn acceptor_destroyed(&mut self, acceptor_uid: String) {
-		self.acceptors.remove(&acceptor_uid);
+	fn destroy_acceptor(&mut self, uid: String) {
+		self.acceptors.remove(&uid);
 	}
 }
 // impl ItemAcceptorHandler<PanelItem> for Flatland {

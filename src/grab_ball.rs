@@ -1,19 +1,20 @@
-use color::{color_space::LinearRgb, rgba_linear, Rgba};
 use glam::Vec3;
-use mint::Vector3;
 use stardust_xr_fusion::{
+	core::values::{
+		color::{color_space::LinearRgb, rgba_linear, Rgba},
+		Vector3,
+	},
 	drawable::{Line, LinePoint, Lines, LinesAspect},
 	fields::SphereField,
 	input::{InputDataType, InputHandler},
 	node::{NodeError, NodeType},
 	spatial::{Spatial, SpatialAspect, Transform},
-	HandlerWrapper,
 };
-use stardust_xr_molecules::input_action::{BaseInputAction, InputActionHandler, SingleActorAction};
+use stardust_xr_molecules::input_action::{InputQueue, InputQueueable, SingleActorAction};
 pub trait GrabBallHead {
 	fn root(&self) -> &impl SpatialAspect;
 	fn set_enabled(&mut self, enabled: bool);
-	fn update(&mut self, grab_action: &SingleActorAction<GrabBallSettings>);
+	fn update(&mut self, grab_action: &SingleActorAction);
 }
 
 #[derive(Debug, Clone)]
@@ -40,9 +41,8 @@ pub struct GrabBall<H: GrabBallHead> {
 	offset: Vec3,
 	_field: SphereField,
 	settings: GrabBallSettings,
-	input_handler: HandlerWrapper<InputHandler, InputActionHandler<GrabBallSettings>>,
-	condition_action: BaseInputAction<GrabBallSettings>,
-	grab_action: SingleActorAction<GrabBallSettings>,
+	input: InputQueue,
+	grab_action: SingleActorAction,
 }
 impl<H: GrabBallHead> GrabBall<H> {
 	pub fn create(
@@ -77,23 +77,10 @@ impl<H: GrabBallHead> GrabBall<H> {
 			&vec![connector_line.clone()],
 		)?;
 		let _field = SphereField::create(head.root(), [0.0; 3], settings.radius)?;
-		let input_handler = InputActionHandler::wrap(
-			InputHandler::create(&connect_root, Transform::none(), &_field)?,
-			settings.clone(),
-		)?;
-		let condition_action = BaseInputAction::new(false, |input, data: &GrabBallSettings| {
-			input.distance < data.radius
-		});
-		let grab_action = SingleActorAction::new(
-			true,
-			|input, _| {
-				input.datamap.with_data(|datamap| match &input.input {
-					InputDataType::Hand(_) => datamap.idx("pinch_strength").as_f32() > 0.90,
-					_ => datamap.idx("grab").as_f32() > 0.90,
-				})
-			},
-			false,
-		);
+		let input_handler =
+			InputHandler::create(&connect_root, Transform::none(), &_field)?.queue()?;
+
+		let grab_action = SingleActorAction::default();
 
 		Ok(GrabBall {
 			connect_root,
@@ -103,17 +90,23 @@ impl<H: GrabBallHead> GrabBall<H> {
 			offset,
 			_field,
 			settings,
-			input_handler,
-			condition_action,
+			input: input_handler,
 			grab_action,
 		})
 	}
 
 	pub fn update(&mut self) {
-		self.input_handler
-			.lock_wrapped()
-			.update_actions([&mut self.condition_action, self.grab_action.base_mut()]);
-		self.grab_action.update(Some(&mut self.condition_action));
+		self.grab_action.update(
+			true,
+			&self.input,
+			|input| input.distance < self.settings.radius,
+			|input| {
+				input.datamap.with_data(|datamap| match &input.input {
+					InputDataType::Hand(_) => datamap.idx("pinch_strength").as_f32() > 0.90,
+					_ => datamap.idx("grab").as_f32() > 0.90,
+				})
+			},
+		);
 
 		if self.grab_action.actor_stopped() {
 			let _ = self.head.root().set_relative_transform(
@@ -148,7 +141,7 @@ impl<H: GrabBallHead> GrabBall<H> {
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {
-		let _ = self.input_handler.node().set_enabled(enabled);
+		let _ = self.input.handler().set_enabled(enabled);
 		let _ = self.connector.set_enabled(enabled);
 		self.head.set_enabled(enabled);
 	}
@@ -157,7 +150,7 @@ impl<H: GrabBallHead> GrabBall<H> {
 		&self.connect_root
 	}
 
-	pub fn grab_action(&self) -> &SingleActorAction<GrabBallSettings> {
+	pub fn grab_action(&self) -> &SingleActorAction {
 		&self.grab_action
 	}
 }

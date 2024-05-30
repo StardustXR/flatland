@@ -1,7 +1,13 @@
 use color_eyre::eyre::{bail, Result};
 use flatland::Flatland;
 use manifest_dir_macros::directory_relative_path;
-use stardust_xr_fusion::{client::Client, items::ItemUI};
+use stardust_xr_fusion::{
+	client::Client,
+	items::{
+		panel::{PanelItemUi, PanelItemUiAspect},
+		ItemUi, ItemUiAspect,
+	},
+};
 use tracing_subscriber::EnvFilter;
 
 pub mod close_button;
@@ -21,7 +27,8 @@ async fn main() -> Result<()> {
 	client.set_base_prefixes(&[directory_relative_path!("res")]);
 
 	let flatland = client.wrap_root(Flatland::new(client.get_root()))?;
-	let _item_ui_wrapped = ItemUI::register(&client)?.wrap_raw(flatland)?;
+	let item_ui_wrapped = PanelItemUi::register(&client)?.wrap_raw(flatland)?;
+	<ItemUi as ItemUiAspect>::add_handlers(&item_ui_wrapped)?;
 
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => Ok(()),

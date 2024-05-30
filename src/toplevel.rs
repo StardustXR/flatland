@@ -4,19 +4,19 @@ use crate::{
 	panel_shell_transfer::PanelShellTransfer,
 	surface::Surface,
 };
-use color::rgba_linear;
 use glam::{vec3, Quat, Vec3};
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	client::{Client, FrameInfo},
+	core::values::{color::rgba_linear, Vector2},
 	drawable::{Text, TextAspect, TextBounds, TextFit, TextStyle, XAlign, YAlign},
-	fields::UnknownField,
-	items::{
-		panel::{ChildInfo, Geometry, PanelItem, PanelItemHandler, PanelItemInitData, SurfaceID},
-		ItemAcceptor,
+	fields::Field,
+	items::panel::{
+		ChildInfo, Geometry, PanelItem, PanelItemAcceptor, PanelItemAspect, PanelItemHandler,
+		PanelItemInitData, SurfaceId,
 	},
 	node::{NodeError, NodeType},
-	spatial::{Spatial, SpatialAspect, Transform},
+	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings, PointerMode};
 use std::{f32::consts::PI, sync::Arc};
@@ -51,7 +51,7 @@ impl Toplevel {
 			&item,
 			Transform::none(),
 			item.alias(),
-			SurfaceID::Toplevel,
+			SurfaceId::Toplevel(()),
 			data.toplevel.size,
 			TOPLEVEL_THICKNESS,
 		)?;
@@ -184,7 +184,7 @@ impl Toplevel {
 	pub fn update(
 		&mut self,
 		info: &FrameInfo,
-		acceptors: &FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
+		acceptors: &FxHashMap<String, (PanelItemAcceptor, Field)>,
 	) {
 		self.grabbable.update(info).unwrap();
 		if !self.grabbable.grab_action().actor_acting() {
@@ -234,16 +234,23 @@ impl Toplevel {
 }
 
 impl PanelItemHandler for Toplevel {
-	fn toplevel_title_changed(&mut self, title: &str) {
-		self.title.replace(title.to_string());
+	fn toplevel_title_changed(&mut self, title: String) {
+		self.title.replace(title);
 		self.update_title();
 	}
-	fn toplevel_app_id_changed(&mut self, app_id: &str) {
-		self.app_id.replace(app_id.to_string());
+	fn toplevel_app_id_changed(&mut self, app_id: String) {
+		self.app_id.replace(app_id);
 		self.update_title();
 	}
 
-	fn toplevel_size_changed(&mut self, size: mint::Vector2<u32>) {
+	fn set_cursor(&mut self, _geometry: Geometry) {}
+	fn hide_cursor(&mut self) {}
+
+	fn toplevel_fullscreen_active(&mut self, _active: bool) {}
+	fn toplevel_move_request(&mut self) {}
+	fn toplevel_resize_request(&mut self, _up: bool, _down: bool, _left: bool, _right: bool) {}
+	fn toplevel_parent_changed(&mut self, _parent_uid: String) {}
+	fn toplevel_size_changed(&mut self, size: Vector2<u32>) {
 		self.surface.resize(size).unwrap();
 		self.title_text
 			.set_local_transform(Transform::from_translation([
@@ -263,11 +270,10 @@ impl PanelItemHandler for Toplevel {
 		self.close_button.resize(&self.surface);
 	}
 
-	fn new_child(&mut self, uid: &str, info: ChildInfo) {
+	fn create_child(&mut self, uid: String, info: ChildInfo) {
 		let parent = match &info.parent {
-			SurfaceID::Cursor => return,
-			SurfaceID::Toplevel => &self.surface,
-			SurfaceID::Child(parent_uid) => {
+			SurfaceId::Toplevel(_) => &self.surface,
+			SurfaceId::Child(parent_uid) => {
 				if let Some(child) = self.children.get(parent_uid) {
 					child
 				} else {
@@ -281,15 +287,15 @@ impl PanelItemHandler for Toplevel {
 		let _ = self.surface.hover_plane.set_enabled(false);
 		let _ = self.surface.touch_plane.set_enabled(false);
 	}
-	fn reposition_child(&mut self, uid: &str, geometry: Geometry) {
-		let Some(child) = self.children.get_mut(uid) else {
+	fn reposition_child(&mut self, uid: String, geometry: Geometry) {
+		let Some(child) = self.children.get_mut(&uid) else {
 			return;
 		};
 		child.set_offset(geometry.origin).unwrap();
 		child.resize(geometry.size).unwrap();
 	}
-	fn drop_child(&mut self, uid: &str) {
-		self.children.remove(uid);
+	fn destroy_child(&mut self, uid: String) {
+		self.children.remove(&uid);
 		if self.children.is_empty() {
 			let _ = self.surface.hover_plane.set_enabled(true);
 			let _ = self.surface.touch_plane.set_enabled(true);

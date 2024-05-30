@@ -1,18 +1,17 @@
-use color::rgba_linear;
 use map_range::MapRange;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
-	core::values::ResourceID,
+	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
-	fields::{FieldAspect, UnknownField},
-	items::{panel::PanelItem, ItemAcceptor},
+	fields::{Field, FieldAspect},
+	items::panel::{PanelItem, PanelItemAcceptor, PanelItemAcceptorAspect},
 	node::{NodeError, NodeType},
 	spatial::{SpatialAspect, Transform},
 };
 use stardust_xr_molecules::input_action::SingleActorAction;
 use tokio::task::JoinSet;
 
-use crate::grab_ball::{GrabBallHead, GrabBallSettings};
+use crate::grab_ball::GrabBallHead;
 
 const MAX_ACCEPT_DISTANCE: f32 = 0.05;
 pub struct PanelShellTransfer {
@@ -41,10 +40,10 @@ impl PanelShellTransfer {
 
 	pub fn update_distances(
 		&self,
-		grab_action: &SingleActorAction<GrabBallSettings>,
-		acceptors: &FxHashMap<String, (ItemAcceptor<PanelItem>, UnknownField)>,
+		grab_action: &SingleActorAction,
+		acceptors: &FxHashMap<String, (PanelItemAcceptor, Field)>,
 	) {
-		let mut fields: JoinSet<Result<(f32, ItemAcceptor<PanelItem>), NodeError>> = JoinSet::new();
+		let mut fields: JoinSet<Result<(f32, PanelItemAcceptor), NodeError>> = JoinSet::new();
 		for (acceptor, field) in acceptors.values() {
 			let model = self.model.alias();
 			let acceptor = acceptor.alias();
@@ -89,7 +88,7 @@ impl PanelShellTransfer {
 				)),
 			);
 			if released && dbg!(closest_distance) < MAX_ACCEPT_DISTANCE {
-				let _ = acceptor.capture(&panel_item);
+				let _ = acceptor.capture_item(&panel_item);
 			}
 		});
 	}
@@ -103,5 +102,5 @@ impl GrabBallHead for PanelShellTransfer {
 		let _ = self.model.set_enabled(enabled);
 	}
 
-	fn update(&mut self, _grab_action: &SingleActorAction<GrabBallSettings>) {}
+	fn update(&mut self, _grab_action: &SingleActorAction) {}
 }

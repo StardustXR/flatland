@@ -11,7 +11,6 @@ homepage = "https://stardustxr.org"
 
 [dependencies]
 glam = { version = "0.24.1", features = ["mint"] }
-mint = "0.5.9"
 manifest-dir-macros = "0.1.17"
 lazy_static = "1.4.0"
 tokio = { version = "1.28.0", features = ["full"] }
@@ -20,14 +19,16 @@ rustc-hash = "1.1.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 tracing = "0.1.37"
 color-eyre = "0.6.2"
-color-rs = "0.8.0"
 colorgrad = "0.6.2"
 map-range = "0.1.2"
 
 [dependencies.stardust-xr-fusion]
 git = "https://github.com/StardustXR/core.git"
-# path = "../../core/fusion"
+branch = "dev"
 
 [dependencies.stardust-xr-molecules]
 git = "https://github.com/StardustXR/molecules.git"
-# path = "../../molecules"
+branch = "dev"
+
+[patch."https://github.com/StardustXR/core".stardust-xr-fusion]
+path = "/run/media/nova/MEDIA/xr/stardust/core/fusion"
