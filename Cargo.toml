@@ -29,6 +29,3 @@ branch = "dev"
 [dependencies.stardust-xr-molecules]
 git = "https://github.com/StardustXR/molecules.git"
 branch = "dev"
-
-[patch."https://github.com/StardustXR/core".stardust-xr-fusion]
-path = "/run/media/nova/MEDIA/xr/stardust/core/fusion"
