@@ -16,20 +16,10 @@ use stardust_xr_molecules::{
 	mouse::MouseEvent,
 	touch_plane::TouchPlane,
 };
-use std::{
-	collections::hash_map::DefaultHasher,
-	hash::{Hash, Hasher},
-	sync::Arc,
-};
+use std::sync::Arc;
 
 lazy_static! {
 	pub static ref PANEL_RESOURCE: ResourceID = ResourceID::new_namespaced("flatland", "panel");
-}
-
-fn hash_input_data(input_data: &InputData) -> u32 {
-	let mut hasher = DefaultHasher::new();
-	input_data.uid.hash(&mut hasher);
-	hasher.finish() as u32
 }
 
 // Pixels per meter, screen density
@@ -64,7 +54,7 @@ impl Surface {
 			Transform::from_translation_scale(panel_size * vec3(0.5, -0.5, -0.5), panel_size),
 			&PANEL_RESOURCE,
 		)?;
-		item.apply_surface_material(id.clone(), &model.model_part("Panel")?)?;
+		item.apply_surface_material(id.clone(), &model.part("Panel")?)?;
 		let plane_transform =
 			Transform::from_translation(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0);
 		let hover_plane = HoverPlane::create(
@@ -113,7 +103,7 @@ impl Surface {
 	}
 	pub fn new_child(
 		parent: &Surface,
-		uid: String,
+		id: u64,
 		geometry: &Geometry,
 		thickness: f32,
 	) -> Result<Self, NodeError> {
@@ -126,7 +116,7 @@ impl Surface {
 			&parent.root,
 			Transform::from_translation(position),
 			parent.item.alias(),
-			SurfaceId::Child(uid),
+			SurfaceId::Child(id),
 			geometry.size,
 			thickness,
 		)?;
@@ -211,9 +201,10 @@ impl Surface {
 			.filter(Self::filter_touch)
 		{
 			self.touches.insert(input_data.clone());
-			let uid = hash_input_data(input_data);
 			let position = self.touch_plane.interact_point(&input_data).0;
-			let _ = self.item.touch_down(self.id.clone(), uid, position);
+			let _ = self
+				.item
+				.touch_down(self.id.clone(), input_data.id as u32, position);
 		}
 		for input_data in self
 			.touch_plane
@@ -225,9 +216,8 @@ impl Surface {
 			if !self.touches.contains(input_data) {
 				return;
 			}
-			let uid = hash_input_data(input_data);
 			let position = self.touch_plane.interact_point(&input_data).0;
-			let _ = self.item.touch_move(uid, position);
+			let _ = self.item.touch_move(input_data.id as u32, position);
 		}
 		for input_data in self
 			.touch_plane
@@ -237,8 +227,7 @@ impl Surface {
 			.filter(Self::filter_touch)
 		{
 			self.touches.remove(input_data);
-			let uid = hash_input_data(input_data);
-			let _ = self.item.touch_up(uid);
+			let _ = self.item.touch_up(input_data.id as u32);
 		}
 	}
 

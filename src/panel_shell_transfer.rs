@@ -29,7 +29,7 @@ impl PanelShellTransfer {
 			Transform::identity(),
 			&ResourceID::new_namespaced("flatland", "panel_shell"),
 		)?;
-		let outside = model.model_part("Outside")?;
+		let outside = model.part("Outside")?;
 
 		Ok(PanelShellTransfer {
 			panel_item,
@@ -41,7 +41,7 @@ impl PanelShellTransfer {
 	pub fn update_distances(
 		&self,
 		grab_action: &SingleActorAction,
-		acceptors: &FxHashMap<String, (PanelItemAcceptor, Field)>,
+		acceptors: &FxHashMap<u64, (PanelItemAcceptor, Field)>,
 	) {
 		let mut fields: JoinSet<Result<(f32, PanelItemAcceptor), NodeError>> = JoinSet::new();
 		for (acceptor, field) in acceptors.values() {

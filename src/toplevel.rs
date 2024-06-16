@@ -7,7 +7,7 @@ use crate::{
 use glam::{vec3, Quat, Vec3};
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
-	client::{Client, FrameInfo},
+	client::Client,
 	core::values::{color::rgba_linear, Vector2},
 	drawable::{Text, TextAspect, TextBounds, TextFit, TextStyle, XAlign, YAlign},
 	fields::Field,
@@ -16,6 +16,7 @@ use stardust_xr_fusion::{
 		PanelItemInitData, SurfaceId,
 	},
 	node::{NodeError, NodeType},
+	root::FrameInfo,
 	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings, PointerMode};
@@ -39,7 +40,7 @@ pub struct Toplevel {
 	title_text: Text,
 	title: Option<String>,
 	app_id: Option<String>,
-	children: FxHashMap<String, Surface>,
+	children: FxHashMap<u64, Surface>,
 	panel_shell_grab_ball: GrabBall<PanelShellTransfer>,
 	close_button: CloseButton,
 }
@@ -184,7 +185,7 @@ impl Toplevel {
 	pub fn update(
 		&mut self,
 		info: &FrameInfo,
-		acceptors: &FxHashMap<String, (PanelItemAcceptor, Field)>,
+		acceptors: &FxHashMap<u64, (PanelItemAcceptor, Field)>,
 	) {
 		self.grabbable.update(info).unwrap();
 		if !self.grabbable.grab_action().actor_acting() {
@@ -249,7 +250,7 @@ impl PanelItemHandler for Toplevel {
 	fn toplevel_fullscreen_active(&mut self, _active: bool) {}
 	fn toplevel_move_request(&mut self) {}
 	fn toplevel_resize_request(&mut self, _up: bool, _down: bool, _left: bool, _right: bool) {}
-	fn toplevel_parent_changed(&mut self, _parent_uid: String) {}
+	fn toplevel_parent_changed(&mut self, _parent_id: u64) {}
 	fn toplevel_size_changed(&mut self, size: Vector2<u32>) {
 		self.surface.resize(size).unwrap();
 		self.title_text
@@ -270,7 +271,7 @@ impl PanelItemHandler for Toplevel {
 		self.close_button.resize(&self.surface);
 	}
 
-	fn create_child(&mut self, uid: String, info: ChildInfo) {
+	fn create_child(&mut self, id: u64, info: ChildInfo) {
 		let parent = match &info.parent {
 			SurfaceId::Toplevel(_) => &self.surface,
 			SurfaceId::Child(parent_uid) => {
@@ -281,21 +282,20 @@ impl PanelItemHandler for Toplevel {
 				}
 			}
 		};
-		let surface =
-			Surface::new_child(parent, uid.to_string(), &info.geometry, CHILD_THICKNESS).unwrap();
-		self.children.insert(uid.to_string(), surface);
+		let surface = Surface::new_child(parent, id, &info.geometry, CHILD_THICKNESS).unwrap();
+		self.children.insert(id, surface);
 		let _ = self.surface.hover_plane.set_enabled(false);
 		let _ = self.surface.touch_plane.set_enabled(false);
 	}
-	fn reposition_child(&mut self, uid: String, geometry: Geometry) {
-		let Some(child) = self.children.get_mut(&uid) else {
+	fn reposition_child(&mut self, id: u64, geometry: Geometry) {
+		let Some(child) = self.children.get_mut(&id) else {
 			return;
 		};
 		child.set_offset(geometry.origin).unwrap();
 		child.resize(geometry.size).unwrap();
 	}
-	fn destroy_child(&mut self, uid: String) {
-		self.children.remove(&uid);
+	fn destroy_child(&mut self, id: u64) {
+		self.children.remove(&id);
 		if self.children.is_empty() {
 			let _ = self.surface.hover_plane.set_enabled(true);
 			let _ = self.surface.touch_plane.set_enabled(true);

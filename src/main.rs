@@ -7,6 +7,8 @@ use stardust_xr_fusion::{
 		panel::{PanelItemUi, PanelItemUiAspect},
 		ItemUi, ItemUiAspect,
 	},
+	node::NodeType,
+	root::RootAspect,
 };
 use tracing_subscriber::EnvFilter;
 
@@ -24,10 +26,10 @@ async fn main() -> Result<()> {
 		.with_env_filter(EnvFilter::from_env("LOG_LEVEL"))
 		.init();
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
-	client.set_base_prefixes(&[directory_relative_path!("res")]);
+	client.set_base_prefixes(&[directory_relative_path!("res")])?;
 
-	let flatland = client.wrap_root(Flatland::new(client.get_root()))?;
-	let item_ui_wrapped = PanelItemUi::register(&client)?.wrap_raw(flatland)?;
+	let flatland = client.get_root().alias().wrap(Flatland::new())?;
+	let item_ui_wrapped = PanelItemUi::register(&client)?.wrap_raw(flatland.wrapped().clone())?;
 	<ItemUi as ItemUiAspect>::add_handlers(&item_ui_wrapped)?;
 
 	tokio::select! {

@@ -1,11 +1,11 @@
 use stardust_xr_fusion::{
-	client::FrameInfo,
 	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
 	fields::{BoxField, BoxFieldAspect},
 	input::{InputDataType::Pointer, InputHandler},
 	items::panel::{PanelItem, PanelItemAspect},
 	node::{NodeError, NodeType},
+	root::FrameInfo,
 	spatial::{SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{
@@ -34,7 +34,7 @@ impl CloseButton {
 			),
 			&ResourceID::new_namespaced("flatland", "close_button"),
 		)?;
-		let shell = model.model_part("Shell")?;
+		let shell = model.part("Shell")?;
 		let exposure = Exposure {
 			exposure: 0.0,
 			cooling: 5.0,
@@ -94,7 +94,6 @@ impl CloseButton {
 				)),
 			);
 		}
-		self.input.flush_queue();
 	}
 
 	pub fn resize(&mut self, surface: &Surface) {
