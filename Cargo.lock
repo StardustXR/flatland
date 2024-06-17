@@ -223,7 +223,7 @@ version = "0.8.0"
 dependencies = [
  "color-eyre",
  "colorgrad",
- "glam 0.24.2",
+ "glam 0.28.0",
  "input-event-codes",
  "lazy_static",
  "manifest-dir-macros",
@@ -291,6 +291,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "779ae4bf7e8421cf91c0b3b64e7e8b40b862fba4d393f59150042de7c4965a94"
+dependencies = [
+ "mint",
+]
+
+[[package]]
 name = "global_counter"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -336,9 +345,9 @@ dependencies = [
 
 [[package]]
 name = "input-event-codes"
-version = "5.18.0"
+version = "6.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11b1a5cc47f091163e71c6932327e71669430da49adb09a6a056c1b3e81cd1ca"
+checksum = "d437b85b6856c30525a380e2de28d630cd2f03b4eec8e8a043d71d7e223792dd"
 
 [[package]]
 name = "instant"
