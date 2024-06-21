@@ -82,7 +82,7 @@ impl Surface {
 		let keyboard = create_keyboard_panel_handler(
 			&item,
 			Transform::none(),
-			&touch_plane.field(),
+			touch_plane.field(),
 			&item,
 			id.clone(),
 		)?;
@@ -278,7 +278,7 @@ impl Surface {
 	pub fn root(&self) -> &Spatial {
 		&self.root
 	}
-	pub fn field(&self) -> Field {
+	pub fn field(&self) -> &Field {
 		self.touch_plane.field()
 	}
 	pub fn physical_size(&self) -> Vec2 {

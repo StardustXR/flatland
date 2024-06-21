@@ -5,12 +5,13 @@ use stardust_xr_fusion::{
 		Vector3,
 	},
 	drawable::{Line, LinePoint, Lines, LinesAspect},
-	fields::SphereField,
+	fields::{Field, Shape},
 	input::{InputDataType, InputHandler},
 	node::{NodeError, NodeType},
 	spatial::{Spatial, SpatialAspect, Transform},
 };
 use stardust_xr_molecules::input_action::{InputQueue, InputQueueable, SingleActorAction};
+
 pub trait GrabBallHead {
 	fn root(&self) -> &impl SpatialAspect;
 	fn set_enabled(&mut self, enabled: bool);
@@ -39,7 +40,7 @@ pub struct GrabBall<H: GrabBallHead> {
 	connector: Lines,
 	connector_line: Line,
 	offset: Vec3,
-	_field: SphereField,
+	_field: Field,
 	settings: GrabBallSettings,
 	input: InputQueue,
 	grab_action: SingleActorAction,
@@ -76,7 +77,11 @@ impl<H: GrabBallHead> GrabBall<H> {
 			Transform::none(),
 			&vec![connector_line.clone()],
 		)?;
-		let _field = SphereField::create(head.root(), [0.0; 3], settings.radius)?;
+		let _field = Field::create(
+			head.root(),
+			Transform::identity(),
+			Shape::Sphere(settings.radius),
+		)?;
 		let input_handler =
 			InputHandler::create(&connect_root, Transform::none(), &_field)?.queue()?;
 

@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
-	fields::{Field, FieldAspect},
+	fields::{Field, FieldRefAspect},
 	items::panel::{PanelItem, PanelItemAcceptor, PanelItemAcceptorAspect},
 	node::{NodeError, NodeType},
 	spatial::{SpatialAspect, Transform},

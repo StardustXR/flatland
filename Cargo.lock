@@ -120,18 +120,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "color-rs"
-version = "0.8.0"
-source = "git+https://github.com/arturoc/color-rs.git#d50d5e37aaf91ccd39d0832f43a417e3405d2ece"
-dependencies = [
- "angle",
- "half",
- "num-traits",
- "serde",
- "serde_derive",
-]
-
-[[package]]
 name = "color-spantrace"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -228,7 +216,7 @@ dependencies = [
  "lazy_static",
  "manifest-dir-macros",
  "map-range",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "stardust-xr-fusion",
  "stardust-xr-molecules",
  "tokio",
@@ -425,7 +413,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.66",
+ "syn 2.0.67",
 ]
 
 [[package]]
@@ -481,7 +469,7 @@ checksum = "49e7bc1560b95a3c4a25d03de42fe76ca718ab92d1a22a55b9b4cf67b3ae635c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.66",
+ "syn 2.0.67",
 ]
 
 [[package]]
@@ -492,9 +480,9 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "miniz_oxide"
-version = "0.7.3"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87dfd01fe195c66b572b37921ad8803d010623c0aca821bea2302239d155cdae"
+checksum = "b8a240ddb74feaf34a79a7add65a741f3167852fba007066dcac1ca548d89c08"
 dependencies = [
  "adler",
 ]
@@ -702,7 +690,7 @@ dependencies = [
  "phf_shared",
  "proc-macro2",
  "quote",
- "syn 2.0.66",
+ "syn 2.0.67",
 ]
 
 [[package]]
@@ -732,9 +720,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.85"
+version = "1.0.86"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22244ce15aa966053a896d1accb3a6e68469b97c7f33f284b99f0d576879fc23"
+checksum = "5e719e8df665df0d1c8fbfd238015744736151d4445ec0836b8e628aae103b77"
 dependencies = [
  "unicode-ident",
 ]
@@ -849,6 +837,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
+name = "rustc-hash"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "583034fd73374156e66797ed8e5b0d5690409c9226b22d87cb7f19821c05d152"
+
+[[package]]
 name = "rustc_version"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -886,7 +880,7 @@ checksum = "500cbc0ebeb6f46627f50f3f5811ccf6bf00643be300b4c3eabc0ef55dc5b5ba"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.66",
+ "syn 2.0.67",
 ]
 
 [[package]]
@@ -897,7 +891,7 @@ checksum = "6c64451ba24fc7a6a2d60fc75dd9c83c90903b19028d4eff35e88fc1e86564e9"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.66",
+ "syn 2.0.67",
 ]
 
 [[package]]
@@ -907,6 +901,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "shiva-color-rs"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7bea807e4f40f1a3df2717cc134562397b6a8f869f22568388fd5eb14bb1b69"
+dependencies = [
+ "angle",
+ "half",
+ "num-traits",
+ "serde",
+ "serde_derive",
 ]
 
 [[package]]
@@ -949,17 +956,17 @@ checksum = "2f2b15926089e5526bb2dd738a2eb0e59034356e06eb71e1cd912358c0e62c4d"
 [[package]]
 name = "stardust-xr"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#a21dc0e610f6e7c905d42f80009700ff4474e583"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#f83bd949d27e1c1bfbd10458e686824dd2679a4b"
 dependencies = [
  "cluFlock",
- "color-rs",
  "dirs",
  "global_counter",
  "mint",
  "nix",
  "parking_lot 0.12.3",
- "rustc-hash",
+ "rustc-hash 2.0.0",
  "serde",
+ "shiva-color-rs",
  "stardust-xr-schemas",
  "thiserror",
  "tokio",
@@ -969,13 +976,13 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#a21dc0e610f6e7c905d42f80009700ff4474e583"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#f83bd949d27e1c1bfbd10458e686824dd2679a4b"
 dependencies = [
  "color-eyre",
  "glam 0.24.2",
  "global_counter",
  "parking_lot 0.12.3",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "serde",
  "serde_repr",
  "stardust-xr",
@@ -988,7 +995,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion-codegen"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#a21dc0e610f6e7c905d42f80009700ff4474e583"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#f83bd949d27e1c1bfbd10458e686824dd2679a4b"
 dependencies = [
  "convert_case",
  "mint",
@@ -1001,13 +1008,13 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=dev#4876d5a4f367122aecbdf4f729af1598cb39d9a0"
+source = "git+https://github.com/StardustXR/molecules.git?branch=dev#0f50742e8a9466a80677ae6d2f5aeede6b869180"
 dependencies = [
  "glam 0.27.0",
  "lazy_static",
  "lerp",
  "map-range",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "serde",
  "stardust-xr-fusion",
  "tokio",
@@ -1017,7 +1024,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-schemas"
 version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#a21dc0e610f6e7c905d42f80009700ff4474e583"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#f83bd949d27e1c1bfbd10458e686824dd2679a4b"
 dependencies = [
  "flatbuffers",
  "flexbuffers",
@@ -1042,9 +1049,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.66"
+version = "2.0.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c42f3f41a2de00b01c0aaad383c5a45241efc8b2d1eda5661812fda5f3cdcff5"
+checksum = "ff8655ed1d86f3af4ee3fd3263786bc14245ad17c4c7e85ba7187fb3ae028c90"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1068,7 +1075,7 @@ checksum = "46c3384250002a6d5af4d114f2845d37b57521033f30d5c3f46c4d70e1197533"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.66",
+ "syn 2.0.67",
 ]
 
 [[package]]
@@ -1108,7 +1115,7 @@ checksum = "5f5ae998a069d4b5aba8ee9dad856af7d520c3699e6159b185c2acd48155d39a"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.66",
+ "syn 2.0.67",
 ]
 
 [[package]]
@@ -1147,7 +1154,7 @@ checksum = "34704c8d6ebcbc939824180af020566b01a7c01f80641264eba0999f6c2b6be7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.66",
+ "syn 2.0.67",
 ]
 
 [[package]]

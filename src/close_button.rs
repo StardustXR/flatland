@@ -1,7 +1,8 @@
+use crate::{surface::Surface, toplevel::TOPLEVEL_THICKNESS};
 use stardust_xr_fusion::{
 	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
-	fields::{BoxField, BoxFieldAspect},
+	fields::{Field, Shape},
 	input::{InputDataType::Pointer, InputHandler},
 	items::panel::{PanelItem, PanelItemAspect},
 	node::{NodeError, NodeType},
@@ -13,14 +14,12 @@ use stardust_xr_molecules::{
 	Exposure,
 };
 
-use crate::{surface::Surface, toplevel::TOPLEVEL_THICKNESS};
-
 pub struct CloseButton {
 	item: PanelItem,
 	model: Model,
 	shell: ModelPart,
 	exposure: Exposure,
-	field: BoxField,
+	field: Field,
 	input: InputQueue,
 	distance_action: MultiActorAction,
 }
@@ -42,10 +41,13 @@ impl CloseButton {
 		};
 
 		// compensate for the server not being able to handle scaled fields
-		let field = BoxField::create(&shell, Transform::none(), [1.5, 1.0, 1.0])?;
+		let field = Field::create(
+			&shell,
+			Transform::none(),
+			Shape::Box([1.5 * 0.025, 0.025, thickness].into()),
+		)?;
 		field.set_spatial_parent_in_place(&item)?;
 		field.set_local_transform(Transform::from_scale([1.0; 3]))?;
-		field.set_size([1.5 * 0.025, 0.025, thickness])?;
 
 		let input = InputHandler::create(&shell, Transform::none(), &field)?.queue()?;
 		let interact_action = MultiActorAction::default();
