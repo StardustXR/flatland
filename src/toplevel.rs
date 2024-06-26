@@ -16,6 +16,7 @@ use stardust_xr_fusion::{
 		PanelItemInitData, SurfaceId,
 	},
 	node::{NodeError, NodeType},
+	objects::hmd,
 	root::FrameInfo,
 	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
@@ -149,8 +150,9 @@ impl Toplevel {
 		grabbable_content_parent: Spatial,
 	) -> Result<(), NodeError> {
 		let _: JoinHandle<Result<(), NodeError>> = tokio::spawn(async move {
+			let hmd = hmd(&client).await.unwrap();
 			let distance_future = grabbable_content_parent.get_transform(client.get_root());
-			let hmd_future = client.get_hmd().get_transform(client.get_root());
+			let hmd_future = hmd.get_transform(client.get_root());
 
 			let Transform {
 				translation: item_translation,
@@ -160,7 +162,7 @@ impl Toplevel {
 			if Vec3::from(item_translation.unwrap()).length_squared() < 0.001 {
 				// so we want to position it in front of the user
 				let _ = grabbable_content_parent.set_relative_transform(
-					client.get_hmd(),
+					&hmd,
 					Transform::from_translation_rotation(vec3(0.0, 0.0, -0.25), Quat::IDENTITY),
 				);
 				return Ok(());
