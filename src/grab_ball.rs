@@ -4,13 +4,16 @@ use stardust_xr_fusion::{
 		color::{color_space::LinearRgb, rgba_linear, Rgba},
 		Vector3,
 	},
-	drawable::{Line, LinePoint, Lines, LinesAspect},
+	drawable::{Lines, LinesAspect},
 	fields::{Field, Shape},
 	input::{InputDataType, InputHandler},
 	node::{NodeError, NodeType},
 	spatial::{Spatial, SpatialAspect, Transform},
 };
-use stardust_xr_molecules::input_action::{InputQueue, InputQueueable, SingleAction};
+use stardust_xr_molecules::{
+	input_action::{InputQueue, InputQueueable, SingleAction},
+	lines::{line_from_points, LineExt},
+};
 
 pub trait GrabBallHead {
 	fn root(&self) -> &impl SpatialAspect;
@@ -38,7 +41,6 @@ pub struct GrabBall<H: GrabBallHead> {
 	connect_root: Spatial,
 	pub head: H,
 	connector: Lines,
-	connector_line: Line,
 	offset: Vec3,
 	_field: Field,
 	settings: GrabBallSettings,
@@ -56,27 +58,8 @@ impl<H: GrabBallHead> GrabBall<H> {
 		head.root().set_spatial_parent(&connect_root)?;
 		head.root()
 			.set_local_transform(Transform::from_translation(offset))?;
-		let connector_line = Line {
-			points: vec![
-				LinePoint {
-					point: [0.0; 3].into(),
-					thickness: settings.connector_thickness,
-					color: settings.connector_color,
-				},
-				LinePoint {
-					point: (offset.normalize_or_zero() * (offset.length() - settings.radius))
-						.into(),
-					thickness: settings.connector_thickness,
-					color: settings.connector_color,
-				},
-			],
-			cyclic: false,
-		};
-		let connector = Lines::create(
-			&connect_root,
-			Transform::none(),
-			&vec![connector_line.clone()],
-		)?;
+
+		let connector = Lines::create(&connect_root, Transform::none(), &vec![])?;
 		let _field = Field::create(
 			head.root(),
 			Transform::identity(),
@@ -90,7 +73,6 @@ impl<H: GrabBallHead> GrabBall<H> {
 		Ok(GrabBall {
 			connect_root,
 			head,
-			connector_line,
 			connector,
 			offset,
 			_field,
@@ -118,31 +100,36 @@ impl<H: GrabBallHead> GrabBall<H> {
 				&self.connect_root,
 				Transform::from_translation(self.offset),
 			);
-			self.connector_line.points[1].point = (self.offset.normalize_or_zero()
-				* (self.offset.length() - self.settings.radius))
-				.into();
-			let _ = self.connector.set_lines(&[self.connector_line.clone()]);
 			return;
 		}
-		let Some(grabbing) = self.grab_action.actor() else {
-			return;
-		};
-		let grab_point = match &grabbing.input {
-			InputDataType::Pointer(_) => return,
-			InputDataType::Hand(h) => {
-				Vec3::from(h.thumb.tip.position).lerp(Vec3::from(h.index.tip.position), 0.5)
-			}
-			InputDataType::Tip(t) => t.origin.into(),
-		};
-		let _ = self
-			.head
-			.root()
-			.set_relative_transform(&self.connect_root, Transform::from_translation(grab_point));
-		let line_end =
-			grab_point.normalize_or_zero() * (grab_point.length() - self.settings.radius);
-		self.connector_line.points[1].point = line_end.into();
-		let _ = self.connector.set_lines(&vec![self.connector_line.clone()]);
+		if let Some(grab_point) = self.grab_point() {
+			let _ = self.head.root().set_relative_transform(
+				&self.connect_root,
+				Transform::from_translation(grab_point),
+			);
+		}
 		self.head.update(&self.grab_action);
+		self.update_line();
+	}
+
+	pub fn grab_point(&self) -> Option<Vec3> {
+		let grabbing = self.grab_action.actor()?;
+		match &grabbing.input {
+			InputDataType::Pointer(_) => None,
+			InputDataType::Hand(h) => {
+				Some(Vec3::from(h.thumb.tip.position).lerp(Vec3::from(h.index.tip.position), 0.5))
+			}
+			InputDataType::Tip(t) => Some(t.origin.into()),
+		}
+	}
+
+	pub fn update_line(&self) {
+		let point = self.grab_point().unwrap_or(self.offset);
+		let line_end = point.normalize_or_zero() * (point.length() - self.settings.radius);
+		let line = line_from_points(vec![[0.0; 3].into(), line_end])
+			.color(self.settings.connector_color)
+			.thickness(self.settings.connector_thickness);
+		let _ = self.connector.set_lines(&[line]);
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {
