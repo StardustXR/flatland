@@ -10,12 +10,12 @@ use stardust_xr_fusion::{
 	node::{NodeError, NodeType},
 	spatial::{Spatial, SpatialAspect, Transform},
 };
-use stardust_xr_molecules::input_action::{InputQueue, InputQueueable, SingleActorAction};
+use stardust_xr_molecules::input_action::{InputQueue, InputQueueable, SingleAction};
 
 pub trait GrabBallHead {
 	fn root(&self) -> &impl SpatialAspect;
 	fn set_enabled(&mut self, enabled: bool);
-	fn update(&mut self, grab_action: &SingleActorAction);
+	fn update(&mut self, grab_action: &SingleAction);
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ pub struct GrabBall<H: GrabBallHead> {
 	_field: Field,
 	settings: GrabBallSettings,
 	input: InputQueue,
-	grab_action: SingleActorAction,
+	grab_action: SingleAction,
 }
 impl<H: GrabBallHead> GrabBall<H> {
 	pub fn create(
@@ -85,7 +85,7 @@ impl<H: GrabBallHead> GrabBall<H> {
 		let input_handler =
 			InputHandler::create(&connect_root, Transform::none(), &_field)?.queue()?;
 
-		let grab_action = SingleActorAction::default();
+		let grab_action = SingleAction::default();
 
 		Ok(GrabBall {
 			connect_root,
@@ -155,7 +155,7 @@ impl<H: GrabBallHead> GrabBall<H> {
 		&self.connect_root
 	}
 
-	pub fn grab_action(&self) -> &SingleActorAction {
+	pub fn grab_action(&self) -> &SingleAction {
 		&self.grab_action
 	}
 }

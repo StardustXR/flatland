@@ -143,9 +143,10 @@ impl Surface {
 		// set pointer position with the closest thing that's hovering
 		if let Some(closest_hover) = self
 			.hover_plane
-			.hovering_inputs()
-			.into_iter()
-			.chain(self.hover_plane.interact_status().actor().cloned())
+			.hovering()
+			.current()
+			.iter()
+			.chain(self.hover_plane.interact_status().actor())
 			.reduce(|a, b| if a.distance > b.distance { b } else { a })
 		{
 			let (interact_point, _depth) = self.hover_plane.interact_point(&closest_hover);
@@ -165,9 +166,10 @@ impl Surface {
 
 		for input in self
 			.hover_plane
-			.hovering_inputs()
-			.into_iter()
-			.chain(self.hover_plane.interact_status().actor().cloned())
+			.hovering()
+			.current()
+			.iter()
+			.chain(self.hover_plane.interact_status().actor())
 		{
 			let mouse_event = input
 				.datamap
@@ -195,7 +197,8 @@ impl Surface {
 		// proper touches
 		for input_data in self
 			.touch_plane
-			.touching()
+			.action()
+			.interact()
 			.added()
 			.into_iter()
 			.filter(Self::filter_touch)
@@ -208,7 +211,8 @@ impl Surface {
 		}
 		for input_data in self
 			.touch_plane
-			.touching()
+			.action()
+			.interact()
 			.current()
 			.into_iter()
 			.filter(Self::filter_touch)
@@ -221,7 +225,8 @@ impl Surface {
 		}
 		for input_data in self
 			.touch_plane
-			.touching()
+			.action()
+			.interact()
 			.removed()
 			.into_iter()
 			.filter(Self::filter_touch)

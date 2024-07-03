@@ -10,7 +10,7 @@ use stardust_xr_fusion::{
 	spatial::{SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{
-	input_action::{InputQueue, InputQueueable, MultiActorAction},
+	input_action::{InputQueue, InputQueueable, SimpleAction},
 	Exposure,
 };
 
@@ -21,7 +21,7 @@ pub struct CloseButton {
 	exposure: Exposure,
 	field: Field,
 	input: InputQueue,
-	distance_action: MultiActorAction,
+	distance_action: SimpleAction,
 }
 impl CloseButton {
 	pub fn new(item: PanelItem, thickness: f32, surface: &Surface) -> Result<Self, NodeError> {
@@ -50,7 +50,6 @@ impl CloseButton {
 		field.set_local_transform(Transform::from_scale([1.0; 3]))?;
 
 		let input = InputHandler::create(&shell, Transform::none(), &field)?.queue()?;
-		let interact_action = MultiActorAction::default();
 
 		Ok(CloseButton {
 			item,
@@ -59,12 +58,12 @@ impl CloseButton {
 			exposure,
 			field,
 			input,
-			distance_action: interact_action,
+			distance_action: SimpleAction::default(),
 		})
 	}
 
 	pub fn update(&mut self, frame_info: &FrameInfo) {
-		self.distance_action.update(true, &self.input, |data| {
+		self.distance_action.update(&self.input, &|data| {
 			data.distance < 0.0
 				&& match &data.input {
 					Pointer(_) => data.datamap.with_data(|d| d.idx("select").as_f32() > 0.5),
@@ -81,7 +80,7 @@ impl CloseButton {
 		self.exposure
 			.expose(exposure * 2.0 / TOPLEVEL_THICKNESS, frame_info.delta as f32);
 		self.exposure
-			.expose_flash(self.distance_action.started_acting().len() as f32 * 0.25);
+			.expose_flash(self.distance_action.currently_acting().len() as f32 * 0.25);
 		if self.exposure.exposure > 1.0 {
 			let _ = self.item.close_toplevel();
 		} else if self.exposure.exposure > 0.0 {

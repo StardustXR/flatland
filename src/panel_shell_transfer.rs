@@ -8,7 +8,7 @@ use stardust_xr_fusion::{
 	node::{NodeError, NodeType},
 	spatial::{SpatialAspect, Transform},
 };
-use stardust_xr_molecules::input_action::SingleActorAction;
+use stardust_xr_molecules::input_action::SingleAction;
 use tokio::task::JoinSet;
 
 use crate::grab_ball::GrabBallHead;
@@ -40,7 +40,7 @@ impl PanelShellTransfer {
 
 	pub fn update_distances(
 		&self,
-		grab_action: &SingleActorAction,
+		grab_action: &SingleAction,
 		acceptors: &FxHashMap<u64, (PanelItemAcceptor, Field)>,
 	) {
 		let mut fields: JoinSet<Result<(f32, PanelItemAcceptor), NodeError>> = JoinSet::new();
@@ -102,5 +102,5 @@ impl GrabBallHead for PanelShellTransfer {
 		let _ = self.model.set_enabled(enabled);
 	}
 
-	fn update(&mut self, _grab_action: &SingleActorAction) {}
+	fn update(&mut self, _grab_action: &SingleAction) {}
 }
