@@ -57,6 +57,10 @@ impl ResizeHandles {
 		let bottom_left = ResizeHandle::create(&root, settings.clone())?;
 		let top_right = ResizeHandle::create(&root, settings.clone())?;
 
+		let _ = top_right.model.set_spatial_parent_in_place(item);
+		let _ = bottom_left.model.set_spatial_parent_in_place(item);
+		let _ = item.set_zoneable(true);
+
 		let mut resize_handles = ResizeHandles {
 			root,
 			hmd,
@@ -73,9 +77,34 @@ impl ResizeHandles {
 	pub fn update(&mut self) {
 		self.bottom_left.update();
 		self.top_right.update();
+		if (self.top_right.grab_action.actor_started()
+			&& !self.bottom_left.grab_action.actor_acting())
+			|| (self.bottom_left.grab_action.actor_started()
+				&& !self.top_right.grab_action.actor_acting())
+		{
+			let _ = self.top_right.model.set_spatial_parent_in_place(&self.root);
+			let _ = self
+				.bottom_left
+				.model
+				.set_spatial_parent_in_place(&self.root);
+			let _ = self.item.set_zoneable(false);
+		}
 		if self.top_right.grab_action.actor_acting() || self.bottom_left.grab_action.actor_acting()
 		{
 			self.update_panel_transform();
+		}
+
+		if (self.top_right.grab_action.actor_stopped()
+			&& !self.bottom_left.grab_action.actor_acting())
+			|| (self.bottom_left.grab_action.actor_stopped()
+				&& !self.top_right.grab_action.actor_acting())
+		{
+			let _ = self.top_right.model.set_spatial_parent_in_place(&self.item);
+			let _ = self
+				.bottom_left
+				.model
+				.set_spatial_parent_in_place(&self.item);
+			let _ = self.item.set_zoneable(true);
 		}
 	}
 	fn update_panel_transform(&self) {
