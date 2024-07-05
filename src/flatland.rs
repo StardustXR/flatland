@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use crate::toplevel::Toplevel;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
+	client::Client,
 	fields::Field,
 	items::{
 		panel::{
@@ -9,24 +12,29 @@ use stardust_xr_fusion::{
 		ItemUiHandler,
 	},
 	node::NodeType,
+	objects::hmd,
 	root::{ClientState, FrameInfo, RootHandler},
+	spatial::SpatialRef,
 	HandlerWrapper,
 };
 
 pub struct Flatland {
+	hmd: SpatialRef,
 	panel_items: FxHashMap<u64, HandlerWrapper<PanelItem, Toplevel>>,
 	acceptors: FxHashMap<u64, (PanelItemAcceptor, Field)>,
 }
 impl Flatland {
-	pub fn new() -> Self {
+	pub async fn new(client: &Arc<Client>) -> Self {
+		let hmd = hmd(client).await.unwrap();
 		Flatland {
+			hmd,
 			panel_items: FxHashMap::default(),
 			acceptors: FxHashMap::default(),
 		}
 	}
 
 	fn add_item(&mut self, item: PanelItem, init_data: PanelItemInitData) {
-		let Ok(toplevel) = Toplevel::create(item.alias(), init_data) else {
+		let Ok(toplevel) = Toplevel::create(self.hmd.alias(), item.alias(), init_data) else {
 			return;
 		};
 		let id = item.node().get_id().unwrap();

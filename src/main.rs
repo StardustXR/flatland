@@ -16,6 +16,7 @@ pub mod close_button;
 pub mod flatland;
 pub mod grab_ball;
 pub mod panel_shell_transfer;
+pub mod resize_handles;
 pub mod surface;
 pub mod toplevel;
 
@@ -28,7 +29,10 @@ async fn main() -> Result<()> {
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
 	client.set_base_prefixes(&[directory_relative_path!("res")])?;
 
-	let flatland = client.get_root().alias().wrap(Flatland::new())?;
+	let flatland = client
+		.get_root()
+		.alias()
+		.wrap(Flatland::new(&client).await)?;
 	let item_ui_wrapped = PanelItemUi::register(&client)?.wrap_raw(flatland.wrapped().clone())?;
 	<ItemUi as ItemUiAspect>::add_handlers(&item_ui_wrapped)?;
 

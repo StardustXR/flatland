@@ -1,3 +1,4 @@
+use glam::Vec3;
 use map_range::MapRange;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
@@ -43,6 +44,9 @@ impl PanelShellTransfer {
 		grab_action: &SingleAction,
 		acceptors: &FxHashMap<u64, (PanelItemAcceptor, Field)>,
 	) {
+		if !grab_action.actor_acting() && !grab_action.actor_stopped() {
+			return;
+		}
 		let mut fields: JoinSet<Result<(f32, PanelItemAcceptor), NodeError>> = JoinSet::new();
 		for (acceptor, field) in acceptors.values() {
 			let model = self.model.alias();
@@ -102,5 +106,5 @@ impl GrabBallHead for PanelShellTransfer {
 		let _ = self.model.set_enabled(enabled);
 	}
 
-	fn update(&mut self, _grab_action: &SingleAction) {}
+	fn update(&mut self, _grab_action: &SingleAction, _pos: Vec3) {}
 }
