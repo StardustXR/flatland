@@ -18,6 +18,7 @@ use stardust_xr_fusion::{
 	node::{NodeError, NodeResult, NodeType},
 	root::FrameInfo,
 	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
+	values::Color,
 };
 use std::f32::consts::PI;
 
@@ -46,6 +47,7 @@ pub struct Toplevel {
 }
 impl Toplevel {
 	pub fn create(
+		accent_color: Color,
 		hmd: SpatialRef,
 		item: PanelItem,
 		data: PanelItemInitData,
@@ -97,7 +99,8 @@ impl Toplevel {
 		)
 		.unwrap();
 
-		let resize_handles = ResizeHandles::create(hmd, &item, &surface, &data.toplevel).unwrap();
+		let resize_handles =
+			ResizeHandles::create(accent_color, hmd, &item, &surface, &data.toplevel).unwrap();
 
 		let panel_shell_grab_ball_anchor = Spatial::create(
 			&item,

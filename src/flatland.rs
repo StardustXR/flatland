@@ -1,6 +1,5 @@
-use std::sync::Arc;
-
 use crate::toplevel::Toplevel;
+use ashpd::desktop::settings::Settings;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	client::Client,
@@ -15,18 +14,36 @@ use stardust_xr_fusion::{
 	objects::hmd,
 	root::{ClientState, FrameInfo, RootHandler},
 	spatial::SpatialRef,
+	values::{color::rgba_linear, Color},
 	HandlerWrapper,
 };
+use std::sync::Arc;
+
+async fn accent_color() -> color_eyre::eyre::Result<Color> {
+	let accent_color = Settings::new().await?.accent_color().await?;
+	Ok(rgba_linear!(
+		accent_color.red() as f32,
+		accent_color.green() as f32,
+		accent_color.blue() as f32,
+		1.0
+	))
+}
 
 pub struct Flatland {
+	accent_color: Color,
 	hmd: SpatialRef,
 	panel_items: FxHashMap<u64, HandlerWrapper<PanelItem, Toplevel>>,
 	acceptors: FxHashMap<u64, (PanelItemAcceptor, Field)>,
 }
 impl Flatland {
 	pub async fn new(client: &Arc<Client>) -> Self {
+		let accent_color = accent_color()
+			.await
+			.unwrap_or(rgba_linear!(0.0, 0.75, 1.0, 1.0));
 		let hmd = hmd(client).await.unwrap();
+
 		Flatland {
+			accent_color,
 			hmd,
 			panel_items: FxHashMap::default(),
 			acceptors: FxHashMap::default(),
@@ -34,7 +51,9 @@ impl Flatland {
 	}
 
 	fn add_item(&mut self, item: PanelItem, init_data: PanelItemInitData) {
-		let Ok(toplevel) = Toplevel::create(self.hmd.alias(), item.alias(), init_data) else {
+		let Ok(toplevel) =
+			Toplevel::create(self.accent_color, self.hmd.alias(), item.alias(), init_data)
+		else {
 			return;
 		};
 		let id = item.node().get_id().unwrap();

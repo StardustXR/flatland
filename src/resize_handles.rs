@@ -12,7 +12,7 @@ use stardust_xr_fusion::{
 	node::{NodeResult, NodeType},
 	root::Root,
 	spatial::{SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
-	values::{color::rgba_linear, Vector2},
+	values::{color::rgba_linear, Color, Vector2},
 };
 use stardust_xr_molecules::input_action::{InputQueue, InputQueueable, SingleAction};
 use std::f32::consts::FRAC_PI_2;
@@ -41,6 +41,7 @@ pub struct ResizeHandles {
 }
 impl ResizeHandles {
 	pub fn create(
+		accent_color: Color,
 		hmd: SpatialRef,
 		item: &PanelItem,
 		surface: &Surface,
@@ -50,7 +51,7 @@ impl ResizeHandles {
 			radius: 0.005,
 			padding: 0.02,
 			connector_thickness: 0.0025,
-			connector_color: rgba_linear!(0.0, 1.0, 0.5, 1.0),
+			connector_color: accent_color,
 		};
 
 		let root = hmd.client()?.get_root().alias();
@@ -249,7 +250,7 @@ impl ResizeHandle {
 		if self.grab_action.actor_started() {
 			let _ = self.sphere.set_material_parameter(
 				"color",
-				MaterialParameter::Color(rgba_linear!(0.0, 1.0, 0.25, 1.0)),
+				MaterialParameter::Color(self.settings.connector_color),
 			);
 		}
 		if let Some(grab_point) = self.grab_point() {

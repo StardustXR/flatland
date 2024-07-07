@@ -21,6 +21,7 @@ tracing = "0.1.40"
 color-eyre = "0.6.3"
 colorgrad = "0.6.2"
 map-range = "0.1.2"
+ashpd = { version = "0.8.1", features = ["tokio"], default-features = false }
 
 [dependencies.stardust-xr-fusion]
 git = "https://github.com/StardustXR/core.git"
