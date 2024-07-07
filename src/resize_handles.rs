@@ -188,6 +188,10 @@ impl ResizeHandle {
 			&ResourceID::new_namespaced("flatland", "resize_handle"),
 		)?;
 		let sphere = model.part("sphere")?;
+		sphere.set_material_parameter(
+			"color",
+			MaterialParameter::Color(rgba_linear!(0.75, 0.75, 0.75, 1.0)),
+		)?;
 
 		let field = Field::create(&model, Transform::identity(), Shape::Sphere(0.005))?;
 		let input = InputHandler::create(root, Transform::identity(), &field)?.queue()?;
@@ -222,6 +226,26 @@ impl ResizeHandle {
 			},
 		);
 
+		// if something just got close
+		if self.grab_action.hovering().added().len() > 0
+			&& self.grab_action.hovering().added().len()
+				== self.grab_action.hovering().current().len()
+		{
+			let _ = self.sphere.set_material_parameter(
+				"color",
+				MaterialParameter::Color(rgba_linear!(1.0, 1.0, 1.0, 1.0)),
+			);
+		}
+
+		if self.grab_action.hovering().current().len() == 0
+			&& self.grab_action.hovering().removed().len() > 0
+		{
+			let _ = self.sphere.set_material_parameter(
+				"color",
+				MaterialParameter::Color(rgba_linear!(0.5, 0.5, 0.5, 1.0)),
+			);
+		}
+
 		if self.grab_action.actor_started() {
 			let _ = self.sphere.set_material_parameter(
 				"color",
@@ -234,7 +258,7 @@ impl ResizeHandle {
 		if self.grab_action.actor_stopped() {
 			let _ = self.sphere.set_material_parameter(
 				"color",
-				MaterialParameter::Color(rgba_linear!(1.0, 1.0, 1.0, 1.0)),
+				MaterialParameter::Color(rgba_linear!(0.5, 0.5, 0.5, 1.0)),
 			);
 		}
 	}
