@@ -209,13 +209,13 @@ impl Toplevel {
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {
-		let _ = self.panel_shell_grab_ball.set_enabled(enabled);
+		self.panel_shell_grab_ball.set_enabled(enabled);
 		for child in self.children.values_mut() {
 			child.set_enabled(enabled);
 		}
 		self.surface.set_enabled(enabled);
 		let _ = self.title_text.set_enabled(enabled);
-		let _ = self.close_button.set_enabled(enabled);
+		self.close_button.set_enabled(enabled);
 		self.resize_handles.set_enabled(enabled);
 	}
 }

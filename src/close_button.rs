@@ -76,9 +76,9 @@ impl CloseButton {
 			.iter()
 			.map(|d| d.distance.abs().powf(1.0 / 2.2))
 			.sum();
-		self.exposure.update(frame_info.delta as f32);
+		self.exposure.update(frame_info.delta);
 		self.exposure
-			.expose(exposure * 2.0 / TOPLEVEL_THICKNESS, frame_info.delta as f32);
+			.expose(exposure * 2.0 / TOPLEVEL_THICKNESS, frame_info.delta);
 		self.exposure
 			.expose_flash(self.distance_action.currently_acting().len() as f32 * 0.25);
 		if self.exposure.exposure > 1.0 {

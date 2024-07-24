@@ -62,7 +62,7 @@ impl<H: GrabBallHead> GrabBall<H> {
 		head.root()
 			.set_local_transform(Transform::from_translation(offset))?;
 
-		let connector = Lines::create(&connect_root, Transform::none(), &vec![])?;
+		let connector = Lines::create(&connect_root, Transform::none(), &[])?;
 		let _field = Field::create(
 			head.root(),
 			Transform::identity(),

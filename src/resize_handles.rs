@@ -167,8 +167,8 @@ impl ResizeHandles {
 		}
 	}
 	pub fn set_enabled(&mut self, enabled: bool) {
-		let _ = self.top_right.set_enabled(enabled);
-		let _ = self.bottom_left.set_enabled(enabled);
+		self.top_right.set_enabled(enabled);
+		self.bottom_left.set_enabled(enabled);
 	}
 }
 
@@ -228,7 +228,7 @@ impl ResizeHandle {
 		);
 
 		// if something just got close
-		if self.grab_action.hovering().added().len() > 0
+		if !self.grab_action.hovering().added().is_empty()
 			&& self.grab_action.hovering().added().len()
 				== self.grab_action.hovering().current().len()
 		{
@@ -238,8 +238,8 @@ impl ResizeHandle {
 			);
 		}
 
-		if self.grab_action.hovering().current().len() == 0
-			&& self.grab_action.hovering().removed().len() > 0
+		if self.grab_action.hovering().current().is_empty()
+			&& !self.grab_action.hovering().removed().is_empty()
 		{
 			let _ = self.sphere.set_material_parameter(
 				"color",

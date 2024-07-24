@@ -125,10 +125,7 @@ impl Surface {
 	}
 
 	fn filter_touch(t: &&Arc<InputData>) -> bool {
-		match t.input {
-			InputDataType::Pointer(_) => false,
-			_ => true,
-		}
+		!matches!(t.input, InputDataType::Pointer(_))
 	}
 
 	pub fn update(&mut self) {
@@ -149,7 +146,7 @@ impl Surface {
 			.chain(self.hover_plane.interact_status().actor())
 			.reduce(|a, b| if a.distance > b.distance { b } else { a })
 		{
-			let (interact_point, _depth) = self.hover_plane.interact_point(&closest_hover);
+			let (interact_point, _depth) = self.hover_plane.interact_point(closest_hover);
 			let _ = self.item.pointer_motion(self.id.clone(), interact_point);
 		}
 
@@ -200,11 +197,11 @@ impl Surface {
 			.action()
 			.interact()
 			.added()
-			.into_iter()
+			.iter()
 			.filter(Self::filter_touch)
 		{
 			self.touches.insert(input_data.clone());
-			let position = self.touch_plane.interact_point(&input_data).0;
+			let position = self.touch_plane.interact_point(input_data).0;
 			let _ = self
 				.item
 				.touch_down(self.id.clone(), input_data.id as u32, position);
@@ -214,13 +211,13 @@ impl Surface {
 			.action()
 			.interact()
 			.current()
-			.into_iter()
+			.iter()
 			.filter(Self::filter_touch)
 		{
 			if !self.touches.contains(input_data) {
 				return;
 			}
-			let position = self.touch_plane.interact_point(&input_data).0;
+			let position = self.touch_plane.interact_point(input_data).0;
 			let _ = self.item.touch_move(input_data.id as u32, position);
 		}
 		for input_data in self
@@ -228,7 +225,7 @@ impl Surface {
 			.action()
 			.interact()
 			.removed()
-			.into_iter()
+			.iter()
 			.filter(Self::filter_touch)
 		{
 			self.touches.remove(input_data);
