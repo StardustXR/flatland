@@ -109,7 +109,7 @@ impl Surface {
 	) -> Result<Self, NodeError> {
 		let position = [
 			geometry.origin.x as f32 / PPM,
-			geometry.origin.y as f32 / PPM,
+			-geometry.origin.y as f32 / PPM,
 			thickness,
 		];
 		let mut surface = Self::create(
