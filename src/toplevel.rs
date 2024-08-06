@@ -59,6 +59,7 @@ impl Toplevel {
 			SurfaceId::Toplevel(()),
 			data.toplevel.size,
 			TOPLEVEL_THICKNESS,
+			true,
 		)?;
 		surface
 			.root()
@@ -281,10 +282,18 @@ impl PanelItemHandler for Toplevel {
 				}
 			}
 		};
-		let surface = Surface::new_child(parent, id, &info.geometry, CHILD_THICKNESS).unwrap();
+		let surface = Surface::new_child(
+			parent,
+			id,
+			&info.geometry,
+			CHILD_THICKNESS,
+			info.receives_input,
+		)
+		.unwrap();
 		self.children.insert(id, surface);
-		let _ = self.surface.hover_plane.set_enabled(false);
-		let _ = self.surface.touch_plane.set_enabled(false);
+		if let Some(input) = &mut self.surface.input {
+			input.set_enabled(false);
+		}
 	}
 	fn reposition_child(&mut self, id: u64, geometry: Geometry) {
 		let Some(child) = self.children.get_mut(&id) else {
@@ -295,9 +304,10 @@ impl PanelItemHandler for Toplevel {
 	}
 	fn destroy_child(&mut self, id: u64) {
 		self.children.remove(&id);
-		if self.children.is_empty() {
-			let _ = self.surface.hover_plane.set_enabled(true);
-			let _ = self.surface.touch_plane.set_enabled(true);
+		if !self.children.values().any(|child| child.input.is_some()) {
+			if let Some(input) = &mut self.surface.input {
+				input.set_enabled(true);
+			}
 		}
 	}
 }
