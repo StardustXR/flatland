@@ -469,24 +469,8 @@ impl SurfaceInput {
 		self.pointer_hover
 			.iter()
 			.filter(|_| self.touch.interact().current().is_empty())
-			// .filter(|i| self.middle_click.hovering().current().contains(*i))
-			// .filter(|i| self.right_click.hovering().current().contains(*i))
 			.filter_map(|p| self.line_from_input(&p, p.captured))
 			.collect::<Vec<_>>()
-
-		// only show the closest hover?
-		// let mut hovered_lines = self
-		// 	.hover
-		// 	.currently_acting()
-		// 	.iter()
-		// 	.filter_map(|i| self.line_from_input(i, false))
-		// 	.collect::<Vec<_>>();
-		// if let Some(input) = &self.pointer_hover {
-		// 	if let Some(line) = self.line_from_input(&input, true) {
-		// 		hovered_lines.push(line);
-		// 	}
-		// }
-		// hovered_lines
 	}
 	fn line_from_input(&self, input: &InputData, interacting: bool) -> Option<Line> {
 		if let InputDataType::Pointer(_) = &input.input {
