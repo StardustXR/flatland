@@ -5,14 +5,14 @@ use stardust_xr_fusion::{
 	core::values::{ResourceID, Vector2},
 	drawable::{Line, LinePoint, Lines, LinesAspect, Model},
 	fields::{Field, FieldAspect, Shape},
-	input::{InputData, InputDataType, InputHandler},
+	input::{Finger, Hand, InputData, InputDataType, InputHandler},
 	items::panel::{Geometry, PanelItem, PanelItemAspect, SurfaceId},
 	node::{NodeError, NodeType},
 	spatial::{Spatial, SpatialAspect, Transform},
 	values::{color::rgba_linear, Vector3},
 };
 use stardust_xr_molecules::{
-	input_action::{InputQueue, InputQueueable, MultiAction, SimpleAction},
+	input_action::{InputQueue, InputQueueable, MultiAction, SimpleAction, SingleAction},
 	keyboard::{create_keyboard_panel_handler, KeyboardPanelHandler},
 	lines::{self, LineExt},
 	mouse::MouseEvent,
@@ -144,9 +144,10 @@ pub struct SurfaceInput {
 	input: InputQueue,
 	field: Field,
 	hover: SimpleAction,
-	left_click: SimpleAction,
-	middle_click: SimpleAction,
-	right_click: SimpleAction,
+	pointer_hover: Option<Arc<InputData>>,
+	left_click: SingleAction,
+	middle_click: SingleAction,
+	right_click: SingleAction,
 	touch: MultiAction,
 
 	physical_size: Vec2,
@@ -184,9 +185,10 @@ impl SurfaceInput {
 			input,
 			field,
 			hover,
-			left_click: SimpleAction::default(),
-			middle_click: SimpleAction::default(),
-			right_click: SimpleAction::default(),
+			pointer_hover: None,
+			left_click: SingleAction::default(),
+			middle_click: SingleAction::default(),
+			right_click: SingleAction::default(),
 			touch: MultiAction::default(),
 
 			physical_size,
@@ -260,97 +262,99 @@ impl SurfaceInput {
 
 		([x, y].into(), interact_point.z)
 	}
+	#[inline]
 	fn handle_mouse_button(
-		&self,
+		input: &InputQueue,
 		item: &PanelItem,
 		id: &SurfaceId,
-		closest_hover: &Arc<InputData>,
-		action: &SimpleAction,
+		closest_hover: Option<Arc<InputData>>,
+		action: &mut SingleAction,
+		finger: fn(&Hand) -> &Finger,
+		datamap_key: &str,
 		button_code: u32,
 	) {
-		if action.started_acting().contains(closest_hover) {
+		action.update(
+			false,
+			input,
+			|input| Some(input.id) == closest_hover.clone().map(|c| c.id),
+			|input| {
+				match &input.input {
+					InputDataType::Hand(h) => {
+						let thumb_tip = Vec3::from(h.thumb.tip.position);
+						let finger_tip = Vec3::from((finger)(h).tip.position);
+						thumb_tip.distance(finger_tip) < 0.02 // Adjust threshold as needed
+					}
+					_ => input
+						.datamap
+						.with_data(|d| d.idx(datamap_key).as_f32() > 0.5),
+				}
+			},
+		);
+		if action.actor_started() {
+			// println!("Mouse button {button_code} down");
 			let _ = item.pointer_button(id.clone(), button_code, true);
-		} else if action.stopped_acting().contains(closest_hover) {
+		}
+		if action.actor_stopped() {
+			// println!("Mouse button {button_code} up");
 			let _ = item.pointer_button(id.clone(), button_code, false);
 		}
 	}
-	fn update_pointer(&mut self, item: &PanelItem, id: &SurfaceId) {
+	fn update_pointer(&mut self, item: &PanelItem, surface_id: &SurfaceId) {
 		self.hover.update(&self.input, &|input| match &input.input {
 			InputDataType::Pointer(_) => input.distance <= 0.0,
 			_ => {
 				let hover_point = Self::hover_point(input);
-				(0.0..0.2).contains(&hover_point.z.abs())
+				(0.05..0.2).contains(&hover_point.z.abs())
 					&& Self::hovering(self.physical_size.into(), hover_point.into(), true)
 			}
 		});
 
 		// set pointer position with the closest thing that's hovering
-		let closest_hover = self
+		self.pointer_hover = self
 			.hover
 			.currently_acting()
 			.iter()
-			.min_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
-
-		let Some(closest_hover) = closest_hover else {
-			return;
-		};
-		let (interact_point, _depth) = self.hover_info(closest_hover);
-		let _ = item.pointer_motion(id.clone(), interact_point);
-
-		// Update actions for left, middle, and right clicks
-		self.left_click.update(&self.input, &|input| {
-			match &input.input {
-				InputDataType::Hand(h) => {
-					let thumb_tip = Vec3::from(h.thumb.tip.position);
-					let index_tip = Vec3::from(h.index.tip.position);
-					thumb_tip.distance(index_tip) < 0.02 // Adjust threshold as needed
-				}
-				_ => input.datamap.with_data(|d| d.idx("left").as_f32() > 0.5),
-			}
-		});
-		self.middle_click.update(&self.input, &|input| {
-			match &input.input {
-				InputDataType::Hand(h) => {
-					let thumb_tip = Vec3::from(h.thumb.tip.position);
-					let middle_tip = Vec3::from(h.middle.tip.position);
-					thumb_tip.distance(middle_tip) < 0.02 // Adjust threshold as needed
-				}
-				_ => input.datamap.with_data(|d| d.idx("middle").as_f32() > 0.5),
-			}
-		});
-		self.right_click.update(&self.input, &|input| {
-			match &input.input {
-				InputDataType::Hand(h) => {
-					let thumb_tip = Vec3::from(h.thumb.tip.position);
-					let ring_tip = Vec3::from(h.ring.tip.position);
-					thumb_tip.distance(ring_tip) < 0.02 // Adjust threshold as needed
-				}
-				_ => input.datamap.with_data(|d| d.idx("context").as_f32() > 0.5),
-			}
-		});
+			.chain(self.input.input().keys().filter(|c| c.captured))
+			.min_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap())
+			.cloned();
 
 		// Handle mouse button actions
-		self.handle_mouse_button(
+		SurfaceInput::handle_mouse_button(
+			&self.input,
 			item,
-			id,
-			closest_hover,
-			&self.left_click,
+			surface_id,
+			self.pointer_hover.clone(),
+			&mut self.left_click,
+			|hand| &hand.index,
+			"select",
 			input_event_codes::BTN_LEFT!(),
 		);
-		self.handle_mouse_button(
+		SurfaceInput::handle_mouse_button(
+			&self.input,
 			item,
-			id,
-			closest_hover,
-			&self.middle_click,
+			surface_id,
+			self.pointer_hover.clone(),
+			&mut self.middle_click,
+			|hand| &hand.middle,
+			"middle",
 			input_event_codes::BTN_MIDDLE!(),
 		);
-		self.handle_mouse_button(
+		SurfaceInput::handle_mouse_button(
+			&self.input,
 			item,
-			id,
-			closest_hover,
-			&self.right_click,
+			surface_id,
+			self.pointer_hover.clone(),
+			&mut self.right_click,
+			|hand| &hand.ring,
+			"context",
 			input_event_codes::BTN_RIGHT!(),
 		);
+
+		let Some(closest_hover) = self.pointer_hover.clone() else {
+			return;
+		};
+		let (interact_point, _depth) = self.hover_info(&closest_hover);
+		let _ = item.pointer_motion(surface_id.clone(), interact_point);
 
 		// Scroll handling
 		let mouse_event = closest_hover
@@ -359,7 +363,7 @@ impl SurfaceInput {
 			.unwrap_or_default();
 
 		let _ = item.pointer_scroll(
-			id.clone(),
+			surface_id.clone(),
 			mouse_event.scroll_continuous.unwrap_or([0.0; 2].into()),
 			mouse_event.scroll_discrete.unwrap_or([0.0; 2].into()),
 		);
@@ -462,11 +466,27 @@ impl SurfaceInput {
 	}
 
 	fn hover_lines(&mut self) -> Vec<Line> {
-		self.hover
-			.currently_acting()
+		self.pointer_hover
 			.iter()
-			.filter_map(|i| self.line_from_input(i, false))
+			.filter(|_| self.touch.interact().current().is_empty())
+			// .filter(|i| self.middle_click.hovering().current().contains(*i))
+			// .filter(|i| self.right_click.hovering().current().contains(*i))
+			.filter_map(|p| self.line_from_input(&p, p.captured))
 			.collect::<Vec<_>>()
+
+		// only show the closest hover?
+		// let mut hovered_lines = self
+		// 	.hover
+		// 	.currently_acting()
+		// 	.iter()
+		// 	.filter_map(|i| self.line_from_input(i, false))
+		// 	.collect::<Vec<_>>();
+		// if let Some(input) = &self.pointer_hover {
+		// 	if let Some(line) = self.line_from_input(&input, true) {
+		// 		hovered_lines.push(line);
+		// 	}
+		// }
+		// hovered_lines
 	}
 	fn line_from_input(&self, input: &InputData, interacting: bool) -> Option<Line> {
 		if let InputDataType::Pointer(_) = &input.input {
