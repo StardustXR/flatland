@@ -1,4 +1,5 @@
 use crate::{surface::Surface, toplevel::TOPLEVEL_THICKNESS};
+use glam::vec3;
 use stardust_xr_fusion::{
 	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
@@ -28,7 +29,11 @@ impl CloseButton {
 		let model = Model::create(
 			&item,
 			Transform::from_translation_scale(
-				[surface.physical_size().x, -surface.physical_size().y, 0.0],
+				vec3(
+					surface.physical_size().x,
+					-surface.physical_size().y,
+					thickness,
+				) * 0.5,
 				[0.025, 0.025, thickness],
 			),
 			&ResourceID::new_namespaced("flatland", "close_button"),

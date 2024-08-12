@@ -1,22 +1,24 @@
-use glam::{vec2, vec3, Vec2};
+use glam::{vec2, vec3, Mat4, Vec2, Vec3};
 use lazy_static::lazy_static;
-use rustc_hash::FxHashSet;
+use map_range::MapRange;
 use stardust_xr_fusion::{
 	core::values::{ResourceID, Vector2},
-	drawable::Model,
-	fields::Field,
-	input::{InputData, InputDataType},
+	drawable::{Line, LinePoint, Lines, LinesAspect, Model},
+	fields::{Field, FieldAspect, Shape},
+	input::{InputData, InputDataType, InputHandler},
 	items::panel::{Geometry, PanelItem, PanelItemAspect, SurfaceId},
 	node::{NodeError, NodeType},
 	spatial::{Spatial, SpatialAspect, Transform},
+	values::{color::rgba_linear, Vector3},
 };
 use stardust_xr_molecules::{
-	hover_plane::{HoverPlane, HoverPlaneSettings},
+	input_action::{InputQueue, InputQueueable, MultiAction, SimpleAction},
 	keyboard::{create_keyboard_panel_handler, KeyboardPanelHandler},
+	lines::{self, LineExt},
 	mouse::MouseEvent,
-	touch_plane::TouchPlane,
+	DebugSettings, VisualDebug,
 };
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 lazy_static! {
 	pub static ref PANEL_RESOURCE: ResourceID = ResourceID::new_namespaced("flatland", "panel");
@@ -53,9 +55,12 @@ impl Surface {
 			&PANEL_RESOURCE,
 		)?;
 		item.apply_surface_material(id.clone(), &model.part("Panel")?)?;
-		let input = receives_input
+		let mut input = receives_input
 			.then(|| SurfaceInput::new(&root, &item, &id, physical_size, thickness, px_size))
 			.transpose()?;
+		if let Some(input) = &mut input {
+			input.set_debug(Some(DebugSettings::default()));
+		}
 		Ok(Surface {
 			root,
 			item,
@@ -136,10 +141,22 @@ impl Surface {
 }
 
 pub struct SurfaceInput {
-	hover_plane: HoverPlane,
-	touch_plane: TouchPlane,
-	touches: FxHashSet<Arc<InputData>>,
+	input: InputQueue,
+	field: Field,
+	hover: SimpleAction,
+	left_click: SimpleAction,
+	middle_click: SimpleAction,
+	right_click: SimpleAction,
+	touch: MultiAction,
+
+	physical_size: Vec2,
+	thickness: f32,
+	pub x_range: Range<f32>,
+	pub y_range: Range<f32>,
+
 	_keyboard: KeyboardPanelHandler,
+	lines: Lines,
+	debug_line_settings: Option<DebugSettings>,
 }
 
 impl SurfaceInput {
@@ -151,162 +168,352 @@ impl SurfaceInput {
 		thickness: f32,
 		px_size: Vector2<u32>,
 	) -> Result<Self, NodeError> {
-		let plane_transform =
-			Transform::from_translation(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0);
-		let hover_plane = HoverPlane::create(
+		let field = Field::create(
 			root,
-			plane_transform.clone(),
-			physical_size,
-			thickness,
-			0.0..px_size.x as f32,
-			0.0..px_size.y as f32,
-			HoverPlaneSettings {
-				distance_range: 0.05..1.0,
-				..Default::default()
-			},
+			Transform::from_translation(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0),
+			Shape::Box([physical_size.x, physical_size.y, thickness].into()),
 		)?;
-		let touch_plane = TouchPlane::create(
-			root,
-			plane_transform.clone(),
-			physical_size,
-			thickness,
-			0.0..px_size.x as f32,
-			0.0..px_size.y as f32,
-		)?;
+		let input = InputHandler::create(&field, Transform::none(), &field)?.queue()?;
+		let hover = SimpleAction::default();
+		let lines = Lines::create(&field, Transform::identity(), &[])?;
 
-		let keyboard = create_keyboard_panel_handler(
-			item,
-			Transform::none(),
-			touch_plane.field(),
-			item,
-			id.clone(),
-		)?;
+		let keyboard =
+			create_keyboard_panel_handler(item, Transform::none(), &field, item, id.clone())?;
 
 		Ok(SurfaceInput {
-			hover_plane,
-			touch_plane,
-			touches: FxHashSet::default(),
+			input,
+			field,
+			hover,
+			left_click: SimpleAction::default(),
+			middle_click: SimpleAction::default(),
+			right_click: SimpleAction::default(),
+			touch: MultiAction::default(),
+
+			physical_size,
+			thickness,
+			x_range: 0.0..px_size.x as f32,
+			y_range: 0.0..px_size.y as f32,
+
 			_keyboard: keyboard,
+			lines,
+			debug_line_settings: None,
 		})
 	}
 
 	pub fn update(&mut self, item: &PanelItem, id: &SurfaceId) {
-		self.hover_plane.update();
-		self.touch_plane.update();
-
 		self.update_pointer(item, id);
 		self.update_touches(item, id);
-	}
-
-	pub fn update_pointer(&mut self, item: &PanelItem, id: &SurfaceId) {
-		// set pointer position with the closest thing that's hovering
-		if let Some(closest_hover) = self
-			.hover_plane
-			.hovering()
-			.current()
-			.iter()
-			.chain(self.hover_plane.interact_status().actor())
-			.reduce(|a, b| if a.distance > b.distance { b } else { a })
-		{
-			let (interact_point, _depth) = self.hover_plane.interact_point(closest_hover);
-			let _ = item.pointer_motion(id.clone(), interact_point);
-		}
-
-		// left mouse button
-		if self.hover_plane.interact_status().actor_started() {
-			let _ = item.pointer_button(id.clone(), input_event_codes::BTN_LEFT!(), true);
-		} else if self.hover_plane.interact_status().actor_stopped() {
-			let _ = item.pointer_button(id.clone(), input_event_codes::BTN_LEFT!(), false);
-		}
-
-		for input in self
-			.hover_plane
-			.hovering()
-			.current()
-			.iter()
-			.chain(self.hover_plane.interact_status().actor())
-		{
-			let mouse_event = input
-				.datamap
-				.deserialize::<MouseEvent>()
-				.unwrap_or_default();
-
-			let _ = item.pointer_scroll(
-				id.clone(),
-				mouse_event.scroll_continuous.unwrap_or([0.0; 2].into()),
-				mouse_event.scroll_discrete.unwrap_or([0.0; 2].into()),
-			);
-		}
-	}
-	pub fn update_touches(&mut self, item: &PanelItem, id: &SurfaceId) {
-		// proper touches
-		for input_data in self
-			.touch_plane
-			.action()
-			.interact()
-			.added()
-			.iter()
-			.filter(filter_touch)
-		{
-			self.touches.insert(input_data.clone());
-			let position = self.touch_plane.interact_point(input_data).0;
-			let _ = item.touch_down(id.clone(), input_data.id as u32, position);
-		}
-		for input_data in self
-			.touch_plane
-			.action()
-			.interact()
-			.current()
-			.iter()
-			.filter(filter_touch)
-		{
-			if !self.touches.contains(input_data) {
-				continue;
-			}
-			let position = self.touch_plane.interact_point(input_data).0;
-			let _ = item.touch_move(input_data.id as u32, position);
-		}
-		for input_data in self
-			.touch_plane
-			.action()
-			.interact()
-			.removed()
-			.iter()
-			.filter(filter_touch)
-		{
-			self.touches.remove(input_data);
-			let _ = item.touch_up(input_data.id as u32);
-		}
+		self.update_signifiers();
 	}
 
 	pub fn resize(&mut self, physical_size: Vec2, px_size: Vector2<u32>) {
-		let plane_transform =
-			Transform::from_translation(vec3(physical_size.x, -physical_size.y, 0.0) / 2.0);
+		self.physical_size = physical_size;
 
-		let _ = self
-			.hover_plane
-			.root()
-			.set_local_transform(plane_transform.clone());
-		let _ = self.touch_plane.root().set_local_transform(plane_transform);
+		let _ = self.field.set_local_transform(Transform::from_translation(
+			vec3(physical_size.x, -physical_size.y, 0.0) / 2.0,
+		));
+		let _ = self.field.set_shape(Shape::Box(
+			[physical_size.x, physical_size.y, self.thickness].into(),
+		));
 
-		let _ = self.hover_plane.set_size(physical_size);
-		let _ = self.touch_plane.set_size(physical_size);
-		self.hover_plane.x_range = 0.0..px_size.x as f32;
-		self.hover_plane.y_range = 0.0..px_size.y as f32;
-		self.touch_plane.x_range = 0.0..px_size.x as f32;
-		self.touch_plane.y_range = 0.0..px_size.y as f32;
+		self.x_range = 0.0..px_size.x as f32;
+		self.y_range = 0.0..px_size.y as f32;
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {
-		let _ = self.hover_plane.set_enabled(enabled);
-		let _ = self.touch_plane.set_enabled(enabled);
-	}
-
-	pub fn field(&self) -> &Field {
-		self.touch_plane.field()
+		let _ = self.input.handler().set_enabled(enabled);
 	}
 }
 
-fn filter_touch(t: &&Arc<InputData>) -> bool {
-	!matches!(t.input, InputDataType::Pointer(_))
+// Pointer inputs
+impl SurfaceInput {
+	fn hovering(size: Vector2<f32>, point: Vector3<f32>, front: bool) -> bool {
+		point.x.abs() * 2.0 < size.x
+			&& point.y.abs() * 2.0 < size.y
+			&& point.z.is_sign_positive() == front
+	}
+	fn hover_point(input: &InputData) -> Vec3 {
+		match &input.input {
+			InputDataType::Pointer(p) => {
+				let normal = vec3(0.0, 0.0, 1.0);
+				let denom = normal.dot(p.direction().into());
+				let t = -Vec3::from(p.origin).dot(normal) / denom;
+				Vec3::from(p.origin) + Vec3::from(p.direction()) * t
+			}
+			InputDataType::Hand(h) => {
+				(Vec3::from(h.index.tip.position) + Vec3::from(h.thumb.tip.position)) * 0.5
+			}
+			InputDataType::Tip(t) => t.origin.into(),
+		}
+	}
+	fn hover_info(&self, input: &InputData) -> (Vector2<f32>, f32) {
+		let interact_point = Self::hover_point(input);
+
+		let half_size_x = self.physical_size.x / 2.0;
+		let half_size_y = self.physical_size.y / 2.0;
+		let x = interact_point
+			.x
+			.map_range(-half_size_x..half_size_x, self.x_range.clone());
+		let y = interact_point
+			.y
+			.map_range(half_size_y..-half_size_y, self.y_range.clone());
+
+		([x, y].into(), interact_point.z)
+	}
+	fn handle_mouse_button(
+		&self,
+		item: &PanelItem,
+		id: &SurfaceId,
+		closest_hover: &Arc<InputData>,
+		action: &SimpleAction,
+		button_code: u32,
+	) {
+		if action.started_acting().contains(closest_hover) {
+			let _ = item.pointer_button(id.clone(), button_code, true);
+		} else if action.stopped_acting().contains(closest_hover) {
+			let _ = item.pointer_button(id.clone(), button_code, false);
+		}
+	}
+	fn update_pointer(&mut self, item: &PanelItem, id: &SurfaceId) {
+		self.hover.update(&self.input, &|input| match &input.input {
+			InputDataType::Pointer(_) => input.distance <= 0.0,
+			_ => {
+				let hover_point = Self::hover_point(input);
+				(0.0..0.2).contains(&hover_point.z.abs())
+					&& Self::hovering(self.physical_size.into(), hover_point.into(), true)
+			}
+		});
+
+		// set pointer position with the closest thing that's hovering
+		let closest_hover = self
+			.hover
+			.currently_acting()
+			.iter()
+			.min_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
+
+		let Some(closest_hover) = closest_hover else {
+			return;
+		};
+		let (interact_point, _depth) = self.hover_info(closest_hover);
+		let _ = item.pointer_motion(id.clone(), interact_point);
+
+		// Update actions for left, middle, and right clicks
+		self.left_click.update(&self.input, &|input| {
+			match &input.input {
+				InputDataType::Hand(h) => {
+					let thumb_tip = Vec3::from(h.thumb.tip.position);
+					let index_tip = Vec3::from(h.index.tip.position);
+					thumb_tip.distance(index_tip) < 0.02 // Adjust threshold as needed
+				}
+				_ => input.datamap.with_data(|d| d.idx("left").as_f32() > 0.5),
+			}
+		});
+		self.middle_click.update(&self.input, &|input| {
+			match &input.input {
+				InputDataType::Hand(h) => {
+					let thumb_tip = Vec3::from(h.thumb.tip.position);
+					let middle_tip = Vec3::from(h.middle.tip.position);
+					thumb_tip.distance(middle_tip) < 0.02 // Adjust threshold as needed
+				}
+				_ => input.datamap.with_data(|d| d.idx("middle").as_f32() > 0.5),
+			}
+		});
+		self.right_click.update(&self.input, &|input| {
+			match &input.input {
+				InputDataType::Hand(h) => {
+					let thumb_tip = Vec3::from(h.thumb.tip.position);
+					let ring_tip = Vec3::from(h.ring.tip.position);
+					thumb_tip.distance(ring_tip) < 0.02 // Adjust threshold as needed
+				}
+				_ => input.datamap.with_data(|d| d.idx("context").as_f32() > 0.5),
+			}
+		});
+
+		// Handle mouse button actions
+		self.handle_mouse_button(
+			item,
+			id,
+			closest_hover,
+			&self.left_click,
+			input_event_codes::BTN_LEFT!(),
+		);
+		self.handle_mouse_button(
+			item,
+			id,
+			closest_hover,
+			&self.middle_click,
+			input_event_codes::BTN_MIDDLE!(),
+		);
+		self.handle_mouse_button(
+			item,
+			id,
+			closest_hover,
+			&self.right_click,
+			input_event_codes::BTN_RIGHT!(),
+		);
+
+		// Scroll handling
+		let mouse_event = closest_hover
+			.datamap
+			.deserialize::<MouseEvent>()
+			.unwrap_or_default();
+
+		let _ = item.pointer_scroll(
+			id.clone(),
+			mouse_event.scroll_continuous.unwrap_or([0.0; 2].into()),
+			mouse_event.scroll_discrete.unwrap_or([0.0; 2].into()),
+		);
+	}
+}
+
+// Touch points
+impl SurfaceInput {
+	fn touch_point(&self, input: &InputData) -> (Vector2<f32>, f32) {
+		let interact_point = match &input.input {
+			InputDataType::Pointer(p) => {
+				let normal = vec3(0.0, 0.0, 1.0);
+				let denom = normal.dot(p.direction().into());
+				let t = -Vec3::from(p.origin).dot(normal) / denom;
+				(Vec3::from(p.origin) + Vec3::from(p.direction()) * t).into()
+			}
+			InputDataType::Hand(h) => h.index.tip.position,
+			InputDataType::Tip(t) => t.origin,
+		};
+		let half_size_x = self.physical_size.x / 2.0;
+		let half_size_y = self.physical_size.y / 2.0;
+
+		let x = interact_point
+			.x
+			.clamp(-half_size_x, half_size_x)
+			.map_range(-half_size_x..half_size_x, self.x_range.clone());
+		let y = interact_point
+			.y
+			.clamp(-half_size_y, half_size_y)
+			.map_range(half_size_y..-half_size_y, self.y_range.clone());
+
+		([x, y].into(), interact_point.z)
+	}
+	pub fn update_touches(&mut self, item: &PanelItem, id: &SurfaceId) {
+		let physical_size = self.physical_size.into();
+		self.touch.update(
+			&self.input,
+			|input| match &input.input {
+				InputDataType::Pointer(_) => false,
+				InputDataType::Hand(h) => Self::hovering(physical_size, h.index.tip.position, true),
+				InputDataType::Tip(t) => Self::hovering(physical_size, t.origin, true),
+			},
+			|input| match &input.input {
+				InputDataType::Pointer(_) => {
+					input.datamap.with_data(|d| d.idx("select").as_f32() > 0.5)
+				}
+				InputDataType::Hand(h) => {
+					Self::hovering(physical_size, h.index.tip.position, false)
+				}
+				InputDataType::Tip(t) => Self::hovering(physical_size, t.origin, false),
+			},
+		);
+
+		// proper touches
+		for input_data in self.touch.interact().added().iter() {
+			let _ = item.touch_down(
+				id.clone(),
+				input_data.id as u32,
+				self.touch_point(input_data).0,
+			);
+		}
+		for input_data in self.touch.interact().current().iter() {
+			let _ = item.touch_move(input_data.id as u32, self.touch_point(input_data).0);
+		}
+		for input_data in self.touch.interact().removed().iter() {
+			let _ = item.touch_up(input_data.id as u32);
+		}
+	}
+}
+
+impl SurfaceInput {
+	fn update_signifiers(&mut self) {
+		let mut lines = self.hover_lines();
+		lines.extend(self.debug_lines());
+
+		self.lines.set_lines(&lines).unwrap();
+	}
+	fn debug_lines(&mut self) -> Vec<Line> {
+		let Some(settings) = &self.debug_line_settings else {
+			return vec![];
+		};
+		let line_front = lines::rounded_rectangle(
+			self.physical_size.x,
+			self.physical_size.y,
+			settings.line_thickness * 0.5,
+			4,
+		)
+		.thickness(settings.line_thickness)
+		.color(settings.line_color);
+		let line_back = line_front
+			.clone()
+			.color(rgba_linear!(
+				settings.line_color.c.r,
+				settings.line_color.c.g,
+				settings.line_color.c.b,
+				settings.line_color.a * 0.5
+			))
+			.transform(Mat4::from_translation(vec3(0.0, 0.0, -self.thickness)));
+		vec![line_front, line_back]
+	}
+
+	fn hover_lines(&mut self) -> Vec<Line> {
+		self.hover
+			.currently_acting()
+			.iter()
+			.filter_map(|i| self.line_from_input(i, false))
+			.collect::<Vec<_>>()
+	}
+	fn line_from_input(&self, input: &InputData, interacting: bool) -> Option<Line> {
+		if let InputDataType::Pointer(_) = &input.input {
+			None
+		} else {
+			Some(self.line_from_point(SurfaceInput::hover_point(input), interacting))
+		}
+	}
+	fn line_from_point(&self, point: Vec3, interacting: bool) -> Line {
+		let settings = stardust_xr_molecules::hover_plane::HoverPlaneSettings::default();
+		Line {
+			points: vec![
+				LinePoint {
+					point: [
+						point
+							.x
+							.clamp(self.physical_size.x * -0.5, self.physical_size.x * 0.5),
+						point
+							.y
+							.clamp(self.physical_size.y * -0.5, self.physical_size.y * 0.5),
+						0.0,
+					]
+					.into(),
+					thickness: settings.line_start_thickness,
+					color: if interacting {
+						settings.line_start_color_interact
+					} else {
+						settings.line_start_color_hover
+					},
+				},
+				LinePoint {
+					point: point.into(),
+					thickness: settings.line_end_thickness,
+					color: if interacting {
+						settings.line_end_color_interact
+					} else {
+						settings.line_end_color_hover
+					},
+				},
+			],
+			cyclic: false,
+		}
+	}
+}
+
+impl VisualDebug for SurfaceInput {
+	fn set_debug(&mut self, settings: Option<DebugSettings>) {
+		self.debug_line_settings = settings;
+	}
 }
