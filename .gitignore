@@ -6,3 +6,4 @@
 **/*.rs.bk
 .vscode/launch.json
 *.blend1
+result
