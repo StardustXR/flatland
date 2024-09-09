@@ -80,13 +80,13 @@ dependencies = [
 
 [[package]]
 name = "async-executor"
-version = "1.13.0"
+version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7ebdfa2ebdab6b1760375fa7d6f382b9f486eac35fc994625a00e89280bdbb7"
+checksum = "30ca9a001c1e8ba5149f91a74362376cc6bc5b919d92d988668657bd570bdcec"
 dependencies = [
  "async-task",
  "concurrent-queue",
- "fastrand 2.1.1",
+ "fastrand",
  "futures-lite",
  "slab",
 ]
@@ -273,9 +273,9 @@ checksum = "8318a53db07bb3f8dca91a600466bdb3f2eaadeedfdbcf02e1accbad9271ba50"
 
 [[package]]
 name = "cc"
-version = "1.1.17"
+version = "1.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a93fe60e2fc87b6ba2c117f67ae14f66e3fc7d6a1e612a25adb238cc980eadb3"
+checksum = "b62ac837cdb5cb22e10a256099b4fc502b1dfe560cb282963a974d7abd80e476"
 dependencies = [
  "shlex",
 ]
@@ -497,15 +497,6 @@ dependencies = [
 
 [[package]]
 name = "fastrand"
-version = "1.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e51093e27b0797c359783294ca4f0a911c270184cb10f85783b118614a1501be"
-dependencies = [
- "instant",
-]
-
-[[package]]
-name = "fastrand"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8c02a5121d4ea3eb16a80748c74f5549a5665e4c21333c6098f283870fbdea6"
@@ -595,7 +586,7 @@ version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52527eb5074e35e9339c6b4e8d12600c7128b68fb25dcb9fa9dec18f7c25f3a5"
 dependencies = [
- "fastrand 2.1.1",
+ "fastrand",
  "futures-core",
  "futures-io",
  "parking",
@@ -1065,9 +1056,9 @@ checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
 
 [[package]]
 name = "parking"
-version = "2.2.0"
+version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb813b8af86854136c6922af0598d719255ecb2179515e6e7730d468f05c9cae"
+checksum = "f38d5652c16fde515bb1ecef450ab0f6a219d619a7274976324d5e377f7dceba"
 
 [[package]]
 name = "parking_lot"
@@ -1184,7 +1175,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96c8c490f422ef9a4efd2cb5b42b76c8613d7e7dfc1caf667b8a3350a5acc066"
 dependencies = [
  "atomic-waker",
- "fastrand 2.1.1",
+ "fastrand",
  "futures-io",
 ]
 
@@ -1277,15 +1268,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom",
-]
-
-[[package]]
-name = "random-string"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f70fd13c3024ae3f17381bb5c4d409c6dc9ea6895c08fa2147aba305bea3c4af"
-dependencies = [
- "fastrand 1.9.0",
 ]
 
 [[package]]
@@ -1532,7 +1514,7 @@ checksum = "2f2b15926089e5526bb2dd738a2eb0e59034356e06eb71e1cd912358c0e62c4d"
 [[package]]
 name = "stardust-xr"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#c5591c713e85cc2df9c63583fb3026e6c93ccef7"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#77fab9d0556065b5f12ebd86fa45a883a9b49acd"
 dependencies = [
  "cluFlock",
  "dirs",
@@ -1552,7 +1534,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#c5591c713e85cc2df9c63583fb3026e6c93ccef7"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#77fab9d0556065b5f12ebd86fa45a883a9b49acd"
 dependencies = [
  "color-eyre",
  "glam 0.24.2",
@@ -1572,7 +1554,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion-codegen"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#c5591c713e85cc2df9c63583fb3026e6c93ccef7"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#77fab9d0556065b5f12ebd86fa45a883a9b49acd"
 dependencies = [
  "convert_case",
  "mint",
@@ -1601,7 +1583,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-schemas"
 version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#c5591c713e85cc2df9c63583fb3026e6c93ccef7"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#77fab9d0556065b5f12ebd86fa45a883a9b49acd"
 dependencies = [
  "flatbuffers",
  "flexbuffers",
@@ -1609,7 +1591,6 @@ dependencies = [
  "futures-util",
  "kdl",
  "manifest-dir-macros",
- "random-string",
  "serde",
  "serde_repr",
  "thiserror",
@@ -1652,7 +1633,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04cbcdd0c794ebb0d4cf35e88edd2f7d2c4c3e9a5a6dab322839b321c6a87a64"
 dependencies = [
  "cfg-if",
- "fastrand 2.1.1",
+ "fastrand",
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",
