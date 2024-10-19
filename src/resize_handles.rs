@@ -1,21 +1,29 @@
-use crate::{
-	grab_ball::GrabBallSettings,
-	surface::{Surface, PPM},
-};
-use glam::{vec2, vec3, Mat4, Quat, Vec2, Vec3, Vec3Swizzles};
+use crate::{grab_ball::GrabBallSettings, surface::PPM};
+use asteroids::{custom::ElementTrait, ValidState};
+use derive_setters::Setters;
+use glam::{vec2, vec3, Mat4, Quat, Vec3, Vec3Swizzles};
 use stardust_xr_fusion::{
 	core::values::ResourceID,
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
 	fields::{Field, Shape},
 	input::{InputDataType, InputHandler},
-	items::panel::{PanelItem, PanelItemAspect, ToplevelInfo},
-	node::{NodeResult, NodeType},
-	root::Root,
-	spatial::{SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
+	node::{NodeError, NodeResult, NodeType},
+	objects::hmd,
+	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
 	values::{color::rgba_linear, Color, Vector2},
 };
-use stardust_xr_molecules::input_action::{InputQueue, InputQueueable, SingleAction};
-use std::f32::consts::FRAC_PI_2;
+use stardust_xr_molecules::{
+	input_action::{InputQueue, InputQueueable, SingleAction},
+	UIElement,
+};
+use std::f32::consts::{FRAC_PI_2, PI};
+use tokio::sync::watch;
+
+fn look_direction(direction: Vec3) -> Quat {
+	let pitch = direction.y.asin();
+	let yaw = direction.z.atan2(direction.x);
+	Quat::from_rotation_y(-yaw - PI / 2.0) * Quat::from_rotation_x(pitch)
+}
 
 const RESIZE_HANDLE_FLOATING: f32 = 0.025;
 
@@ -30,22 +38,22 @@ async fn pos(transform: &impl SpatialRefAspect, relative_to: &impl SpatialRefAsp
 }
 
 pub struct ResizeHandles {
-	root: Root,
-	hmd: SpatialRef,
-	item: PanelItem,
+	content_parent: Spatial,
 	bottom_left: ResizeHandle,
 	top_right: ResizeHandle,
 
-	min_size: Option<Vector2<f32>>,
-	max_size: Option<Vector2<f32>>,
+	size_tx: watch::Sender<Vector2<f32>>,
+	size: watch::Receiver<Vector2<f32>>,
+	pub min_size_px: Option<Vector2<f32>>,
+	pub max_size_px: Option<Vector2<f32>>,
 }
 impl ResizeHandles {
 	pub fn create(
+		initial_pose: SpatialRef,
 		accent_color: Color,
-		hmd: SpatialRef,
-		item: &PanelItem,
-		surface: &Surface,
-		toplevel_data: &ToplevelInfo,
+		initial_size: Vector2<f32>,
+		min_size_px: Option<Vector2<f32>>,
+		max_size_px: Option<Vector2<f32>>,
 	) -> NodeResult<Self> {
 		let settings = GrabBallSettings {
 			radius: 0.005,
@@ -54,41 +62,78 @@ impl ResizeHandles {
 			connector_color: accent_color,
 		};
 
-		let root = hmd.client()?.get_root().alias();
-		let bottom_left = ResizeHandle::create(&root, settings.clone())?;
-		let top_right = ResizeHandle::create(&root, settings.clone())?;
+		let client = initial_pose.client().unwrap().clone();
+		let root = client.get_root();
+		let bottom_left = ResizeHandle::create(root, settings.clone())?;
+		let top_right = ResizeHandle::create(root, settings.clone())?;
 
-		let _ = top_right.model.set_spatial_parent_in_place(item);
-		let _ = bottom_left.model.set_spatial_parent_in_place(item);
-		let _ = item.set_zoneable(true);
+		let content_parent = Spatial::create(&initial_pose, Transform::identity(), true)?;
+		let _ = top_right.model.set_spatial_parent(&content_parent);
+		let _ = bottom_left.model.set_spatial_parent(&content_parent);
+		content_parent.set_spatial_parent_in_place(root)?;
+		tokio::task::spawn(Self::initial_position_item(content_parent.clone()));
 
+		let (size_tx, size) = watch::channel(initial_size);
 		let mut resize_handles = ResizeHandles {
-			root,
-			hmd,
-			item: item.alias(),
+			content_parent,
 			bottom_left,
 			top_right,
 
-			min_size: toplevel_data.min_size,
-			max_size: toplevel_data.max_size,
+			size_tx,
+			size,
+			min_size_px,
+			max_size_px,
 		};
-		resize_handles.set_handle_positions(surface.physical_size());
+		resize_handles.set_handle_positions(initial_size);
 		Ok(resize_handles)
 	}
-	pub fn update(&mut self) {
-		self.bottom_left.update();
-		self.top_right.update();
+	async fn initial_position_item(spatial_root: Spatial) -> NodeResult<()> {
+		let client = spatial_root.client()?;
+		let Some(hmd) = hmd(&client).await else {
+			return Err(NodeError::DoesNotExist);
+		};
+		let root = client.get_root();
+
+		let Transform {
+			translation: item_translation,
+			..
+		} = spatial_root.get_transform(root).await?;
+		// if the distance between the panel item and the client origin is basically nothing, it must be unpositioned
+		if Vec3::from(item_translation.unwrap()).length_squared() < 0.001 {
+			// so we want to position it in front of the user
+			let _ = spatial_root.set_relative_transform(
+				&hmd,
+				Transform::from_translation_rotation(vec3(0.0, 0.0, -0.25), Quat::IDENTITY),
+			);
+			return Ok(());
+		}
+
+		// otherwise make the panel look at the user
+		let Transform {
+			translation: hmd_translation,
+			..
+		} = hmd.get_transform(root).await?;
+		let look_rotation = look_direction(
+			(Vec3::from(item_translation.unwrap()) - Vec3::from(hmd_translation.unwrap()))
+				.normalize(),
+		);
+		let _ = spatial_root.set_relative_transform(root, Transform::from_rotation(look_rotation));
+
+		Ok(())
+	}
+	pub fn handle_events(&mut self) {
+		let client = self.content_parent.client().unwrap().clone();
+		let root = client.get_root();
+		self.bottom_left.handle_events();
+		self.top_right.handle_events();
 		if (self.top_right.grab_action.actor_started()
 			&& !self.bottom_left.grab_action.actor_acting())
 			|| (self.bottom_left.grab_action.actor_started()
 				&& !self.top_right.grab_action.actor_acting())
 		{
-			let _ = self.top_right.model.set_spatial_parent_in_place(&self.root);
-			let _ = self
-				.bottom_left
-				.model
-				.set_spatial_parent_in_place(&self.root);
-			let _ = self.item.set_zoneable(false);
+			let _ = self.top_right.model.set_spatial_parent_in_place(root);
+			let _ = self.bottom_left.model.set_spatial_parent_in_place(root);
+			let _ = self.content_parent.set_zoneable(false);
 		}
 		if self.top_right.grab_action.actor_acting() || self.bottom_left.grab_action.actor_acting()
 		{
@@ -100,28 +145,33 @@ impl ResizeHandles {
 			|| (self.bottom_left.grab_action.actor_stopped()
 				&& !self.top_right.grab_action.actor_acting())
 		{
-			let _ = self.top_right.model.set_spatial_parent_in_place(&self.item);
+			let _ = self
+				.top_right
+				.model
+				.set_spatial_parent_in_place(&self.content_parent);
 			let _ = self
 				.bottom_left
 				.model
-				.set_spatial_parent_in_place(&self.item);
-			let _ = self.item.set_zoneable(true);
+				.set_spatial_parent_in_place(&self.content_parent);
+			let _ = self.content_parent.set_zoneable(true);
 		}
 	}
 	fn update_panel_transform(&self) {
-		let root = self.root.alias();
-		let hmd = self.hmd.alias();
-		let item = self.item.alias();
-		let corner1 = self.bottom_left.model.alias();
-		let corner2 = self.top_right.model.alias();
+		let client = self.content_parent.client().unwrap().clone();
+		let item = self.content_parent.clone();
+		let corner1 = self.bottom_left.model.clone();
+		let corner2 = self.top_right.model.clone();
 
-		let min_size = self.min_size.unwrap_or([0.0; 2].into());
-		let max_size = self.max_size.unwrap_or([4096.0; 2].into());
+		let size_tx = self.size_tx.clone();
+		let min_size_px = self.min_size_px.unwrap_or([0.0; 2].into());
+		let max_size_px = self.max_size_px.unwrap_or([4096.0; 2].into());
 
 		tokio::task::spawn(async move {
-			let hmd_pos = pos(&hmd, &root).await;
-			let mut corner1 = pos(&corner1, &root).await;
-			let mut corner2 = pos(&corner2, &root).await;
+			let hmd = hmd(&client).await.unwrap();
+			let root = client.get_root();
+			let hmd_pos = pos(&hmd, root).await;
+			let mut corner1 = pos(&corner1, root).await;
+			let mut corner2 = pos(&corner2, root).await;
 			let center_point = (corner1 + corner2) * 0.5;
 
 			let center_hmd_relative = center_point - hmd_pos;
@@ -143,17 +193,17 @@ impl ResizeHandles {
 				(corner1.x - corner2.x).abs() - (RESIZE_HANDLE_FLOATING * 2.0),
 				corner1_2d.distance(corner2_2d) - (RESIZE_HANDLE_FLOATING * 2.0),
 			) * PPM;
-			size.x = size.x.max(min_size.x).min(max_size.x);
-			size.y = size.y.max(min_size.y).min(max_size.y);
+			size.x = size.x.max(min_size_px.x).min(max_size_px.x);
+			size.y = size.y.max(min_size_px.y).min(max_size_px.y);
 
 			let _ = item.set_relative_transform(
-				&root,
+				root,
 				Transform::from_translation_rotation(center_point, y_rotation * x_rotation),
 			);
-			let _ = item.set_toplevel_size([size.x as u32, size.y as u32]);
+			let _ = size_tx.send(size.into());
 		});
 	}
-	pub fn set_handle_positions(&mut self, panel_size: Vec2) {
+	pub fn set_handle_positions(&mut self, panel_size: Vector2<f32>) {
 		let offset = vec3(
 			panel_size.x + RESIZE_HANDLE_FLOATING,
 			panel_size.y + RESIZE_HANDLE_FLOATING,
@@ -162,8 +212,8 @@ impl ResizeHandles {
 		if !self.top_right.grab_action.actor_acting()
 			&& !self.bottom_left.grab_action.actor_acting()
 		{
-			self.top_right.set_pos(&self.item, offset);
-			self.bottom_left.set_pos(&self.item, -offset);
+			self.top_right.set_pos(&self.content_parent, offset);
+			self.bottom_left.set_pos(&self.content_parent, -offset);
 		}
 	}
 	pub fn set_enabled(&mut self, enabled: bool) {
@@ -210,8 +260,11 @@ impl ResizeHandle {
 		})
 	}
 }
-impl ResizeHandle {
-	pub fn update(&mut self) {
+impl UIElement for ResizeHandle {
+	fn handle_events(&mut self) -> bool {
+		if !self.input.handle_events() {
+			return false;
+		}
 		self.grab_action.update(
 			true,
 			&self.input,
@@ -254,7 +307,7 @@ impl ResizeHandle {
 			);
 		}
 		if let Some(grab_point) = self.grab_point() {
-			self.set_pos(&self.input.handler().alias(), grab_point);
+			self.set_pos(self.input.handler(), grab_point);
 		}
 		if self.grab_action.actor_stopped() {
 			let _ = self.sphere.set_material_parameter(
@@ -262,7 +315,10 @@ impl ResizeHandle {
 				MaterialParameter::Color(rgba_linear!(0.5, 0.5, 0.5, 1.0)),
 			);
 		}
+		true
 	}
+}
+impl ResizeHandle {
 	fn grab_point(&self) -> Option<Vec3> {
 		let grabbing = self.grab_action.actor()?;
 		match &grabbing.input {
@@ -280,5 +336,46 @@ impl ResizeHandle {
 	}
 	fn set_enabled(&mut self, enabled: bool) {
 		let _ = self.model.set_enabled(enabled);
+	}
+}
+#[derive_where::derive_where(Debug, Clone, PartialEq)]
+#[derive(Setters)]
+#[setters(into, strip_option)]
+pub struct ResizeHandlesElement<State: ValidState> {
+	pub initial_position: SpatialRef,
+	pub accent_color: Color,
+	pub initial_size: Vector2<f32>,
+	pub min_size_px: Option<Vector2<f32>>,
+	pub max_size_px: Option<Vector2<f32>>,
+	pub on_size_changed: Option<fn(&mut State, Vector2<f32>)>,
+}
+impl<State: ValidState> ElementTrait<State> for ResizeHandlesElement<State> {
+	type Inner = ResizeHandles;
+	type Error = NodeError;
+
+	fn create_inner(&self, _spatial_parent: &SpatialRef) -> Result<Self::Inner, Self::Error> {
+		ResizeHandles::create(
+			self.initial_position.clone(),
+			self.accent_color,
+			self.initial_size,
+			self.min_size_px,
+			self.max_size_px,
+		)
+	}
+
+	fn update(&self, _old: &Self, state: &mut State, inner: &mut Self::Inner) {
+		inner.min_size_px = self.min_size_px;
+		inner.max_size_px = self.max_size_px;
+		inner.handle_events();
+
+		if let Some(on_size_changed) = &self.on_size_changed {
+			if inner.size.has_changed().is_ok_and(|t| t) {
+				on_size_changed(state, *inner.size.borrow());
+			}
+		}
+	}
+
+	fn spatial_aspect(&self, inner: &Self::Inner) -> SpatialRef {
+		inner.content_parent.clone().as_spatial_ref()
 	}
 }

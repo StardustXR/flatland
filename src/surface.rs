@@ -16,7 +16,7 @@ use stardust_xr_molecules::{
 	keyboard::{create_keyboard_panel_handler, KeyboardPanelHandler},
 	lines::{self, LineExt},
 	mouse::MouseEvent,
-	DebugSettings, VisualDebug,
+	DebugSettings, UIElement, VisualDebug,
 };
 use std::{ops::Range, sync::Arc};
 
@@ -87,7 +87,7 @@ impl Surface {
 		let mut surface = Self::create(
 			&parent.root,
 			Transform::from_translation(position),
-			parent.item.alias(),
+			parent.item.clone(),
 			SurfaceId::Child(id),
 			geometry.size,
 			thickness,
@@ -97,9 +97,9 @@ impl Surface {
 		Ok(surface)
 	}
 
-	pub fn update(&mut self) {
+	pub fn handle_events(&mut self) {
 		if let Some(input) = &mut self.input {
-			input.update(&self.item, &self.id);
+			input.handle_events(&self.item, &self.id);
 		}
 	}
 
@@ -119,7 +119,7 @@ impl Surface {
 				panel_size,
 			))?;
 		if let Some(input) = &mut self.input {
-			let _ = input.resize(physical_size, px_size);
+			input.resize(physical_size, px_size);
 		}
 		self.physical_size = physical_size;
 		Ok(())
@@ -155,7 +155,7 @@ pub struct SurfaceInput {
 	pub x_range: Range<f32>,
 	pub y_range: Range<f32>,
 
-	_keyboard: KeyboardPanelHandler,
+	keyboard: KeyboardPanelHandler,
 	lines: Lines,
 	debug_line_settings: Option<DebugSettings>,
 }
@@ -178,8 +178,13 @@ impl SurfaceInput {
 		let hover = SimpleAction::default();
 		let lines = Lines::create(&field, Transform::identity(), &[])?;
 
-		let keyboard =
-			create_keyboard_panel_handler(item, Transform::none(), &field, item, id.clone())?;
+		let keyboard = create_keyboard_panel_handler(
+			item,
+			Transform::none(),
+			&field,
+			item.clone(),
+			id.clone(),
+		)?;
 
 		Ok(SurfaceInput {
 			input,
@@ -196,13 +201,14 @@ impl SurfaceInput {
 			x_range: 0.0..px_size.x as f32,
 			y_range: 0.0..px_size.y as f32,
 
-			_keyboard: keyboard,
+			keyboard,
 			lines,
 			debug_line_settings: None,
 		})
 	}
 
-	pub fn update(&mut self, item: &PanelItem, id: &SurfaceId) {
+	pub fn handle_events(&mut self, item: &PanelItem, id: &SurfaceId) {
+		self.keyboard.handle_events();
 		self.update_pointer(item, id);
 		self.update_touches(item, id);
 		self.update_signifiers();
@@ -263,6 +269,7 @@ impl SurfaceInput {
 		([x, y].into(), interact_point.z)
 	}
 	#[inline]
+	#[allow(clippy::too_many_arguments)]
 	fn handle_mouse_button(
 		input: &InputQueue,
 		item: &PanelItem,
@@ -469,7 +476,7 @@ impl SurfaceInput {
 		self.pointer_hover
 			.iter()
 			.filter(|_| self.touch.interact().current().is_empty())
-			.filter_map(|p| self.line_from_input(&p, p.captured))
+			.filter_map(|p| self.line_from_input(p, p.captured))
 			.collect::<Vec<_>>()
 	}
 	fn line_from_input(&self, input: &InputData, interacting: bool) -> Option<Line> {
