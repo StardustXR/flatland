@@ -1,22 +1,77 @@
-use crate::{surface::Surface, toplevel::TOPLEVEL_THICKNESS};
-use glam::vec3;
+use crate::toplevel::TOPLEVEL_THICKNESS;
+use asteroids::{
+	custom::{ElementTrait, Transformable},
+	ValidState,
+};
+use derive_setters::Setters;
 use stardust_xr_fusion::{
 	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
 	fields::{Field, Shape},
 	input::{InputDataType::Pointer, InputHandler},
-	items::panel::{PanelItem, PanelItemAspect},
 	node::{NodeError, NodeType},
 	root::FrameInfo,
-	spatial::{SpatialAspect, Transform},
+	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
 };
 use stardust_xr_molecules::{
 	input_action::{InputQueue, InputQueueable, SimpleAction},
 	Exposure,
 };
+use std::fmt::Debug;
 
-pub struct CloseButton {
-	item: PanelItem,
+#[derive(Setters)]
+#[setters(into, strip_option)]
+pub struct ExposureButton<State: ValidState> {
+	pub transform: Transform,
+	pub thickness: f32,
+	pub on_click: Box<dyn Fn(&mut State) + Send + Sync>,
+}
+impl<State: ValidState> Debug for ExposureButton<State> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("ExposureButton")
+			.field("transform", &self.transform)
+			.field("thickness", &self.thickness)
+			.finish()
+	}
+}
+impl<State: ValidState> PartialEq for ExposureButton<State> {
+	fn eq(&self, other: &Self) -> bool {
+		self.transform == other.transform && self.thickness == other.thickness
+	}
+}
+impl<State: ValidState> ElementTrait<State> for ExposureButton<State> {
+	type Inner = ExposureButtonInner;
+	type Error = NodeError;
+
+	fn create_inner(&self, spatial_parent: &SpatialRef) -> Result<Self::Inner, Self::Error> {
+		ExposureButtonInner::new(spatial_parent, self.transform, self.thickness)
+	}
+	fn frame(&self, info: &FrameInfo, inner: &mut Self::Inner) {
+		inner.frame(info);
+	}
+	fn update(&self, old: &Self, state: &mut State, inner: &mut Self::Inner) {
+		self.apply_transform(old, &inner.model);
+		if inner.exposure.exposure > 1.0 {
+			(self.on_click)(state);
+		}
+	}
+
+	fn spatial_aspect(&self, inner: &Self::Inner) -> SpatialRef {
+		inner.model.clone().as_spatial().as_spatial_ref()
+	}
+}
+
+impl<State: ValidState> Transformable for ExposureButton<State> {
+	fn transform(&self) -> &Transform {
+		&self.transform
+	}
+	fn transform_mut(&mut self) -> &mut Transform {
+		&mut self.transform
+	}
+}
+
+pub struct ExposureButtonInner {
+	root: Spatial,
 	model: Model,
 	shell: ModelPart,
 	exposure: Exposure,
@@ -24,18 +79,16 @@ pub struct CloseButton {
 	input: InputQueue,
 	distance_action: SimpleAction,
 }
-impl CloseButton {
-	pub fn new(item: PanelItem, thickness: f32, surface: &Surface) -> Result<Self, NodeError> {
+impl ExposureButtonInner {
+	pub fn new(
+		parent: &impl SpatialRefAspect,
+		transform: Transform,
+		thickness: f32,
+	) -> Result<Self, NodeError> {
+		let root = Spatial::create(parent, transform, false)?;
 		let model = Model::create(
-			&item,
-			Transform::from_translation_scale(
-				vec3(
-					surface.physical_size().x,
-					-surface.physical_size().y,
-					thickness,
-				) * 0.5,
-				[0.025, 0.025, thickness],
-			),
+			&root,
+			Transform::from_scale([0.025, 0.025, thickness]),
 			&ResourceID::new_namespaced("flatland", "close_button"),
 		)?;
 		let shell = model.part("Shell")?;
@@ -51,13 +104,13 @@ impl CloseButton {
 			Transform::none(),
 			Shape::Box([1.5 * 0.025, 0.025, thickness].into()),
 		)?;
-		field.set_spatial_parent_in_place(&item)?;
+		field.set_spatial_parent_in_place(parent)?;
 		field.set_local_transform(Transform::from_scale([1.0; 3]))?;
 
 		let input = InputHandler::create(&shell, Transform::none(), &field)?.queue()?;
 
-		Ok(CloseButton {
-			item,
+		Ok(ExposureButtonInner {
+			root,
 			model,
 			shell,
 			exposure,
@@ -67,7 +120,7 @@ impl CloseButton {
 		})
 	}
 
-	pub fn update(&mut self, frame_info: &FrameInfo) {
+	pub fn frame(&mut self, frame_info: &FrameInfo) -> bool {
 		self.distance_action.update(&self.input, &|data| {
 			data.distance < 0.0
 				&& match &data.input {
@@ -87,7 +140,7 @@ impl CloseButton {
 		self.exposure
 			.expose_flash(self.distance_action.currently_acting().len() as f32 * 0.25);
 		if self.exposure.exposure > 1.0 {
-			let _ = self.item.close_toplevel();
+			true
 		} else if self.exposure.exposure > 0.0 {
 			let color = colorgrad::magma().at(self.exposure.exposure.into());
 			let _ = self.shell.set_material_parameter(
@@ -99,23 +152,10 @@ impl CloseButton {
 					color.a as f32
 				)),
 			);
+			false
+		} else {
+			false
 		}
-	}
-
-	pub fn resize(&mut self, surface: &Surface) {
-		self.model
-			.set_relative_transform(
-				surface.root(),
-				Transform::from_translation([
-					surface.physical_size().x,
-					-surface.physical_size().y,
-					0.0,
-				]),
-			)
-			.unwrap();
-		self.field
-			.set_relative_transform(&self.shell, Transform::from_translation([0.0; 3]))
-			.unwrap();
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {

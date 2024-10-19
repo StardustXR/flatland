@@ -2,12 +2,12 @@ use glam::Vec3;
 use map_range::MapRange;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
-	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
 	fields::{Field, FieldRefAspect},
 	items::panel::{PanelItem, PanelItemAcceptor, PanelItemAcceptorAspect},
 	node::{NodeError, NodeType},
 	spatial::{SpatialAspect, Transform},
+	values::{color::rgba_linear, ResourceID},
 };
 use stardust_xr_molecules::input_action::SingleAction;
 use tokio::task::JoinSet;
@@ -49,16 +49,16 @@ impl PanelShellTransfer {
 		}
 		let mut fields: JoinSet<Result<(f32, PanelItemAcceptor), NodeError>> = JoinSet::new();
 		for (acceptor, field) in acceptors.values() {
-			let model = self.model.alias();
-			let acceptor = acceptor.alias();
-			let field = field.alias();
+			let model = self.model.clone();
+			let acceptor = acceptor.clone();
+			let field = field.clone();
 			fields.spawn(async move {
 				let distance = field.distance(&model, [0.0; 3]).await?;
 				Ok((distance, acceptor))
 			});
 		}
-		let panel_item = self.panel_item.alias();
-		let outside = self.outside.alias();
+		let panel_item = self.panel_item.clone();
+		let outside = self.outside.clone();
 		let released = grab_action.actor_stopped();
 		tokio::spawn(async move {
 			let mut closest_distance = f32::INFINITY;

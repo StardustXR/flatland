@@ -11,7 +11,6 @@ homepage = "https://stardustxr.org"
 
 [dependencies]
 glam = { version = "0.28.0", features = ["mint"] }
-manifest-dir-macros = "0.1.18"
 lazy_static = "1.4.0"
 tokio = { version = "1.38.0", features = ["full"] }
 input-event-codes = "6.2.0"
@@ -22,6 +21,8 @@ color-eyre = "0.6.3"
 colorgrad = "0.6.2"
 map-range = "0.1.2"
 ashpd = { version = "0.8.1", features = ["tokio"], default-features = false }
+derive_setters = "0.1.6"
+derive-where = "1.2.7"
 
 [dependencies.stardust-xr-fusion]
 git = "https://github.com/StardustXR/core.git"
@@ -29,4 +30,8 @@ branch = "dev"
 
 [dependencies.stardust-xr-molecules]
 git = "https://github.com/StardustXR/molecules.git"
+branch = "dev"
+
+[dependencies.asteroids]
+git = "https://github.com/StardustXR/asteroids.git"
 branch = "dev"
