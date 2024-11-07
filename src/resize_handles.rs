@@ -1,4 +1,4 @@
-use crate::{grab_ball::GrabBallSettings, surface::PPM};
+use crate::grab_ball::GrabBallSettings;
 use asteroids::{custom::ElementTrait, ValidState};
 use derive_setters::Setters;
 use glam::{vec2, vec3, Mat4, Quat, Vec3, Vec3Swizzles};
@@ -18,6 +18,7 @@ use stardust_xr_molecules::{
 };
 use std::f32::consts::{FRAC_PI_2, PI};
 use tokio::sync::watch;
+use tracing::info;
 
 fn look_direction(direction: Vec3) -> Quat {
 	let pitch = direction.y.asin();
@@ -44,8 +45,8 @@ pub struct ResizeHandles {
 
 	size_tx: watch::Sender<Vector2<f32>>,
 	size: watch::Receiver<Vector2<f32>>,
-	pub min_size_px: Option<Vector2<f32>>,
-	pub max_size_px: Option<Vector2<f32>>,
+	pub min_size: Option<Vector2<f32>>,
+	pub max_size: Option<Vector2<f32>>,
 }
 impl ResizeHandles {
 	pub fn create(
@@ -81,8 +82,8 @@ impl ResizeHandles {
 
 			size_tx,
 			size,
-			min_size_px,
-			max_size_px,
+			min_size: min_size_px,
+			max_size: max_size_px,
 		};
 		resize_handles.set_handle_positions(initial_size);
 		Ok(resize_handles)
@@ -163,8 +164,8 @@ impl ResizeHandles {
 		let corner2 = self.top_right.model.clone();
 
 		let size_tx = self.size_tx.clone();
-		let min_size_px = self.min_size_px.unwrap_or([0.0; 2].into());
-		let max_size_px = self.max_size_px.unwrap_or([4096.0; 2].into());
+		let min_size_px = self.min_size.unwrap_or([0.0; 2].into());
+		let max_size_px = self.max_size.unwrap_or([4096.0; 2].into());
 
 		tokio::task::spawn(async move {
 			let hmd = hmd(&client).await.unwrap();
@@ -192,7 +193,7 @@ impl ResizeHandles {
 			let mut size = vec2(
 				(corner1.x - corner2.x).abs() - (RESIZE_HANDLE_FLOATING * 2.0),
 				corner1_2d.distance(corner2_2d) - (RESIZE_HANDLE_FLOATING * 2.0),
-			) * PPM;
+			);
 			size.x = size.x.max(min_size_px.x).min(max_size_px.x);
 			size.y = size.y.max(min_size_px.y).min(max_size_px.y);
 
@@ -263,10 +264,11 @@ impl ResizeHandle {
 impl UIElement for ResizeHandle {
 	fn handle_events(&mut self) -> bool {
 		if !self.input.handle_events() {
+			info!("don't handle events");
 			return false;
 		}
 		self.grab_action.update(
-			true,
+			false,
 			&self.input,
 			|input| match &input.input {
 				InputDataType::Pointer(_) => false,
@@ -274,17 +276,24 @@ impl UIElement for ResizeHandle {
 			},
 			|input| {
 				input.datamap.with_data(|datamap| match &input.input {
-					InputDataType::Hand(_) => datamap.idx("pinch_strength").as_f32() > 0.90,
+					InputDataType::Hand(_) => {
+						let w = datamap.idx("pinch_strength").as_f32() > 0.90;
+						info!("{w}");
+						w
+					}
 					_ => datamap.idx("grab").as_f32() > 0.90,
 				})
 			},
 		);
+
+		info!(":3 {}", self.grab_action.actor_acting());
 
 		// if something just got close
 		if !self.grab_action.hovering().added().is_empty()
 			&& self.grab_action.hovering().added().len()
 				== self.grab_action.hovering().current().len()
 		{
+			info!("started hover");
 			let _ = self.sphere.set_material_parameter(
 				"color",
 				MaterialParameter::Color(rgba_linear!(1.0, 1.0, 1.0, 1.0)),
@@ -294,6 +303,7 @@ impl UIElement for ResizeHandle {
 		if self.grab_action.hovering().current().is_empty()
 			&& !self.grab_action.hovering().removed().is_empty()
 		{
+			info!("ended hover");
 			let _ = self.sphere.set_material_parameter(
 				"color",
 				MaterialParameter::Color(rgba_linear!(0.5, 0.5, 0.5, 1.0)),
@@ -301,6 +311,7 @@ impl UIElement for ResizeHandle {
 		}
 
 		if self.grab_action.actor_started() {
+			info!("started grab");
 			let _ = self.sphere.set_material_parameter(
 				"color",
 				MaterialParameter::Color(self.settings.connector_color),
@@ -310,6 +321,7 @@ impl UIElement for ResizeHandle {
 			self.set_pos(self.input.handler(), grab_point);
 		}
 		if self.grab_action.actor_stopped() {
+			info!("ended grab");
 			let _ = self.sphere.set_material_parameter(
 				"color",
 				MaterialParameter::Color(rgba_linear!(0.5, 0.5, 0.5, 1.0)),
@@ -345,8 +357,8 @@ pub struct ResizeHandlesElement<State: ValidState> {
 	pub initial_position: SpatialRef,
 	pub accent_color: Color,
 	pub initial_size: Vector2<f32>,
-	pub min_size_px: Option<Vector2<f32>>,
-	pub max_size_px: Option<Vector2<f32>>,
+	pub min_size: Option<Vector2<f32>>,
+	pub max_size: Option<Vector2<f32>>,
 	pub on_size_changed: Option<fn(&mut State, Vector2<f32>)>,
 }
 impl<State: ValidState> ElementTrait<State> for ResizeHandlesElement<State> {
@@ -358,14 +370,14 @@ impl<State: ValidState> ElementTrait<State> for ResizeHandlesElement<State> {
 			self.initial_position.clone(),
 			self.accent_color,
 			self.initial_size,
-			self.min_size_px,
-			self.max_size_px,
+			self.min_size,
+			self.max_size,
 		)
 	}
 
 	fn update(&self, _old: &Self, state: &mut State, inner: &mut Self::Inner) {
-		inner.min_size_px = self.min_size_px;
-		inner.max_size_px = self.max_size_px;
+		inner.min_size = self.min_size;
+		inner.max_size = self.max_size;
 		inner.handle_events();
 
 		if let Some(on_size_changed) = &self.on_size_changed {

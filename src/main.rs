@@ -1,6 +1,7 @@
 use crate::toplevel::ToplevelInner;
 use ashpd::desktop::settings::Settings;
-use asteroids::{custom::ElementTrait, elements::Spatial, Reify, View};
+use asteroids::{custom::ElementTrait, elements::Spatial, Element, Reify, View};
+use close_button::ExposureButton;
 use resize_handles::ResizeHandlesElement;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
@@ -8,16 +9,20 @@ use stardust_xr_fusion::{
 	fields::Field,
 	items::{
 		panel::{
-			PanelItem, PanelItemAcceptor, PanelItemUi, PanelItemUiAspect, PanelItemUiEvent,
-			ToplevelInfo,
+			ChildInfo, PanelItem, PanelItemAcceptor, PanelItemAspect, PanelItemUi,
+			PanelItemUiAspect, PanelItemUiEvent, SurfaceId, ToplevelInfo,
 		},
 		ItemUiAspect, ItemUiEvent,
 	},
 	node::NodeType,
 	project_local_resources,
 	root::{RootAspect, RootEvent},
+	spatial::Transform,
 	values::{color::rgba_linear, Color},
 };
+use surface_v2::SurfaceElement;
+use toplevel::{CHILD_THICKNESS, TOPLEVEL_THICKNESS};
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 pub mod close_button;
@@ -25,6 +30,7 @@ pub mod grab_ball;
 pub mod panel_shell_transfer;
 pub mod resize_handles;
 pub mod surface;
+pub mod surface_v2;
 pub mod toplevel;
 
 async fn accent_color() -> color_eyre::eyre::Result<Color> {
@@ -142,6 +148,7 @@ pub struct ToplevelState {
 	accent_color: Color,
 	panel_item: PanelItem,
 	info: ToplevelInfo,
+	children: Vec<ChildInfo>,
 	density: f32, //pixels per meter
 }
 impl Reify for ToplevelState {
@@ -152,7 +159,7 @@ impl Reify for ToplevelState {
 			.as_item()
 			.as_spatial()
 			.as_spatial_ref();
-		ResizeHandlesElement {
+		let handles = ResizeHandlesElement {
 			initial_position: spatial_ref,
 			accent_color: rgba_linear!(1.0, 1.0, 1.0, 1.0),
 			initial_size: [
@@ -160,8 +167,14 @@ impl Reify for ToplevelState {
 				self.info.size.y as f32 / self.density,
 			]
 			.into(),
-			min_size_px: self.info.min_size,
-			max_size_px: self.info.max_size,
+			min_size: self
+				.info
+				.min_size
+				.map(|v| [v.x / self.density, v.y / self.density].into()),
+			max_size: self
+				.info
+				.max_size
+				.map(|v| [v.x / self.density, v.y / self.density].into()),
 			on_size_changed: Some(|state: &mut ToplevelState, size_meters| {
 				state.info.size = [
 					(size_meters.x * state.density) as u32,
@@ -169,8 +182,32 @@ impl Reify for ToplevelState {
 				]
 				.into();
 			}),
+		};
+		let mut children = Vec::new();
+		if self.info.parent.is_none() {
+			children.push(
+				SurfaceElement {
+					initial_resolution: self.info.size,
+					receives_input: true,
+					item: self.panel_item.clone(),
+					id: SurfaceId::Toplevel(()),
+					density: self.density,
+					thickness: TOPLEVEL_THICKNESS,
+					child_thickness: CHILD_THICKNESS,
+					children: Vec::new(),
+				}
+				.build(),
+			)
 		}
-		.build()
+		handles.with_children(children)
+		// .with_children([ExposureButton::<Self> {
+		// 	transform: Transform::identity(),
+		// 	thickness: 0.01,
+		// 	on_click: Box::new(|state| {
+		// 		state.panel_item.close_toplevel().unwrap();
+		// 	}),
+		// }
+		// .build()])
 	}
 }
 
@@ -214,6 +251,7 @@ async fn main() {
 								panel_item: item,
 								info: initial_data.toplevel,
 								density: 3000.0,
+								children: initial_data.children,
 								accent_color,
 							},
 						);

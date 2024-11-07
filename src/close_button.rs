@@ -18,6 +18,7 @@ use stardust_xr_molecules::{
 	Exposure,
 };
 use std::fmt::Debug;
+use tracing::info;
 
 #[derive(Setters)]
 #[setters(into, strip_option)]
@@ -121,6 +122,9 @@ impl ExposureButtonInner {
 	}
 
 	pub fn frame(&mut self, frame_info: &FrameInfo) -> bool {
+		// if !self.input.handle_events() {
+		// 	return false;
+		// }
 		self.distance_action.update(&self.input, &|data| {
 			data.distance < 0.0
 				&& match &data.input {
