@@ -264,7 +264,6 @@ impl ResizeHandle {
 impl UIElement for ResizeHandle {
 	fn handle_events(&mut self) -> bool {
 		if !self.input.handle_events() {
-			info!("don't handle events");
 			return false;
 		}
 		self.grab_action.update(
@@ -278,22 +277,17 @@ impl UIElement for ResizeHandle {
 				input.datamap.with_data(|datamap| match &input.input {
 					InputDataType::Hand(_) => {
 						let w = datamap.idx("pinch_strength").as_f32() > 0.90;
-						info!("{w}");
 						w
 					}
 					_ => datamap.idx("grab").as_f32() > 0.90,
 				})
 			},
 		);
-
-		info!(":3 {}", self.grab_action.actor_acting());
-
 		// if something just got close
 		if !self.grab_action.hovering().added().is_empty()
 			&& self.grab_action.hovering().added().len()
 				== self.grab_action.hovering().current().len()
 		{
-			info!("started hover");
 			let _ = self.sphere.set_material_parameter(
 				"color",
 				MaterialParameter::Color(rgba_linear!(1.0, 1.0, 1.0, 1.0)),
@@ -303,7 +297,6 @@ impl UIElement for ResizeHandle {
 		if self.grab_action.hovering().current().is_empty()
 			&& !self.grab_action.hovering().removed().is_empty()
 		{
-			info!("ended hover");
 			let _ = self.sphere.set_material_parameter(
 				"color",
 				MaterialParameter::Color(rgba_linear!(0.5, 0.5, 0.5, 1.0)),
@@ -311,7 +304,6 @@ impl UIElement for ResizeHandle {
 		}
 
 		if self.grab_action.actor_started() {
-			info!("started grab");
 			let _ = self.sphere.set_material_parameter(
 				"color",
 				MaterialParameter::Color(self.settings.connector_color),
@@ -321,7 +313,6 @@ impl UIElement for ResizeHandle {
 			self.set_pos(self.input.handler(), grab_point);
 		}
 		if self.grab_action.actor_stopped() {
-			info!("ended grab");
 			let _ = self.sphere.set_material_parameter(
 				"color",
 				MaterialParameter::Color(rgba_linear!(0.5, 0.5, 0.5, 1.0)),

@@ -52,7 +52,7 @@ impl<State: ValidState> ElementTrait<State> for ExposureButton<State> {
 	}
 	fn update(&self, old: &Self, state: &mut State, inner: &mut Self::Inner) {
 		self.apply_transform(old, &inner.model);
-		if inner.exposure.exposure > 1.0 {
+		if inner.exposure.exposure >= 1.0 {
 			(self.on_click)(state);
 		}
 	}
@@ -122,9 +122,9 @@ impl ExposureButtonInner {
 	}
 
 	pub fn frame(&mut self, frame_info: &FrameInfo) -> bool {
-		// if !self.input.handle_events() {
-		// 	return false;
-		// }
+		self.input.handle_events();
+		self.exposure.update(frame_info.delta);
+		info!("frame");
 		self.distance_action.update(&self.input, &|data| {
 			data.distance < 0.0
 				&& match &data.input {
@@ -138,12 +138,11 @@ impl ExposureButtonInner {
 			.iter()
 			.map(|d| d.distance.abs().powf(1.0 / 2.2))
 			.sum();
-		self.exposure.update(frame_info.delta);
 		self.exposure
 			.expose(exposure * 2.0 / TOPLEVEL_THICKNESS, frame_info.delta);
 		self.exposure
 			.expose_flash(self.distance_action.currently_acting().len() as f32 * 0.25);
-		if self.exposure.exposure > 1.0 {
+		if self.exposure.exposure >= 1.0 {
 			true
 		} else if self.exposure.exposure > 0.0 {
 			let color = colorgrad::magma().at(self.exposure.exposure.into());

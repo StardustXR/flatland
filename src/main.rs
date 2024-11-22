@@ -18,7 +18,7 @@ use stardust_xr_fusion::{
 	project_local_resources,
 	root::{RootAspect, RootEvent},
 	spatial::Transform,
-	values::{color::rgba_linear, Color},
+	values::{color::rgba_linear, Color, Vector2},
 };
 use surface_v2::SurfaceElement;
 use toplevel::{CHILD_THICKNESS, TOPLEVEL_THICKNESS};
@@ -30,6 +30,7 @@ pub mod grab_ball;
 pub mod panel_shell_transfer;
 pub mod resize_handles;
 pub mod surface;
+pub mod surface_input;
 pub mod surface_v2;
 pub mod toplevel;
 
@@ -183,7 +184,18 @@ impl Reify for ToplevelState {
 				.into();
 			}),
 		};
-		let mut children = Vec::new();
+		let mut children = vec![ExposureButton::<Self> {
+			transform: Transform::from_translation([
+				(self.info.size.x as f32 / (self.density * 2.0)),
+				-(self.info.size.y as f32 / (self.density * 2.0)),
+				0.0,
+			]),
+			thickness: 0.01,
+			on_click: Box::new(|state| {
+				state.panel_item.close_toplevel().unwrap();
+			}),
+		}
+		.build()];
 		if self.info.parent.is_none() {
 			children.push(
 				SurfaceElement {
@@ -200,14 +212,6 @@ impl Reify for ToplevelState {
 			)
 		}
 		handles.with_children(children)
-		// .with_children([ExposureButton::<Self> {
-		// 	transform: Transform::identity(),
-		// 	thickness: 0.01,
-		// 	on_click: Box::new(|state| {
-		// 		state.panel_item.close_toplevel().unwrap();
-		// 	}),
-		// }
-		// .build()])
 	}
 }
 

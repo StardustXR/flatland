@@ -3,13 +3,14 @@ use std::{ops::Range, sync::Arc};
 use asteroids::{custom::ElementTrait, ValidState};
 use derive_setters::Setters;
 use glam::{vec2, vec3, Mat4, Vec2, Vec3};
+use input_event_codes::BTN_LEFT;
 use lazy_static::lazy_static;
 use map_range::MapRange as _;
 use stardust_xr_fusion::{
 	drawable::{Line, LinePoint, Lines, LinesAspect as _, Model},
 	fields::{Field, FieldAspect as _, Shape},
 	input::{Finger, Hand, InputData, InputDataType, InputHandler},
-	items::panel::{Geometry, PanelItem, PanelItemAspect as _, SurfaceId},
+	items::panel::{Geometry, PanelItem, PanelItemAspect, SurfaceId},
 	node::{NodeError, OwnedAspect as _},
 	spatial::{Spatial, SpatialAspect, SpatialRef, Transform},
 	values::{color::rgba_linear, ResourceID, Vector2, Vector3},
@@ -22,6 +23,8 @@ use stardust_xr_molecules::{
 	DebugSettings, UIElement as _, VisualDebug,
 };
 use tracing::{info, warn};
+
+use crate::{surface_input::HoverPlaneElement, ToplevelState};
 
 lazy_static! {
 	pub static ref PANEL_RESOURCE: ResourceID = ResourceID::new_namespaced("flatland", "panel");
@@ -72,7 +75,7 @@ impl SurfaceElement {
 	}
 }
 
-impl<State: ValidState> ElementTrait<State> for SurfaceElement {
+impl ElementTrait<ToplevelState> for SurfaceElement {
 	type Inner = Surface;
 
 	type Error = NodeError;
@@ -119,7 +122,7 @@ impl<State: ValidState> ElementTrait<State> for SurfaceElement {
 		Ok(surface)
 	}
 
-	fn update(&self, old_decl: &Self, state: &mut State, inner: &mut Self::Inner) {
+	fn update(&self, old_decl: &Self, state: &mut ToplevelState, inner: &mut Self::Inner) {
 		if self.initial_resolution != old_decl.initial_resolution {
 			let physical_size: Vec2 = vec2(
 				self.initial_resolution.x as f32,
@@ -143,7 +146,6 @@ impl<State: ValidState> ElementTrait<State> for SurfaceElement {
 		if let Some(input) = inner.input.as_mut() {
 			input.handle_events(&inner.item, &inner.id);
 		}
-		
 	}
 
 	fn spatial_aspect(&self, inner: &Self::Inner) -> stardust_xr_fusion::spatial::SpatialRef {
@@ -152,13 +154,41 @@ impl<State: ValidState> ElementTrait<State> for SurfaceElement {
 
 	fn frame(&self, _info: &stardust_xr_fusion::root::FrameInfo, _inner: &mut Self::Inner) {}
 
-	fn build(self) -> asteroids::Element<State> {
-		let iter = self
+	fn build(self) -> asteroids::Element<ToplevelState> {
+		let mut iter = self
 			.children
 			.iter()
 			.map(|v| self.new_child_element(v))
 			.map(|v| v.build())
 			.collect::<Vec<_>>();
+		let surface_id = self.id.clone();
+		let surface_id_2 = self.id.clone();
+		iter.push(
+			HoverPlaneElement {
+				density: self.density,
+				thickness: self.thickness,
+				resolution: self.initial_resolution,
+				distance_range: 0.05..0.2,
+				line_start_thickness: 0.005,
+				line_start_color_hover: rgba_linear!(1.0, 1.0, 1.0, 1.0),
+				line_start_color_interact: rgba_linear!(1.0, 0.0, 1.0, 1.0),
+				line_end_thickness: 0.005,
+				line_end_color_hover: rgba_linear!(1.0, 1.0, 1.0, 1.0),
+				line_end_color_interact: rgba_linear!(1.0, 0.0, 1.0, 1.0),
+				on_hover: Some(move |state: &mut ToplevelState, point| {
+					info!("{:?}", point);
+					_ = state.panel_item.pointer_motion(surface_id.clone(), point);
+				}),
+				on_interact: Some(move |state: &mut ToplevelState, point, _distance| {
+					let id = surface_id_2.clone();
+					_ = state.panel_item.pointer_motion(id.clone(), point);
+					_ = state.panel_item.pointer_button(id.clone(), BTN_LEFT!(), true);
+					_ = state.panel_item.pointer_button(id.clone(), BTN_LEFT!(), false);
+				}),
+				_state: Default::default(),
+			}
+			.build(),
+		);
 		self.with_children(iter)
 	}
 }
