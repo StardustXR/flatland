@@ -6,8 +6,8 @@ use asteroids::{
 use derive_setters::Setters;
 use stardust_xr_fusion::{
 	core::values::{color::rgba_linear, ResourceID},
-	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
-	fields::{Field, Shape},
+	drawable::{Line, Lines, MaterialParameter, Model, ModelPart, ModelPartAspect},
+	fields::{Field, FieldRefAspect, Shape},
 	input::{InputDataType::Pointer, InputHandler},
 	node::{NodeError, NodeType},
 	root::FrameInfo,
@@ -15,7 +15,7 @@ use stardust_xr_fusion::{
 };
 use stardust_xr_molecules::{
 	input_action::{InputQueue, InputQueueable, SimpleAction},
-	Exposure,
+	lines, Exposure,
 };
 use std::fmt::Debug;
 use tracing::info;
@@ -107,6 +107,7 @@ impl ExposureButtonInner {
 		)?;
 		field.set_spatial_parent_in_place(parent)?;
 		field.set_local_transform(Transform::from_scale([1.0; 3]))?;
+		field.set_spatial_parent_in_place(&shell)?;
 
 		let input = InputHandler::create(&shell, Transform::none(), &field)?.queue()?;
 
@@ -124,7 +125,6 @@ impl ExposureButtonInner {
 	pub fn frame(&mut self, frame_info: &FrameInfo) -> bool {
 		self.input.handle_events();
 		self.exposure.update(frame_info.delta);
-		info!("frame");
 		self.distance_action.update(&self.input, &|data| {
 			data.distance < 0.0
 				&& match &data.input {
