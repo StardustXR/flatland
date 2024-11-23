@@ -57,7 +57,6 @@ pub struct Surface {
 	parent_thickness: Option<f32>,
 	thickness: f32,
 	model: Model,
-	input: Option<SurfaceInput>,
 }
 
 impl SurfaceElement {
@@ -97,19 +96,6 @@ impl ElementTrait<ToplevelState> for SurfaceElement {
 		)?;
 		self.item
 			.apply_surface_material(self.id.clone(), &model.part("Panel")?)?;
-		let input = self
-			.receives_input
-			.then(|| {
-				SurfaceInput::new(
-					&root,
-					&self.item,
-					&self.id,
-					physical_size,
-					self.thickness,
-					self.initial_resolution,
-				)
-			})
-			.transpose()?;
 		let surface = Surface {
 			root,
 			item: self.item.clone(),
@@ -117,7 +103,6 @@ impl ElementTrait<ToplevelState> for SurfaceElement {
 			parent_thickness: None,
 			thickness: self.thickness,
 			model,
-			input,
 		};
 		Ok(surface)
 	}
@@ -139,13 +124,13 @@ impl ElementTrait<ToplevelState> for SurfaceElement {
 				warn!("error while applying new scale to surface model: {err}");
 			}
 			inner.item.set_toplevel_size(self.initial_resolution);
-			if let Some(input) = inner.input.as_mut() {
-				input.resize(physical_size, self.initial_resolution);
-			}
+			// if let Some(input) = inner.input.as_mut() {
+			// 	input.resize(physical_size, self.initial_resolution);
+			// }
 		}
-		if let Some(input) = inner.input.as_mut() {
-			input.handle_events(&inner.item, &inner.id);
-		}
+		// if let Some(input) = inner.input.as_mut() {
+		// 	input.handle_events(&inner.item, &inner.id);
+		// }
 	}
 
 	fn spatial_aspect(&self, inner: &Self::Inner) -> stardust_xr_fusion::spatial::SpatialRef {
