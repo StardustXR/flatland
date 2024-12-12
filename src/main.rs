@@ -10,6 +10,7 @@ use initial_panel_placement::InitialPanelPlacement;
 use initial_positioner::InitialPositioner;
 use panel_ui::PanelUI;
 use panel_wrapper::PanelWrapper;
+use pointer_input::PointerPlane;
 use resize_handles::ResizeHandles;
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
@@ -25,7 +26,7 @@ use stardust_xr_fusion::{
 	values::{color::rgba_linear, Color, Vector2},
 };
 use std::f32::consts::FRAC_PI_2;
-use surface_input::SurfaceInput;
+use touch_input::TouchPlane;
 use tracing_subscriber::EnvFilter;
 
 pub mod close_button;
@@ -35,8 +36,9 @@ pub mod initial_positioner;
 pub mod panel_shell_transfer;
 pub mod panel_ui;
 pub mod panel_wrapper;
+pub mod pointer_input;
 pub mod resize_handles;
-pub mod surface_input;
+pub mod touch_input;
 
 async fn accent_color() -> color_eyre::eyre::Result<Color> {
 	let accent_color = Settings::new().await?.accent_color().await?;
@@ -194,28 +196,13 @@ impl Reify for ToplevelState {
 		.build();
 
 		// input handler
-		let surface_input = SurfaceInput::<Self>::default()
+		let pointer_plane = PointerPlane::<Self>::default()
 			.pos([0.0, 0.0, panel_thickness / 2.0])
 			.physical_size([
 				self.info.size.x as f32 / self.density,
 				self.info.size.y as f32 / self.density,
 			])
 			.thickness(panel_thickness)
-			.on_touch_down(|state, id, position| {
-				let _ = state.panel_item.touch_down(
-					SurfaceId::Toplevel(()),
-					id,
-					[position.x * state.density, position.y * state.density],
-				);
-			})
-			.on_touch_move(|state, id, position| {
-				let _ = state
-					.panel_item
-					.touch_move(id, [position.x * state.density, position.y * state.density]);
-			})
-			.on_touch_up(|state, id| {
-				let _ = state.panel_item.touch_up(id);
-			})
 			.on_mouse_button(|state, button, pressed| {
 				let _ = state
 					.panel_item
@@ -228,7 +215,6 @@ impl Reify for ToplevelState {
 				);
 			})
 			.on_scroll(|state, scroll| {
-				dbg!(&scroll);
 				let _ = match (scroll.scroll_continuous, scroll.scroll_discrete) {
 					(None, None) => state
 						.panel_item
@@ -249,6 +235,29 @@ impl Reify for ToplevelState {
 							.pointer_scroll(SurfaceId::Toplevel(()), continuous, steps)
 					}
 				};
+			})
+			.build();
+		let touch_plane = TouchPlane::<Self>::default()
+			.pos([0.0, 0.0, panel_thickness / 2.0])
+			.physical_size([
+				self.info.size.x as f32 / self.density,
+				self.info.size.y as f32 / self.density,
+			])
+			.thickness(panel_thickness)
+			.on_touch_down(|state, id, position| {
+				let _ = state.panel_item.touch_down(
+					SurfaceId::Toplevel(()),
+					id,
+					[position.x * state.density, position.y * state.density],
+				);
+			})
+			.on_touch_move(|state, id, position| {
+				let _ = state
+					.panel_item
+					.touch_move(id, [position.x * state.density, position.y * state.density]);
+			})
+			.on_touch_up(|state, id| {
+				let _ = state.panel_item.touch_up(id);
 			})
 			.build();
 
@@ -324,7 +333,14 @@ impl Reify for ToplevelState {
 				state.info.size = size.into();
 			})),
 		}
-		.with_children([close_button, text, model, keyboard_handler, surface_input]);
+		.with_children([
+			close_button,
+			text,
+			model,
+			keyboard_handler,
+			pointer_plane,
+			touch_plane,
+		]);
 
 		let panel_wrapper = PanelWrapper::<Self>::new(self.panel_item.clone())
 			.on_toplevel_size_changed(|state, size| {

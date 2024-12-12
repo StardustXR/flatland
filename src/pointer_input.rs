@@ -15,7 +15,7 @@ use stardust_xr_fusion::{
 	values::{color::rgba_linear, Vector3},
 };
 use stardust_xr_molecules::{
-	input_action::{InputQueue, InputQueueable, MultiAction, SimpleAction, SingleAction},
+	input_action::{InputQueue, InputQueueable, SimpleAction, SingleAction},
 	lines::{self, LineExt},
 	DebugSettings, VisualDebug,
 };
@@ -31,45 +31,25 @@ pub struct MouseEvent {
 #[derive(Setters)]
 #[setters(into, strip_option)]
 #[allow(clippy::type_complexity)]
-pub struct SurfaceInput<State: ValidState> {
+pub struct PointerPlane<State: ValidState> {
 	pub transform: Transform,
-	/// Physical size of the input surface in meters
 	pub physical_size: Vector2<f32>,
-	/// Thickness of the input volume in meters
 	pub thickness: f32,
-
-	/// Called when a touch starts
-	/// position: Vector3<f32> in meters relative to top-left corner
-	/// x: right is positive, y: down is positive, z: forward is positive
-	#[setters(skip)]
-	pub on_touch_down: FnWrapper<dyn Fn(&mut State, u32, Vector3<f32>) + Send + Sync>,
-	/// Called when a touch moves
-	/// position: Vector3<f32> in meters relative to top-left corner
-	/// x: right is positive, y: down is positive, z: forward is positive
-	#[setters(skip)]
-	pub on_touch_move: FnWrapper<dyn Fn(&mut State, u32, Vector3<f32>) + Send + Sync>,
-	#[setters(skip)]
-	pub on_touch_up: FnWrapper<dyn Fn(&mut State, u32) + Send + Sync>,
 
 	#[setters(skip)]
 	pub on_mouse_button: FnWrapper<dyn Fn(&mut State, u32, bool) + Send + Sync>,
-	/// Called when pointer moves
-	/// position: Vector3<f32> in meters relative to top-left corner
-	/// x: right is positive, y: down is positive, z: forward is positive
 	#[setters(skip)]
 	pub on_pointer_motion: FnWrapper<dyn Fn(&mut State, Vector3<f32>) + Send + Sync>,
 	#[setters(skip)]
 	pub on_scroll: FnWrapper<dyn Fn(&mut State, MouseEvent) + Send + Sync>,
 }
-impl<State: ValidState> Default for SurfaceInput<State> {
+
+impl<State: ValidState> Default for PointerPlane<State> {
 	fn default() -> Self {
 		Self {
 			transform: Transform::identity(),
 			physical_size: [1.0; 2].into(),
 			thickness: 0.0,
-			on_touch_down: FnWrapper(Box::new(|_, _, _| {})),
-			on_touch_move: FnWrapper(Box::new(|_, _, _| {})),
-			on_touch_up: FnWrapper(Box::new(|_, _| {})),
 			on_mouse_button: FnWrapper(Box::new(|_, _, _| {})),
 			on_pointer_motion: FnWrapper(Box::new(|_, _| {})),
 			on_scroll: FnWrapper(Box::new(|_, _| {})),
@@ -77,28 +57,7 @@ impl<State: ValidState> Default for SurfaceInput<State> {
 	}
 }
 
-impl<State: ValidState> SurfaceInput<State> {
-	pub fn on_touch_down(
-		mut self,
-		f: impl Fn(&mut State, u32, Vector3<f32>) + Send + Sync + 'static,
-	) -> Self {
-		self.on_touch_down = FnWrapper(Box::new(f));
-		self
-	}
-
-	pub fn on_touch_move(
-		mut self,
-		f: impl Fn(&mut State, u32, Vector3<f32>) + Send + Sync + 'static,
-	) -> Self {
-		self.on_touch_move = FnWrapper(Box::new(f));
-		self
-	}
-
-	pub fn on_touch_up(mut self, f: impl Fn(&mut State, u32) + Send + Sync + 'static) -> Self {
-		self.on_touch_up = FnWrapper(Box::new(f));
-		self
-	}
-
+impl<State: ValidState> PointerPlane<State> {
 	pub fn on_mouse_button(
 		mut self,
 		f: impl Fn(&mut State, u32, bool) + Send + Sync + 'static,
@@ -121,8 +80,8 @@ impl<State: ValidState> SurfaceInput<State> {
 	}
 }
 
-impl<State: ValidState> ElementTrait<State> for SurfaceInput<State> {
-	type Inner = SurfaceInputInner;
+impl<State: ValidState> ElementTrait<State> for PointerPlane<State> {
+	type Inner = PointerSurfaceInputInner;
 	type Error = NodeError;
 
 	fn create_inner(
@@ -140,7 +99,7 @@ impl<State: ValidState> ElementTrait<State> for SurfaceInput<State> {
 		let hover = SimpleAction::default();
 		let lines = Lines::create(&field, Transform::identity(), &[])?;
 
-		Ok(SurfaceInputInner {
+		Ok(PointerSurfaceInputInner {
 			input,
 			field,
 			hover,
@@ -148,11 +107,8 @@ impl<State: ValidState> ElementTrait<State> for SurfaceInput<State> {
 			left_click: SingleAction::default(),
 			middle_click: SingleAction::default(),
 			right_click: SingleAction::default(),
-			touch: MultiAction::default(),
-
 			physical_size: self.physical_size.into(),
 			thickness: self.thickness,
-
 			lines,
 			debug_line_settings: Some(DebugSettings::default()),
 		})
@@ -171,7 +127,8 @@ impl<State: ValidState> ElementTrait<State> for SurfaceInput<State> {
 		inner.field.clone().as_spatial().as_spatial_ref()
 	}
 }
-impl<State: ValidState> Transformable for SurfaceInput<State> {
+
+impl<State: ValidState> Transformable for PointerPlane<State> {
 	fn transform(&self) -> &Transform {
 		&self.transform
 	}
@@ -179,7 +136,8 @@ impl<State: ValidState> Transformable for SurfaceInput<State> {
 		&mut self.transform
 	}
 }
-pub struct SurfaceInputInner {
+
+pub struct PointerSurfaceInputInner {
 	input: InputQueue,
 	field: Field,
 	hover: SimpleAction,
@@ -187,26 +145,22 @@ pub struct SurfaceInputInner {
 	left_click: SingleAction,
 	middle_click: SingleAction,
 	right_click: SingleAction,
-	touch: MultiAction,
-
 	physical_size: Vec2,
 	thickness: f32,
-
 	lines: Lines,
 	debug_line_settings: Option<DebugSettings>,
 }
 
-impl SurfaceInputInner {
+impl PointerSurfaceInputInner {
 	pub fn handle_events<State: ValidState>(
 		&mut self,
 		state: &mut State,
-		decl: &SurfaceInput<State>,
+		decl: &PointerPlane<State>,
 	) {
 		if !self.input.handle_events() {
 			return;
-		};
+		}
 		self.update_pointer(state, decl);
-		self.update_touches(state, decl);
 		self.update_signifiers();
 	}
 
@@ -220,10 +174,7 @@ impl SurfaceInputInner {
 	pub fn set_enabled(&mut self, enabled: bool) {
 		let _ = self.input.handler().set_enabled(enabled);
 	}
-}
 
-// Pointer inputs
-impl SurfaceInputInner {
 	fn hovering(size: Vector2<f32>, point: Vector3<f32>, front: bool) -> bool {
 		point.x.abs() * 2.0 < size.x
 			&& point.y.abs() * 2.0 < size.y
@@ -258,7 +209,7 @@ impl SurfaceInputInner {
 	fn handle_button<State: ValidState>(
 		state: &mut State,
 		input: &InputQueue,
-		decl: &SurfaceInput<State>,
+		decl: &PointerPlane<State>,
 		action: &mut SingleAction,
 		finger: fn(&Hand) -> &Finger,
 		datamap_key: &str,
@@ -288,7 +239,7 @@ impl SurfaceInputInner {
 		}
 	}
 
-	fn update_pointer<State: ValidState>(&mut self, state: &mut State, decl: &SurfaceInput<State>) {
+	fn update_pointer<State: ValidState>(&mut self, state: &mut State, decl: &PointerPlane<State>) {
 		self.hover.update(&self.input, &|input| match &input.input {
 			InputDataType::Pointer(_) => input.distance <= 0.0,
 			_ => {
@@ -352,55 +303,14 @@ impl SurfaceInputInner {
 			.unwrap_or_default();
 		(decl.on_scroll.0)(state, mouse_event);
 	}
-}
 
-// Touch points
-impl SurfaceInputInner {
-	pub fn update_touches<State: ValidState>(
-		&mut self,
-		state: &mut State,
-		decl: &SurfaceInput<State>,
-	) {
-		let physical_size = self.physical_size.into();
-		self.touch.update(
-			&self.input,
-			|input| match &input.input {
-				InputDataType::Pointer(_) => false,
-				InputDataType::Hand(h) => Self::hovering(physical_size, h.index.tip.position, true),
-				InputDataType::Tip(t) => Self::hovering(physical_size, t.origin, true),
-			},
-			|input| match &input.input {
-				InputDataType::Pointer(_) => {
-					input.datamap.with_data(|d| d.idx("select").as_f32() > 0.5)
-				}
-				InputDataType::Hand(h) => {
-					Self::hovering(physical_size, h.index.tip.position, false)
-				}
-				InputDataType::Tip(t) => Self::hovering(physical_size, t.origin, false),
-			},
-		);
-
-		for input_data in self.touch.interact().added().iter() {
-			let position = self.to_local_coords(Self::hover_point(input_data));
-			(decl.on_touch_down.0)(state, input_data.id as u32, position);
-		}
-		for input_data in self.touch.interact().current().iter() {
-			let position = self.to_local_coords(Self::hover_point(input_data));
-			(decl.on_touch_move.0)(state, input_data.id as u32, position);
-		}
-		for input_data in self.touch.interact().removed().iter() {
-			(decl.on_touch_up.0)(state, input_data.id as u32);
-		}
-	}
-}
-
-impl SurfaceInputInner {
 	fn update_signifiers(&mut self) {
 		let mut lines = self.hover_lines();
 		lines.extend(self.debug_lines());
 
 		self.lines.set_lines(&lines).unwrap();
 	}
+
 	fn debug_lines(&mut self) -> Vec<Line> {
 		let Some(settings) = &self.debug_line_settings else {
 			return vec![];
@@ -428,17 +338,18 @@ impl SurfaceInputInner {
 	fn hover_lines(&mut self) -> Vec<Line> {
 		self.pointer_hover
 			.iter()
-			.filter(|_| self.touch.interact().current().is_empty())
 			.filter_map(|p| self.line_from_input(p, p.captured))
 			.collect::<Vec<_>>()
 	}
+
 	fn line_from_input(&self, input: &InputData, interacting: bool) -> Option<Line> {
 		if let InputDataType::Pointer(_) = &input.input {
 			None
 		} else {
-			Some(self.line_from_point(SurfaceInputInner::hover_point(input), interacting))
+			Some(self.line_from_point(PointerSurfaceInputInner::hover_point(input), interacting))
 		}
 	}
+
 	fn line_from_point(&self, point: Vec3, interacting: bool) -> Line {
 		let settings = stardust_xr_molecules::hover_plane::HoverPlaneSettings::default();
 		Line {
@@ -476,7 +387,7 @@ impl SurfaceInputInner {
 	}
 }
 
-impl VisualDebug for SurfaceInputInner {
+impl VisualDebug for PointerSurfaceInputInner {
 	fn set_debug(&mut self, settings: Option<DebugSettings>) {
 		self.debug_line_settings = settings;
 	}
