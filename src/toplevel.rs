@@ -2,8 +2,7 @@ use crate::{
 	close_button::ExposureButtonInner,
 	grab_ball::{GrabBall, GrabBallSettings},
 	panel_shell_transfer::PanelShellTransfer,
-	resize_handles::ResizeHandles,
-	surface::Surface,
+	resize_handles::ResizeHandlesInner,
 };
 use glam::{vec3, Quat};
 use rustc_hash::FxHashMap;
@@ -34,7 +33,7 @@ pub struct ToplevelInner {
 	title: Option<String>,
 	app_id: Option<String>,
 
-	resize_handles: ResizeHandles,
+	resize_handles: ResizeHandlesInner,
 	panel_shell_grab_ball: GrabBall<PanelShellTransfer>,
 	close_button: ExposureButtonInner,
 }
@@ -91,7 +90,7 @@ impl ToplevelInner {
 		)
 		.unwrap();
 
-		let resize_handles = ResizeHandles::create(
+		let resize_handles = ResizeHandlesInner::create(
 			item.clone().as_item().as_spatial().as_spatial_ref(),
 			accent_color,
 			surface.physical_size().into(),
