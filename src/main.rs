@@ -2,7 +2,7 @@ use ashpd::desktop::settings::Settings;
 use asteroids::{
 	custom::{ElementTrait, FnWrapper, Transformable},
 	elements::{KeyboardHandler, Model, ModelPart, Spatial, Text},
-	Reify, View,
+	Element, Reify, View,
 };
 use close_button::ExposureButton;
 use glam::Quat;
@@ -17,7 +17,7 @@ use stardust_xr_fusion::{
 	client::Client,
 	drawable::{TextBounds, TextFit, XAlign, YAlign},
 	fields::Shape,
-	items::panel::{PanelItem, PanelItemAspect, SurfaceId, ToplevelInfo},
+	items::panel::{ChildInfo, Geometry, PanelItem, PanelItemAspect, SurfaceId, ToplevelInfo},
 	node::NodeType,
 	objects::connect_client,
 	project_local_resources,
@@ -25,7 +25,7 @@ use stardust_xr_fusion::{
 	spatial::Transform,
 	values::{color::rgba_linear, Color, Vector2},
 };
-use std::f32::consts::FRAC_PI_2;
+use std::{any::Any, f32::consts::FRAC_PI_2};
 use touch_input::TouchPlane;
 use tracing_subscriber::EnvFilter;
 
@@ -84,6 +84,62 @@ async fn main() {
 		.unwrap();
 }
 
+pub fn add_child(children: &mut Vec<ChildState>, child_info: ChildInfo) {
+	match &child_info.parent {
+		SurfaceId::Toplevel(_) => {
+			children.push(ChildState {
+				info: child_info,
+				children: Vec::new(),
+			});
+		}
+		SurfaceId::Child(parent_id) => {
+			add_to_parent(
+				children,
+				*parent_id,
+				ChildState {
+					info: child_info,
+					children: Vec::new(),
+				},
+			);
+		}
+	}
+}
+
+fn add_to_parent(children: &mut [ChildState], parent_id: u64, new_child: ChildState) {
+	for child in children.iter_mut() {
+		if child.info.id == parent_id {
+			child.children.push(new_child);
+			return;
+		}
+		add_to_parent(&mut child.children, parent_id, new_child.clone());
+	}
+}
+pub fn update_child_geometry(children: &mut [ChildState], id: u64, geometry: Geometry) {
+	for child in children.iter_mut() {
+		if child.info.id == id {
+			child.info.geometry = geometry;
+			return;
+		}
+		update_child_geometry(&mut child.children, id, geometry.clone());
+	}
+}
+pub fn remove_child(children: &mut Vec<ChildState>, id: u64) {
+	children.retain_mut(|child| {
+		if child.info.id == id {
+			return false;
+		}
+		remove_child(&mut child.children, id);
+		true
+	});
+}
+pub fn process_initial_children(children: Vec<ChildInfo>) -> Vec<ChildState> {
+	let mut child_states = Vec::new();
+	for child in children {
+		add_child(&mut child_states, child);
+	}
+	child_states
+}
+
 #[derive(Debug)]
 pub struct State {
 	accent_color: Color,
@@ -101,6 +157,7 @@ impl Reify for State {
 						accent_color: state.accent_color,
 						panel_item: item,
 						info: data.toplevel,
+						children: process_initial_children(data.children),
 						density: 3000.0,
 					},
 				);
@@ -119,7 +176,6 @@ impl Reify for State {
 				toplevel.enabled = true;
 			})),
 			on_destroy_item: FnWrapper(Box::new(|state, id| {
-				println!("killed panel {id}");
 				state.toplevels.remove(&id);
 			})),
 			on_destroy_acceptor: FnWrapper(Box::new(|_, _| {})),
@@ -139,12 +195,19 @@ impl Reify for State {
 	}
 }
 
+#[derive(Debug, Clone)]
+pub struct ChildState {
+	info: ChildInfo,
+	children: Vec<ChildState>,
+}
+
 #[derive(Debug)]
 pub struct ToplevelState {
 	enabled: bool,
 	accent_color: Color,
 	panel_item: PanelItem,
 	info: ToplevelInfo,
+	children: Vec<ChildState>,
 	density: f32, //pixels per meter
 }
 impl ToplevelState {
@@ -312,6 +375,8 @@ impl Reify for ToplevelState {
 			.rot(Quat::from_rotation_z(FRAC_PI_2) * Quat::from_rotation_x(-FRAC_PI_2))
 			.build();
 
+		// for child in self.info.
+
 		let resize_handles = ResizeHandles::<ToplevelState> {
 			accent_color: self.accent_color,
 			zoneable: true,
@@ -340,6 +405,7 @@ impl Reify for ToplevelState {
 			keyboard_handler,
 			pointer_plane,
 			touch_plane,
+			Spatial::default().with_children(self.reify_children(&self.children, panel_thickness)),
 		]);
 
 		let panel_wrapper = PanelWrapper::<Self>::new(self.panel_item.clone())
@@ -352,6 +418,11 @@ impl Reify for ToplevelState {
 			.on_toplevel_title_changed(|state, title| {
 				state.info.title.replace(title);
 			})
+			.on_create_child(|state, _id, child_info| add_child(&mut state.children, child_info))
+			.on_reposition_child(|state, id, geometry| {
+				update_child_geometry(&mut state.children, id, geometry)
+			})
+			.on_destroy_child(|state, id| remove_child(&mut state.children, id))
 			.build();
 
 		let panel_spatial_ref = self
@@ -362,5 +433,45 @@ impl Reify for ToplevelState {
 			.as_spatial_ref();
 		let panel_aligner = InitialPanelPlacement.with_children([panel_wrapper, resize_handles]);
 		InitialPositioner(panel_spatial_ref).with_children([panel_aligner])
+	}
+}
+impl ToplevelState {
+	fn reify_children(&self, children: &[ChildState], panel_thickness: f32) -> Vec<Element<Self>> {
+		children
+			.iter()
+			.map(|child| {
+				let child_model = child.reify(&self.panel_item, self.density, panel_thickness);
+				let mut reified_children = self.reify_children(&child.children, panel_thickness);
+				reified_children.push(child_model);
+				Spatial::default()
+					.with_children(reified_children)
+					.identify(&(self.panel_item.id(), child.info.id, child.info.type_id()))
+			})
+			.collect()
+	}
+}
+impl ChildState {
+	fn reify(
+		&self,
+		panel_item: &PanelItem,
+		density: f32,
+		panel_thickness: f32,
+	) -> Element<ToplevelState> {
+		Model::namespaced("flatland", "panel")
+			.part(
+				ModelPart::new("Panel")
+					.apply_panel_item(panel_item.clone(), SurfaceId::Child(self.info.id)),
+			)
+			.pos([
+				self.info.geometry.origin.x as f32 / density,
+				self.info.geometry.origin.y as f32 / density,
+				panel_thickness * (1.0 + self.info.z_order as f32),
+			])
+			.scl([
+				self.info.geometry.size.x as f32 / density,
+				self.info.geometry.size.y as f32 / density,
+				panel_thickness,
+			])
+			.build()
 	}
 }
