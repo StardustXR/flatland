@@ -5,7 +5,7 @@ use asteroids::{
 	Element, Reify, View,
 };
 use close_button::ExposureButton;
-use glam::Quat;
+use glam::{vec2, Quat};
 use initial_panel_placement::InitialPanelPlacement;
 use initial_positioner::InitialPositioner;
 use panel_ui::PanelUI;
@@ -444,6 +444,11 @@ impl ToplevelState {
 				let mut reified_children = self.reify_children(&child.children, panel_thickness);
 				reified_children.push(child_model);
 				Spatial::default()
+					.pos([
+						self.info.size.x as f32 / -2.0 / self.density,
+						self.info.size.y as f32 / -2.0 / self.density,
+						0.0,
+					])
 					.with_children(reified_children)
 					.identify(&(self.panel_item.id(), child.info.id, child.info.type_id()))
 			})
@@ -457,14 +462,23 @@ impl ChildState {
 		density: f32,
 		panel_thickness: f32,
 	) -> Element<ToplevelState> {
+		let geometry_origin = vec2(
+			self.info.geometry.origin.x as f32,
+			self.info.geometry.origin.y as f32,
+		);
+		let geometry_size = vec2(
+			self.info.geometry.size.x as f32,
+			self.info.geometry.size.y as f32,
+		);
+		let origin = (geometry_origin + (geometry_size / 2.0)) / density;
 		Model::namespaced("flatland", "panel")
 			.part(
 				ModelPart::new("Panel")
 					.apply_panel_item(panel_item.clone(), SurfaceId::Child(self.info.id)),
 			)
 			.pos([
-				self.info.geometry.origin.x as f32 / density,
-				self.info.geometry.origin.y as f32 / density,
+				origin.x,
+				origin.y,
 				panel_thickness * (1.0 + self.info.z_order as f32),
 			])
 			.scl([
