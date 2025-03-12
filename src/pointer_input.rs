@@ -35,6 +35,7 @@ pub struct PointerPlane<State: ValidState> {
 	pub transform: Transform,
 	pub physical_size: Vector2<f32>,
 	pub thickness: f32,
+	pub debug_line_settings: Option<DebugSettings>,
 
 	#[setters(skip)]
 	pub on_mouse_button: FnWrapper<dyn Fn(&mut State, u32, bool) + Send + Sync>,
@@ -50,6 +51,8 @@ impl<State: ValidState> Default for PointerPlane<State> {
 			transform: Transform::identity(),
 			physical_size: [1.0; 2].into(),
 			thickness: 0.0,
+			debug_line_settings: None,
+
 			on_mouse_button: FnWrapper(Box::new(|_, _, _| {})),
 			on_pointer_motion: FnWrapper(Box::new(|_, _| {})),
 			on_scroll: FnWrapper(Box::new(|_, _| {})),
@@ -82,12 +85,14 @@ impl<State: ValidState> PointerPlane<State> {
 
 impl<State: ValidState> ElementTrait<State> for PointerPlane<State> {
 	type Inner = PointerSurfaceInputInner;
+	type Resource = ();
 	type Error = NodeError;
 
 	fn create_inner(
 		&self,
 		spatial_parent: &SpatialRef,
 		_dbus_conn: &Connection,
+		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let field = Field::create(
 			spatial_parent,
@@ -110,12 +115,21 @@ impl<State: ValidState> ElementTrait<State> for PointerPlane<State> {
 			physical_size: self.physical_size.into(),
 			thickness: self.thickness,
 			lines,
-			debug_line_settings: Some(DebugSettings::default()),
+			debug_line_settings: self.debug_line_settings,
 		})
 	}
 
-	fn update(&self, old: &Self, state: &mut State, inner: &mut Self::Inner) {
+	fn update(
+		&self,
+		old: &Self,
+		state: &mut State,
+		inner: &mut Self::Inner,
+		_resource: &mut Self::Resource,
+	) {
 		self.apply_transform(old, &inner.field);
+		if self.debug_line_settings != old.debug_line_settings {
+			inner.set_debug(self.debug_line_settings);
+		}
 		if self.physical_size != old.physical_size {
 			inner.resize(self.physical_size.into());
 		}

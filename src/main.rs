@@ -1,8 +1,10 @@
-use ashpd::desktop::settings::Settings;
+use accent_color_listener::AccentColorListener;
 use asteroids::{
+	client::{run, ClientState},
 	custom::{ElementTrait, FnWrapper, Transformable},
 	elements::{KeyboardHandler, Model, ModelPart, Spatial, Text},
-	Element, Reify, View,
+	util::Migrate,
+	Element, Reify,
 };
 use close_button::ExposureButton;
 use glam::{vec2, Quat};
@@ -13,22 +15,23 @@ use panel_wrapper::PanelWrapper;
 use pointer_input::PointerPlane;
 use resize_handles::ResizeHandles;
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
-	client::Client,
 	drawable::{TextBounds, TextFit, XAlign, YAlign},
 	fields::Shape,
 	items::panel::{ChildInfo, Geometry, PanelItem, PanelItemAspect, SurfaceId, ToplevelInfo},
 	node::NodeType,
-	objects::connect_client,
 	project_local_resources,
-	root::{RootAspect, RootEvent},
+	root::FrameInfo,
 	spatial::Transform,
 	values::{color::rgba_linear, Color, Vector2},
 };
+use stardust_xr_molecules::DebugSettings;
 use std::{any::Any, f32::consts::FRAC_PI_2};
 use touch_input::TouchPlane;
 use tracing_subscriber::EnvFilter;
 
+pub mod accent_color_listener;
 pub mod close_button;
 pub mod grab_ball;
 pub mod initial_panel_placement;
@@ -40,48 +43,14 @@ pub mod pointer_input;
 pub mod resize_handles;
 pub mod touch_input;
 
-async fn accent_color() -> color_eyre::eyre::Result<Color> {
-	let accent_color = Settings::new().await?.accent_color().await?;
-	Ok(rgba_linear!(
-		accent_color.red() as f32,
-		accent_color.green() as f32,
-		accent_color.blue() as f32,
-		1.0
-	))
-}
-
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
 	tracing_subscriber::fmt()
 		.compact()
 		.with_env_filter(EnvFilter::from_default_env())
 		.init();
-	let mut client = Client::connect().await.unwrap();
-	client
-		.setup_resources(&[&project_local_resources!("res")])
-		.unwrap();
 
-	let accent_color = accent_color()
-		.await
-		.unwrap_or(rgba_linear!(0.0, 0.75, 1.0, 1.0));
-
-	let dbus_connection = connect_client().await.unwrap();
-	let mut state = State {
-		accent_color,
-		toplevels: Default::default(),
-		// acceptors: Default::default(),
-	};
-	let mut asteroids_view = View::new(&state, dbus_connection, client.handle().get_root());
-
-	client
-		.sync_event_loop(|client, _| {
-			while let Some(RootEvent::Frame { info }) = client.get_root().recv_root_event() {
-				asteroids_view.frame(&info);
-				asteroids_view.update(&mut state);
-			}
-		})
-		.await
-		.unwrap();
+	run::<State>(&[&project_local_resources!("res")]).await
 }
 
 pub fn add_child(children: &mut Vec<ChildState>, child_info: ChildInfo) {
@@ -140,13 +109,35 @@ pub fn process_initial_children(children: Vec<ChildInfo>) -> Vec<ChildState> {
 	child_states
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct State {
-	accent_color: Color,
+	#[serde(skip)]
+	elapsed_time: f32,
+	toplevel_preferences: FxHashMap<String, f32>,
+	#[serde(skip)]
 	toplevels: FxHashMap<u64, ToplevelState>,
 	// acceptors: FxHashMap<u64, (PanelItemAcceptor, Field)>,
 }
-impl Reify for State {
+impl Default for State {
+	fn default() -> Self {
+		State {
+			elapsed_time: 0.0,
+			toplevels: FxHashMap::default(),
+			toplevel_preferences: FxHashMap::default(),
+		}
+	}
+}
+impl Migrate for State {
+	type Old = Self;
+}
+impl ClientState for State {
+	const QUALIFIER: &'static str = "org";
+	const ORGANIZATION: &'static str = "stardustxr";
+	const NAME: &'static str = "flatland";
+
+	fn on_frame(&mut self, info: &FrameInfo) {
+		self.elapsed_time = info.elapsed;
+	}
 	fn reify(&self) -> asteroids::Element<Self> {
 		let panel_ui = PanelUI::<State> {
 			on_create_item: FnWrapper(Box::new(|state, item, data| {
@@ -154,7 +145,7 @@ impl Reify for State {
 					item.id(),
 					ToplevelState {
 						enabled: true,
-						accent_color: state.accent_color,
+						accent_color: rgba_linear!(1.0, 1.0, 1.0, 1.0),
 						panel_item: item,
 						info: data.toplevel,
 						children: process_initial_children(data.children),
@@ -322,6 +313,10 @@ impl Reify for ToplevelState {
 			.on_touch_up(|state, id| {
 				let _ = state.panel_item.touch_up(id);
 			})
+			.debug_line_settings(DebugSettings {
+				line_color: self.accent_color,
+				..Default::default()
+			})
 			.build();
 
 		// close button
@@ -425,13 +420,23 @@ impl Reify for ToplevelState {
 			.on_destroy_child(|state, id| remove_child(&mut state.children, id))
 			.build();
 
+		let accent_color_listener =
+			AccentColorListener::new(|state: &mut ToplevelState, accent_color| {
+				state.accent_color = accent_color
+			})
+			.build();
+
 		let panel_spatial_ref = self
 			.panel_item
 			.clone()
 			.as_item()
 			.as_spatial()
 			.as_spatial_ref();
-		let panel_aligner = InitialPanelPlacement.with_children([panel_wrapper, resize_handles]);
+		let panel_aligner = InitialPanelPlacement.with_children([
+			panel_wrapper,
+			accent_color_listener,
+			resize_handles,
+		]);
 		InitialPositioner(panel_spatial_ref).with_children([panel_aligner])
 	}
 }

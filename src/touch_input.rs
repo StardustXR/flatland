@@ -27,6 +27,7 @@ pub struct TouchPlane<State: ValidState> {
 	pub transform: Transform,
 	pub physical_size: Vector2<f32>,
 	pub thickness: f32,
+	pub debug_line_settings: Option<DebugSettings>,
 
 	#[setters(skip)]
 	pub on_touch_down: FnWrapper<dyn Fn(&mut State, u32, Vector3<f32>) + Send + Sync>,
@@ -42,6 +43,8 @@ impl<State: ValidState> Default for TouchPlane<State> {
 			transform: Transform::identity(),
 			physical_size: [1.0; 2].into(),
 			thickness: 0.0,
+			debug_line_settings: None,
+
 			on_touch_down: FnWrapper(Box::new(|_, _, _| {})),
 			on_touch_move: FnWrapper(Box::new(|_, _, _| {})),
 			on_touch_up: FnWrapper(Box::new(|_, _| {})),
@@ -74,12 +77,14 @@ impl<State: ValidState> TouchPlane<State> {
 
 impl<State: ValidState> ElementTrait<State> for TouchPlane<State> {
 	type Inner = TouchSurfaceInputInner;
+	type Resource = ();
 	type Error = NodeError;
 
 	fn create_inner(
 		&self,
 		spatial_parent: &SpatialRef,
 		_dbus_conn: &Connection,
+		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let field = Field::create(
 			spatial_parent,
@@ -97,12 +102,21 @@ impl<State: ValidState> ElementTrait<State> for TouchPlane<State> {
 			physical_size: self.physical_size.into(),
 			thickness: self.thickness,
 			lines,
-			debug_line_settings: Some(DebugSettings::default()),
+			debug_line_settings: self.debug_line_settings,
 		})
 	}
 
-	fn update(&self, old: &Self, state: &mut State, inner: &mut Self::Inner) {
+	fn update(
+		&self,
+		old: &Self,
+		state: &mut State,
+		inner: &mut Self::Inner,
+		_resource: &mut Self::Resource,
+	) {
 		self.apply_transform(old, &inner.field);
+		if self.debug_line_settings != old.debug_line_settings {
+			inner.set_debug(self.debug_line_settings);
+		}
 		if self.physical_size != old.physical_size {
 			inner.resize(self.physical_size.into());
 		}

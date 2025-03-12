@@ -308,12 +308,14 @@ pub struct ResizeHandles<State: ValidState> {
 }
 impl<State: ValidState> ElementTrait<State> for ResizeHandles<State> {
 	type Inner = ResizeHandlesInner;
+	type Resource = ();
 	type Error = NodeError;
 
 	fn create_inner(
 		&self,
 		spatial_parent: &SpatialRef,
 		_dbus_conn: &Connection,
+		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		ResizeHandlesInner::create(
 			spatial_parent,
@@ -325,7 +327,13 @@ impl<State: ValidState> ElementTrait<State> for ResizeHandles<State> {
 		)
 	}
 
-	fn update(&self, old: &Self, state: &mut State, inner: &mut Self::Inner) {
+	fn update(
+		&self,
+		old: &Self,
+		state: &mut State,
+		inner: &mut Self::Inner,
+		_resource: &mut Self::Resource,
+	) {
 		inner.min_size = self.min_size;
 		inner.max_size = self.max_size;
 

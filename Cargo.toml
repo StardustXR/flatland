@@ -24,6 +24,7 @@ ashpd = { version = "0.8.1", features = ["tokio"], default-features = false }
 derive_setters = "0.1.6"
 derive-where = "1.2.7"
 serde = { version = "1.0.216", features = ["derive"] }
+futures-util = "0.3.31"
 
 [dependencies.stardust-xr-fusion]
 git = "https://github.com/StardustXR/core.git"

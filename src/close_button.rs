@@ -32,19 +32,27 @@ pub struct ExposureButton<State: ValidState> {
 }
 impl<State: ValidState> ElementTrait<State> for ExposureButton<State> {
 	type Inner = ExposureButtonInner;
+	type Resource = ();
 	type Error = NodeError;
 
 	fn create_inner(
 		&self,
 		spatial_parent: &SpatialRef,
 		_dbus_conn: &Connection,
+		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		ExposureButtonInner::new(spatial_parent, self.transform, self.thickness)
 	}
 	fn frame(&self, info: &FrameInfo, inner: &mut Self::Inner) {
 		inner.frame(info);
 	}
-	fn update(&self, old: &Self, state: &mut State, inner: &mut Self::Inner) {
+	fn update(
+		&self,
+		old: &Self,
+		state: &mut State,
+		inner: &mut Self::Inner,
+		_resource: &mut Self::Resource,
+	) {
 		self.apply_transform(old, &inner.root);
 		if inner.exposure.exposure > 1.0 {
 			(self.on_click.0)(state);

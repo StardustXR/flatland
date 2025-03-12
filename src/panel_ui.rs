@@ -44,18 +44,26 @@ impl<State: ValidState> Default for PanelUI<State> {
 }
 impl<State: ValidState> ElementTrait<State> for PanelUI<State> {
 	type Inner = (PanelItemUi, SpatialRef);
+	type Resource = ();
 	type Error = NodeError;
 
 	fn create_inner(
 		&self,
 		parent_space: &SpatialRef,
 		_dbus_conn: &Connection,
+		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let panel_item_ui = PanelItemUi::register(&parent_space.client()?)?;
 		Ok((panel_item_ui, parent_space.clone()))
 	}
 
-	fn update(&self, _old_decl: &Self, state: &mut State, inner: &mut Self::Inner) {
+	fn update(
+		&self,
+		_old_decl: &Self,
+		state: &mut State,
+		inner: &mut Self::Inner,
+		_resource: &mut Self::Resource,
+	) {
 		while let Some(event) = inner.0.recv_panel_item_ui_event() {
 			match event {
 				CreateItem { item, initial_data } => {

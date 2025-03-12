@@ -144,17 +144,25 @@ impl<State: ValidState> PanelWrapper<State> {
 }
 impl<State: ValidState> ElementTrait<State> for PanelWrapper<State> {
 	type Inner = PanelItem;
+	type Resource = ();
 	type Error = NodeError;
 
 	fn create_inner(
 		&self,
 		_parent_space: &SpatialRef,
 		_dbus_conn: &Connection,
+		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		Ok(self.panel_item.clone())
 	}
 
-	fn update(&self, _old_decl: &Self, state: &mut State, inner: &mut Self::Inner) {
+	fn update(
+		&self,
+		_old_decl: &Self,
+		state: &mut State,
+		inner: &mut Self::Inner,
+		_resource: &mut Self::Resource,
+	) {
 		if let Some(event) = inner.recv_panel_item_event() {
 			match event {
 				ToplevelParentChanged { parent_id } => {
