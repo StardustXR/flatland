@@ -1,17 +1,20 @@
 # Flatland
 Virtual displays for desktop apps
+> [!IMPORTANT]  
+> Requires the [Stardust XR Server](https://github.com/StardustXR/server) to be running. Flatland is required for desktop apps to display correctly.
 
-## Support/Questions
-Discord: https://discord.gg/PV5CW6Y4SV
-Matrix Space: #stardust-xr:matrix.org
-
-## Run
-1. Run Monado or WiVRn
-2. Run the [Stardust XR server](https://github.com/StardustXR/server/)
-3. `cargo run --locked`
-4. Launch wayland clients to connect to the stardust server (e.g. `WAYLAND_DISPLAY=wayland-1 <wayland_app>`)
+If you installed the Stardust XR server via:  
+```note
+sudo dnf group install stardust-xr
+```
+Or if you installed via the [installation script](https://github.com/cyberneticmelon/usefulscripts/blob/main/stardustxr_setup.sh), Flatland comes pre-installed
 
 ## Usage
+It's recommended that you use [Hexagon Launcher](https://github.com/StardustXR/protostar), although you can ad an app from the command line via: 
+```bash
+WAYLAND_DISPLAY=wayland-1 <application> 
+```
+
 ### Controllers
 Grab a corner handle or both by holding grip on the controller when the cursors are near the handles. Move both corners to a comfortable spot.
 
@@ -26,12 +29,19 @@ Hover over the panel to move the virtual mouse cursor, and pinch for left click.
 
 Directly touch the panel with an index finger or both to use multi-touch.
 
-### Pointers
-Unable to resize using pointers but you can still interact with the virtual mouse cursor by hovering over the area and pressing trigger to left click.
+### Mouse Pointer
+Unable to resize windows using pointers (will be added in a future update) but you can still interact with the virtual mouse cursor by hovering over the area and pressing trigger to left click.
 
 ### Other
 The circle with the symbol on the bottom allows you to grab it and put the window inside the panel shell into another panel shell (e.g. you can move your game to a virtual TV).
-The close button works by putting your index finger or controller tip inside it and waiting until it heats up to white hot, then it'll close the window. You have to click and hold for a mouse pointer.
+
+The close button (X) works by putting your index finger or controller tip inside it and waiting until it heats up to white hot, then it'll close the window. Mouse pointer simply click the X.
+
+## Manual Installation
+Clone the repository and after the server is running:
+```sh
+cargo run
+```
 
 ## Todo
 - Add corner resize handles for both directions
