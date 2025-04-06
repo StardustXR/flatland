@@ -43,7 +43,7 @@ impl<State: ValidState> ElementTrait<State> for ExposureButton<State> {
 	) -> Result<Self::Inner, Self::Error> {
 		ExposureButtonInner::new(spatial_parent, self.transform, self.thickness)
 	}
-	fn frame(&self, info: &FrameInfo, inner: &mut Self::Inner) {
+	fn frame(&self, info: &FrameInfo, _state: &mut State, inner: &mut Self::Inner) {
 		inner.frame(info);
 	}
 	fn update(
