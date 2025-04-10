@@ -1,11 +1,8 @@
-use asteroids::{
-	custom::{ElementTrait, FnWrapper, Transformable},
-	ValidState,
-};
+use asteroids::{Context, ElementTrait, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::{vec3, Mat4, Vec2, Vec3};
 use stardust_xr_fusion::{
-	core::{schemas::zbus::Connection, values::Vector2},
+	core::values::Vector2,
 	drawable::{Line, LinePoint, Lines, LinesAspect},
 	fields::{Field, FieldAspect, Shape},
 	input::{InputData, InputDataType, InputHandler},
@@ -83,7 +80,7 @@ impl<State: ValidState> ElementTrait<State> for TouchPlane<State> {
 	fn create_inner(
 		&self,
 		spatial_parent: &SpatialRef,
-		_dbus_conn: &Connection,
+		_context: &Context,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let field = Field::create(

@@ -1,10 +1,6 @@
-use asteroids::{
-	custom::{ElementTrait, FnWrapper},
-	ValidState,
-};
+use asteroids::{Context, ElementTrait, FnWrapper, ValidState};
 use derive_setters::Setters;
 use stardust_xr_fusion::{
-	core::schemas::zbus::Connection,
 	items::panel::{ChildInfo, Geometry, PanelItem, PanelItemAspect, PanelItemEvent::*},
 	node::NodeError,
 	spatial::SpatialRef,
@@ -150,7 +146,7 @@ impl<State: ValidState> ElementTrait<State> for PanelWrapper<State> {
 	fn create_inner(
 		&self,
 		_parent_space: &SpatialRef,
-		_dbus_conn: &Connection,
+		_context: &Context,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		Ok(self.panel_item.clone())

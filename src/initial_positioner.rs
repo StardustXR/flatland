@@ -1,6 +1,5 @@
-use asteroids::{custom::ElementTrait, ValidState};
+use asteroids::{Context, ElementTrait, ValidState};
 use stardust_xr_fusion::{
-	core::schemas::zbus::Connection,
 	node::NodeError,
 	spatial::{Spatial, SpatialAspect, SpatialRef, Transform},
 };
@@ -15,7 +14,7 @@ impl<State: ValidState> ElementTrait<State> for InitialPositioner {
 	fn create_inner(
 		&self,
 		parent_space: &SpatialRef,
-		_dbus_conn: &Connection,
+		_context: &Context,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let spatial = Spatial::create(parent_space, Transform::identity(), false)?;

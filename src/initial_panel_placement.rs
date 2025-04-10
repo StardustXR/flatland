@@ -1,7 +1,6 @@
-use asteroids::{custom::ElementTrait, ValidState};
+use asteroids::{Context, ElementTrait, ValidState};
 use glam::{vec3, Quat, Vec3};
 use stardust_xr_fusion::{
-	core::schemas::zbus::Connection,
 	node::{NodeError, NodeResult, NodeType},
 	objects::hmd,
 	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
@@ -65,7 +64,7 @@ impl<State: ValidState> ElementTrait<State> for InitialPanelPlacement {
 	fn create_inner(
 		&self,
 		parent_space: &SpatialRef,
-		_dbus_conn: &Connection,
+		_context: &Context,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let spatial = Spatial::create(parent_space, Transform::identity(), false)?;
