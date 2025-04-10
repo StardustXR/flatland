@@ -1,15 +1,9 @@
 // use crate::toplevel::TOPLEVEL_THICKNESS;
-use asteroids::{
-	custom::{ElementTrait, FnWrapper, Transformable},
-	ValidState,
-};
+use asteroids::{Context, ElementTrait, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::Quat;
 use stardust_xr_fusion::{
-	core::{
-		schemas::zbus::Connection,
-		values::{color::rgba_linear, ResourceID},
-	},
+	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
 	fields::{Field, FieldAspect, Shape},
 	input::{InputDataType::Pointer, InputHandler},
@@ -38,7 +32,7 @@ impl<State: ValidState> ElementTrait<State> for ExposureButton<State> {
 	fn create_inner(
 		&self,
 		spatial_parent: &SpatialRef,
-		_dbus_conn: &Connection,
+		_context: &Context,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		ExposureButtonInner::new(spatial_parent, self.transform, self.thickness)

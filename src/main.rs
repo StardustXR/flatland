@@ -1,16 +1,12 @@
-use accent_color_listener::AccentColorListener;
 use asteroids::{
 	client::{run, ClientState},
-	custom::{ElementTrait, FnWrapper, Transformable},
-	elements::{KeyboardHandler, Model, ModelPart, Spatial, Text},
-	util::Migrate,
-	Element, Reify,
+	elements::{AccentColorListener, KeyboardHandler, Model, ModelPart, PanelUI, Spatial, Text},
+	Element, ElementTrait, FnWrapper, Migrate, Reify, Transformable as _,
 };
 use close_button::ExposureButton;
 use glam::{vec2, Quat};
 use initial_panel_placement::InitialPanelPlacement;
 use initial_positioner::InitialPositioner;
-use panel_ui::PanelUI;
 use panel_wrapper::PanelWrapper;
 use pointer_input::PointerPlane;
 use resize_handles::ResizeHandles;
@@ -31,13 +27,11 @@ use std::{any::Any, f32::consts::FRAC_PI_2};
 use touch_input::TouchPlane;
 use tracing_subscriber::EnvFilter;
 
-pub mod accent_color_listener;
 pub mod close_button;
 pub mod grab_ball;
 pub mod initial_panel_placement;
 pub mod initial_positioner;
 pub mod panel_shell_transfer;
-pub mod panel_ui;
 pub mod panel_wrapper;
 pub mod pointer_input;
 pub mod resize_handles;

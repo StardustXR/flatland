@@ -1,12 +1,9 @@
 use crate::grab_ball::GrabBallSettings;
-use asteroids::{
-	custom::{ElementTrait, FnWrapper},
-	ValidState,
-};
+use asteroids::{Context, ElementTrait, FnWrapper, ValidState};
 use derive_setters::Setters;
 use glam::{vec2, vec3, Mat4, Quat, Vec3, Vec3Swizzles};
 use stardust_xr_fusion::{
-	core::{schemas::zbus::Connection, values::ResourceID},
+	core::values::ResourceID,
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
 	fields::{Field, Shape},
 	input::{InputDataType, InputHandler},
@@ -314,7 +311,7 @@ impl<State: ValidState> ElementTrait<State> for ResizeHandles<State> {
 	fn create_inner(
 		&self,
 		spatial_parent: &SpatialRef,
-		_dbus_conn: &Connection,
+		_context: &Context,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		ResizeHandlesInner::create(
@@ -353,7 +350,7 @@ impl<State: ValidState> ElementTrait<State> for ResizeHandles<State> {
 
 #[tokio::test]
 async fn test_resize_handles() {
-	use asteroids::custom::Transformable;
+	use asteroids::Transformable;
 	use asteroids::{Reify, View};
 	use stardust_xr_fusion::{client::Client, objects::connect_client, root::RootAspect};
 
@@ -393,12 +390,12 @@ async fn test_resize_handles() {
 	client
 		.setup_resources(&[&stardust_xr_fusion::project_local_resources!("res")])
 		.unwrap();
-	let dbus_conn = connect_client().await.unwrap();
+	let context = connect_client().await.unwrap();
 	let mut state = TestState {
 		time: 0.0,
 		size: [0.3, 0.3].into(),
 	};
-	let mut view = View::new(&state, dbus_conn, client.handle().get_root());
+	let mut view = View::new(&state, &context, client.handle().get_root());
 
 	// Run a few frames to test basic functionality
 	client
@@ -407,8 +404,8 @@ async fn test_resize_handles() {
 				client.get_root().recv_root_event()
 			{
 				state.time += info.delta;
-				view.frame(&info);
-				view.update(&mut state);
+				view.frame(&context, &info);
+				view.update(&context, &mut state);
 			}
 		})
 		.await

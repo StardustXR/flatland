@@ -46,7 +46,7 @@ dependencies = [
  "enumflags2",
  "futures-channel",
  "futures-util",
- "rand",
+ "rand 0.8.5",
  "serde",
  "serde_repr",
  "tokio",
@@ -55,16 +55,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "ashpd"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6cbdf310d77fd3aaee6ea2093db7011dc2d35d2eb3481e5607f1f8d942ed99df"
+dependencies = [
+ "enumflags2",
+ "futures-channel",
+ "futures-util",
+ "rand 0.9.0",
+ "serde",
+ "serde_repr",
+ "tokio",
+ "url",
+ "zbus 5.5.0",
+]
+
+[[package]]
 name = "asteroids"
 version = "2.0.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#f813450df1b9dd7f45c8509c314da6cbf22e7935"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#9b41ee059594ad57d0609e9c463aef74b1797647"
 dependencies = [
+ "ashpd 0.11.0",
  "convert_case 0.8.0",
  "derive-where",
  "derive_setters",
  "directories",
+ "futures-util",
  "glam 0.28.0",
+ "inotify",
  "lazy_static",
+ "map-range",
  "mint",
  "ron",
  "rustc-hash 2.1.1",
@@ -72,6 +93,7 @@ dependencies = [
  "stardust-xr-fusion",
  "stardust-xr-molecules",
  "tokio",
+ "tracing",
  "zbus 5.5.0",
 ]
 
@@ -657,7 +679,7 @@ dependencies = [
 name = "flatland"
 version = "0.8.0"
 dependencies = [
- "ashpd",
+ "ashpd 0.8.1",
  "asteroids",
  "color-eyre",
  "colorgrad",
@@ -1045,6 +1067,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "inotify"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f37dccff2791ab604f9babef0ba14fbe0be30bd368dc541e2b08d07c8aa908f3"
+dependencies = [
+ "bitflags 2.9.0",
+ "futures-core",
+ "inotify-sys",
+ "libc",
+ "tokio",
+]
+
+[[package]]
+name = "inotify-sys"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e05c02b5e89bff3b946cedeca278abc628fe811e604f027c45a8aa3cf793d0eb"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "input-event-codes"
 version = "6.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1244,7 +1288,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ffa00dec017b5b1a8b7cf5e2c008bfda1aa7e0697ac1508b491fdf2622fb4d8"
 dependencies = [
- "rand",
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -1442,7 +1486,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c80231409c20246a13fddb31776fb942c38553c51e871f8cbd687a4cfb5843d"
 dependencies = [
  "phf_shared",
- "rand",
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -1564,8 +1608,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
  "libc",
- "rand_chacha",
- "rand_core",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rand"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3779b94aeb87e8bd4e834cee3650289ee9e0d5677f976ecdb6d219e5f4f6cd94"
+dependencies = [
+ "rand_chacha 0.9.0",
+ "rand_core 0.9.3",
+ "zerocopy",
 ]
 
 [[package]]
@@ -1575,7 +1630,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
 dependencies = [
  "ppv-lite86",
- "rand_core",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
+dependencies = [
+ "ppv-lite86",
+ "rand_core 0.9.3",
 ]
 
 [[package]]
@@ -1585,6 +1650,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom 0.2.15",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
+dependencies = [
+ "getrandom 0.3.2",
 ]
 
 [[package]]
@@ -1873,7 +1947,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 [[package]]
 name = "stardust-xr"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#a6e08543335d832763fa939ff98a37494f67650c"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#d2964d8db079afaadb7faa4987e34814e62d6279"
 dependencies = [
  "cluFlock",
  "color-eyre",
@@ -1894,7 +1968,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#a6e08543335d832763fa939ff98a37494f67650c"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#d2964d8db079afaadb7faa4987e34814e62d6279"
 dependencies = [
  "color-eyre",
  "dashmap",
@@ -1916,7 +1990,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion-codegen"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#a6e08543335d832763fa939ff98a37494f67650c"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#d2964d8db079afaadb7faa4987e34814e62d6279"
 dependencies = [
  "convert_case 0.6.0",
  "mint",
@@ -1929,7 +2003,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=dev#1255baa6a4c5ae56fe8c7733d12fb23323d027b0"
+source = "git+https://github.com/StardustXR/molecules.git?branch=dev#4871307e677cab37a606400b3101a51c335f851f"
 dependencies = [
  "futures-util",
  "glam 0.27.0",
@@ -1948,7 +2022,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-schemas"
 version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#a6e08543335d832763fa939ff98a37494f67650c"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#d2964d8db079afaadb7faa4987e34814e62d6279"
 dependencies = [
  "flatbuffers",
  "flexbuffers",
@@ -2558,7 +2632,7 @@ dependencies = [
  "hex",
  "nix 0.29.0",
  "ordered-stream",
- "rand",
+ "rand 0.8.5",
  "serde",
  "serde_repr",
  "sha1",
@@ -2748,6 +2822,7 @@ dependencies = [
  "enumflags2",
  "serde",
  "static_assertions",
+ "url",
  "winnow 0.7.4",
  "zvariant_derive 5.4.0",
  "zvariant_utils 3.2.0",
