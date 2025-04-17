@@ -16,7 +16,7 @@ use stardust_xr_molecules::{
 	lines::{self, LineExt},
 	DebugSettings, VisualDebug,
 };
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct MouseEvent {
@@ -89,6 +89,7 @@ impl<State: ValidState> ElementTrait<State> for PointerPlane<State> {
 		&self,
 		spatial_parent: &SpatialRef,
 		_context: &Context,
+		_path: &Path,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let field = Field::create(

@@ -5,7 +5,7 @@ use stardust_xr_fusion::{
 	objects::hmd,
 	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
 };
-use std::f32::consts::PI;
+use std::{f32::consts::PI, path::Path};
 
 fn look_direction(direction: Vec3) -> Quat {
 	let pitch = direction.y.asin();
@@ -65,6 +65,7 @@ impl<State: ValidState> ElementTrait<State> for InitialPanelPlacement {
 		&self,
 		parent_space: &SpatialRef,
 		_context: &Context,
+		_path: &Path,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let spatial = Spatial::create(parent_space, Transform::identity(), false)?;

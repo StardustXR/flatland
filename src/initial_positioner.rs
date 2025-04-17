@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use asteroids::{Context, ElementTrait, ValidState};
 use stardust_xr_fusion::{
 	node::NodeError,
@@ -15,6 +17,7 @@ impl<State: ValidState> ElementTrait<State> for InitialPositioner {
 		&self,
 		parent_space: &SpatialRef,
 		_context: &Context,
+		_path: &Path,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let spatial = Spatial::create(parent_space, Transform::identity(), false)?;

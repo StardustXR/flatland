@@ -16,7 +16,7 @@ use stardust_xr_molecules::{
 	input_action::{InputQueue, InputQueueable, SingleAction},
 	UIElement,
 };
-use std::f32::consts::FRAC_PI_2;
+use std::{f32::consts::FRAC_PI_2, path::Path};
 use tokio::sync::watch;
 
 const RESIZE_HANDLE_FLOATING: f32 = 0.025;
@@ -312,6 +312,7 @@ impl<State: ValidState> ElementTrait<State> for ResizeHandles<State> {
 		&self,
 		spatial_parent: &SpatialRef,
 		_context: &Context,
+		_path: &Path,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		ResizeHandlesInner::create(
@@ -390,7 +391,9 @@ async fn test_resize_handles() {
 	client
 		.setup_resources(&[&stardust_xr_fusion::project_local_resources!("res")])
 		.unwrap();
-	let context = connect_client().await.unwrap();
+	let context = Context {
+		dbus_connection: connect_client().await.unwrap(),
+	};
 	let mut state = TestState {
 		time: 0.0,
 		size: [0.3, 0.3].into(),
@@ -404,7 +407,7 @@ async fn test_resize_handles() {
 				client.get_root().recv_root_event()
 			{
 				state.time += info.delta;
-				view.frame(&context, &info);
+				view.frame(&info, &mut state);
 				view.update(&context, &mut state);
 			}
 		})

@@ -332,7 +332,7 @@ impl Reify for ToplevelState {
 			.info
 			.app_id
 			.as_ref()
-			.map(|id| id.split('.').last().unwrap_or_default());
+			.map(|id| id.split('.').next_back().unwrap_or_default());
 		let title_text = match (&self.info.app_id, app_name) {
 			(Some(title), Some(app_name)) => {
 				if title == app_name {

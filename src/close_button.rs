@@ -1,3 +1,5 @@
+use std::path::Path;
+
 // use crate::toplevel::TOPLEVEL_THICKNESS;
 use asteroids::{Context, ElementTrait, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
@@ -33,6 +35,7 @@ impl<State: ValidState> ElementTrait<State> for ExposureButton<State> {
 		&self,
 		spatial_parent: &SpatialRef,
 		_context: &Context,
+		_path: &Path,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		ExposureButtonInner::new(spatial_parent, self.transform, self.thickness)

@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use asteroids::{Context, ElementTrait, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::{vec3, Mat4, Vec2, Vec3};
@@ -81,6 +83,7 @@ impl<State: ValidState> ElementTrait<State> for TouchPlane<State> {
 		&self,
 		spatial_parent: &SpatialRef,
 		_context: &Context,
+		_path: &Path,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let field = Field::create(
