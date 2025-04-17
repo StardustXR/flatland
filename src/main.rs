@@ -142,6 +142,8 @@ impl ClientState for State {
 						accent_color: rgba_linear!(1.0, 1.0, 1.0, 1.0),
 						panel_item: item,
 						info: data.toplevel,
+						cursor_pos: [0.0; 2].into(),
+						cursor: None,
 						children: process_initial_children(data.children),
 						density: 3000.0,
 					},
@@ -192,6 +194,9 @@ pub struct ToplevelState {
 	accent_color: Color,
 	panel_item: PanelItem,
 	info: ToplevelInfo,
+	/// in px
+	cursor_pos: Vector2<f32>,
+	cursor: Option<Geometry>,
 	children: Vec<ChildState>,
 	density: f32, //pixels per meter
 }
@@ -221,6 +226,25 @@ impl Reify for ToplevelState {
 				panel_thickness,
 			])
 			.build();
+
+		let cursor_model = self.cursor.as_ref().map(|geometry| {
+			let geometry_origin = [geometry.origin.x as f32, geometry.origin.y as f32];
+			let size_meters_half = [self.info.size.x as f32 / 2.0, self.info.size.y as f32 / 2.0];
+
+			Model::namespaced("flatland", "panel")
+				.part(ModelPart::new("Panel").apply_panel_item_cursor(self.panel_item.clone()))
+				.pos([
+					(self.cursor_pos.x - geometry_origin[0] - size_meters_half[0]) / self.density,
+					-(self.cursor_pos.y - geometry_origin[1] - size_meters_half[1]) / self.density,
+					panel_thickness,
+				])
+				.scl([
+					geometry.size.x as f32 / self.density,
+					geometry.size.y as f32 / self.density,
+					panel_thickness,
+				])
+				.build()
+		});
 
 		// keyboard handler
 		let keyboard_handler = KeyboardHandler::<Self>::new(
@@ -257,10 +281,11 @@ impl Reify for ToplevelState {
 					.pointer_button(SurfaceId::Toplevel(()), button, pressed);
 			})
 			.on_pointer_motion(|state, pos| {
-				let _ = state.panel_item.pointer_motion(
-					SurfaceId::Toplevel(()),
-					[pos.x * state.density, pos.y * state.density],
-				);
+				let pixel_pos = [pos.x * state.density, pos.y * state.density];
+				state.cursor_pos = pixel_pos.into();
+				let _ = state
+					.panel_item
+					.pointer_motion(SurfaceId::Toplevel(()), pixel_pos);
 			})
 			.on_scroll(|state, scroll| {
 				let _ = match (scroll.scroll_continuous, scroll.scroll_discrete) {
@@ -391,6 +416,7 @@ impl Reify for ToplevelState {
 			close_button,
 			text,
 			model,
+			cursor_model.unwrap_or_else(|| Spatial::default().build()),
 			keyboard_handler,
 			pointer_plane,
 			touch_plane,
@@ -406,6 +432,12 @@ impl Reify for ToplevelState {
 			})
 			.on_toplevel_title_changed(|state, title| {
 				state.info.title.replace(title);
+			})
+			.on_set_cursor(|state, geometry| {
+				state.cursor.replace(geometry);
+			})
+			.on_hide_cursor(|state| {
+				state.cursor.take();
 			})
 			.on_create_child(|state, _id, child_info| add_child(&mut state.children, child_info))
 			.on_reposition_child(|state, id, geometry| {
