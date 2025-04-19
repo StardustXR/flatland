@@ -288,15 +288,15 @@ impl Reify for ToplevelState {
 			|state, scroll_discrete| {
 				let _ = state.panel_item.pointer_scroll(
 					SurfaceId::Toplevel(()),
-					scroll_discrete,
 					[0.0; 2],
+					scroll_discrete,
 				);
 			},
 			|state, scroll_continuous| {
 				let _ = state.panel_item.pointer_scroll(
 					SurfaceId::Toplevel(()),
-					[0.0; 2],
 					scroll_continuous,
+					[0.0; 2],
 				);
 			},
 		)
