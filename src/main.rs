@@ -236,7 +236,7 @@ impl Reify for ToplevelState {
 				.pos([
 					(self.cursor_pos.x - geometry_origin[0] - size_meters_half[0]) / self.density,
 					-(self.cursor_pos.y - geometry_origin[1] - size_meters_half[1]) / self.density,
-					panel_thickness,
+					0.001,
 				])
 				.scl([
 					geometry.size.x as f32 / self.density,
