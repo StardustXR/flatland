@@ -1,6 +1,9 @@
 use asteroids::{
 	client::{run, ClientState},
-	elements::{AccentColorListener, KeyboardHandler, Model, ModelPart, PanelUI, Spatial, Text},
+	elements::{
+		AccentColorListener, KeyboardHandler, Model, ModelPart, MouseHandler, PanelUI, Spatial,
+		Text,
+	},
 	Element, ElementTrait, FnWrapper, Migrate, Reify, Transformable as _,
 };
 use close_button::ExposureButton;
@@ -247,22 +250,53 @@ impl Reify for ToplevelState {
 				.build()
 		});
 
+		let shape = Shape::Box(
+			[
+				self.info.size.x as f32 / self.density,
+				self.info.size.y as f32 / self.density,
+				panel_thickness,
+			]
+			.into(),
+		);
 		// keyboard handler
-		let keyboard_handler = KeyboardHandler::<Self>::new(
-			Shape::Box(
-				[
-					self.info.size.x as f32 / self.density,
-					self.info.size.y as f32 / self.density,
-					panel_thickness,
-				]
-				.into(),
-			),
-			|state, key_data| {
-				let _ = state.panel_item.keyboard_key(
+		let keyboard_handler = KeyboardHandler::<Self>::new(shape.clone(), |state, key_data| {
+			let _ = state.panel_item.keyboard_key(
+				SurfaceId::Toplevel(()),
+				key_data.keymap_id,
+				key_data.key,
+				key_data.pressed,
+			);
+		})
+		.build();
+		// mouse handler
+		let mouse_handler = MouseHandler::<Self>::new(
+			shape,
+			|state, button, pressed| {
+				let _ = state
+					.panel_item
+					.pointer_button(SurfaceId::Toplevel(()), button, pressed);
+			},
+			|state, motion| {
+				state.cursor_pos.x += motion.x;
+				state.cursor_pos.y += motion.y;
+				state.cursor_pos.x = state.cursor_pos.x.clamp(0.0, state.info.size.x as f32);
+				state.cursor_pos.y = state.cursor_pos.y.clamp(0.0, state.info.size.y as f32);
+				let _ = state
+					.panel_item
+					.pointer_motion(SurfaceId::Toplevel(()), state.cursor_pos);
+			},
+			|state, scroll_discrete| {
+				let _ = state.panel_item.pointer_scroll(
 					SurfaceId::Toplevel(()),
-					key_data.keymap_id,
-					key_data.key,
-					key_data.pressed,
+					scroll_discrete,
+					[0.0; 2],
+				);
+			},
+			|state, scroll_continuous| {
+				let _ = state.panel_item.pointer_scroll(
+					SurfaceId::Toplevel(()),
+					[0.0; 2],
+					scroll_continuous,
 				);
 			},
 		)
@@ -421,6 +455,7 @@ impl Reify for ToplevelState {
 			model,
 			cursor_model.unwrap_or_else(|| Spatial::default().build()),
 			keyboard_handler,
+			mouse_handler,
 			pointer_plane,
 			touch_plane,
 			Spatial::default().with_children(self.reify_children(&self.children, panel_thickness)),
