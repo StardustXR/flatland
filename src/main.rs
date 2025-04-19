@@ -4,7 +4,7 @@ use asteroids::{
 	Element, ElementTrait, FnWrapper, Migrate, Reify, Transformable as _,
 };
 use close_button::ExposureButton;
-use glam::{vec2, Quat};
+use glam::{vec2, Quat, Vec2};
 use initial_panel_placement::InitialPanelPlacement;
 use initial_positioner::InitialPositioner;
 use panel_wrapper::PanelWrapper;
@@ -228,16 +228,17 @@ impl Reify for ToplevelState {
 			.build();
 
 		let cursor_model = self.cursor.as_ref().map(|geometry| {
-			let geometry_origin = [geometry.origin.x as f32, geometry.origin.y as f32];
-			let size_meters_half = [self.info.size.x as f32 / 2.0, self.info.size.y as f32 / 2.0];
+			let cursor_pos = vec2(self.cursor_pos.x, self.cursor_pos.y);
+			let geometry_origin = vec2(geometry.origin.x as f32, geometry.origin.y as f32);
+			let geometry_size_half = vec2(geometry.size.x as f32, geometry.size.y as f32) / 2.0;
+			let panel_size_px_half = vec2(self.info.size.x as f32, self.info.size.y as f32) / 2.0;
+
+			let pos_px = cursor_pos - geometry_origin + geometry_size_half - panel_size_px_half;
+			let pos_m = pos_px * vec2(1.0, -1.0) / self.density;
 
 			Model::namespaced("flatland", "panel")
 				.part(ModelPart::new("Panel").apply_panel_item_cursor(self.panel_item.clone()))
-				.pos([
-					(self.cursor_pos.x - geometry_origin[0] - size_meters_half[0]) / self.density,
-					-(self.cursor_pos.y - geometry_origin[1] - size_meters_half[1]) / self.density,
-					0.001,
-				])
+				.pos([pos_m.x, pos_m.y, 0.001])
 				.scl([
 					geometry.size.x as f32 / self.density,
 					geometry.size.y as f32 / self.density,
