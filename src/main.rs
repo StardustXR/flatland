@@ -4,7 +4,7 @@ use asteroids::{
 	Element, ElementTrait, FnWrapper, Migrate, Reify, Transformable as _,
 };
 use close_button::ExposureButton;
-use glam::{vec2, Quat, Vec2};
+use glam::{vec2, Quat};
 use initial_panel_placement::InitialPanelPlacement;
 use initial_positioner::InitialPositioner;
 use panel_wrapper::PanelWrapper;
@@ -411,6 +411,8 @@ impl Reify for ToplevelState {
 				];
 				let _ = state.panel_item.set_toplevel_size(size);
 				state.info.size = size.into();
+				state.cursor_pos.x = state.cursor_pos.x.clamp(0.0, size[0] as f32);
+				state.cursor_pos.y = state.cursor_pos.y.clamp(0.0, size[1] as f32);
 			})),
 		}
 		.with_children([
