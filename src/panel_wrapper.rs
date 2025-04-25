@@ -1,6 +1,4 @@
-use std::path::Path;
-
-use asteroids::{Context, ElementTrait, FnWrapper, ValidState};
+use asteroids::{Context, CreateInnerInfo, ElementTrait, FnWrapper, ValidState};
 use derive_setters::Setters;
 use stardust_xr_fusion::{
 	items::panel::{ChildInfo, Geometry, PanelItem, PanelItemAspect, PanelItemEvent::*},
@@ -147,9 +145,8 @@ impl<State: ValidState> ElementTrait<State> for PanelWrapper<State> {
 
 	fn create_inner(
 		&self,
-		_parent_space: &SpatialRef,
 		_context: &Context,
-		_path: &Path,
+		_info: CreateInnerInfo,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		Ok(self.panel_item.clone())

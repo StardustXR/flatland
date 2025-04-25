@@ -1,4 +1,4 @@
-use asteroids::{Context, ElementTrait, FnWrapper, Transformable, ValidState};
+use asteroids::{Context, CreateInnerInfo, ElementTrait, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::{vec3, Mat4, Vec2, Vec3};
 use serde::Deserialize;
@@ -16,7 +16,7 @@ use stardust_xr_molecules::{
 	lines::{self, LineExt},
 	DebugSettings, VisualDebug,
 };
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct MouseEvent {
@@ -87,13 +87,12 @@ impl<State: ValidState> ElementTrait<State> for PointerPlane<State> {
 
 	fn create_inner(
 		&self,
-		spatial_parent: &SpatialRef,
 		_context: &Context,
-		_path: &Path,
+		info: CreateInnerInfo,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let field = Field::create(
-			spatial_parent,
+			info.parent_space,
 			self.transform,
 			Shape::Box([self.physical_size.x, self.physical_size.y, self.thickness].into()),
 		)?;
