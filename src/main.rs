@@ -28,7 +28,7 @@ use stardust_xr_fusion::{
 use stardust_xr_molecules::DebugSettings;
 use std::{any::Any, f32::consts::FRAC_PI_2};
 use touch_input::TouchPlane;
-use tracing_subscriber::EnvFilter;
+use tracing_subscriber::{layer::SubscriberExt as _, EnvFilter};
 
 pub mod close_button;
 pub mod grab_ball;
@@ -42,10 +42,15 @@ pub mod touch_input;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-	tracing_subscriber::fmt()
-		.compact()
-		.with_env_filter(EnvFilter::from_default_env())
-		.init();
+	let registry = tracing_subscriber::registry();
+	#[cfg(feature = "tracy")]
+	let registry = registry.with(tracing_tracy::TracyLayer::default());
+	tracing::subscriber::set_global_default(
+		registry
+			.with(EnvFilter::from_default_env())
+			.with(tracing_subscriber::fmt::layer().compact()),
+	)
+	.unwrap();
 
 	run::<State>(&[&project_local_resources!("res")]).await
 }
@@ -133,6 +138,12 @@ impl ClientState for State {
 	const NAME: &'static str = "flatland";
 
 	fn on_frame(&mut self, info: &FrameInfo) {
+		#[cfg(feature = "tracy")]
+		{
+			use tracing::info;
+			info!("frame info {info:#?}");
+			tracy_client::frame_mark();
+		}
 		self.elapsed_time = info.elapsed;
 	}
 	fn reify(&self) -> asteroids::Element<Self> {

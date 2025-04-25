@@ -1,11 +1,11 @@
-use asteroids::{Context, ElementTrait, ValidState};
+use asteroids::{Context, CreateInnerInfo, ElementTrait, ValidState};
 use glam::{vec3, Quat, Vec3};
 use stardust_xr_fusion::{
 	node::{NodeError, NodeResult, NodeType},
 	objects::hmd,
 	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
 };
-use std::{f32::consts::PI, path::Path};
+use std::f32::consts::PI;
 
 fn look_direction(direction: Vec3) -> Quat {
 	let pitch = direction.y.asin();
@@ -63,12 +63,11 @@ impl<State: ValidState> ElementTrait<State> for InitialPanelPlacement {
 
 	fn create_inner(
 		&self,
-		parent_space: &SpatialRef,
 		_context: &Context,
-		_path: &Path,
+		info: CreateInnerInfo,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
-		let spatial = Spatial::create(parent_space, Transform::identity(), false)?;
+		let spatial = Spatial::create(info.parent_space, Transform::identity(), false)?;
 		tokio::task::spawn(initial_placement(spatial.clone()));
 		Ok(spatial)
 	}

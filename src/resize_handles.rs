@@ -1,5 +1,5 @@
 use crate::grab_ball::GrabBallSettings;
-use asteroids::{Context, ElementTrait, FnWrapper, ValidState};
+use asteroids::{Context, CreateInnerInfo, ElementTrait, FnWrapper, ValidState};
 use derive_setters::Setters;
 use glam::{vec2, vec3, Mat4, Quat, Vec3, Vec3Swizzles};
 use stardust_xr_fusion::{
@@ -16,7 +16,7 @@ use stardust_xr_molecules::{
 	input_action::{InputQueue, InputQueueable, SingleAction},
 	UIElement,
 };
-use std::{f32::consts::FRAC_PI_2, path::Path};
+use std::f32::consts::FRAC_PI_2;
 use tokio::sync::watch;
 
 const RESIZE_HANDLE_FLOATING: f32 = 0.025;
@@ -310,13 +310,12 @@ impl<State: ValidState> ElementTrait<State> for ResizeHandles<State> {
 
 	fn create_inner(
 		&self,
-		spatial_parent: &SpatialRef,
 		_context: &Context,
-		_path: &Path,
+		info: CreateInnerInfo,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		ResizeHandlesInner::create(
-			spatial_parent,
+			info.parent_space,
 			self.zoneable,
 			self.accent_color,
 			self.current_size,

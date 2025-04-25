@@ -1,7 +1,5 @@
-use std::path::Path;
-
 // use crate::toplevel::TOPLEVEL_THICKNESS;
-use asteroids::{Context, ElementTrait, FnWrapper, Transformable, ValidState};
+use asteroids::{Context, CreateInnerInfo, ElementTrait, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::Quat;
 use stardust_xr_fusion::{
@@ -33,12 +31,11 @@ impl<State: ValidState> ElementTrait<State> for ExposureButton<State> {
 
 	fn create_inner(
 		&self,
-		spatial_parent: &SpatialRef,
 		_context: &Context,
-		_path: &Path,
+		info: CreateInnerInfo,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
-		ExposureButtonInner::new(spatial_parent, self.transform, self.thickness)
+		ExposureButtonInner::new(info.parent_space, self.transform, self.thickness)
 	}
 	fn frame(&self, info: &FrameInfo, _state: &mut State, inner: &mut Self::Inner) {
 		inner.frame(info);

@@ -1,6 +1,4 @@
-use std::path::Path;
-
-use asteroids::{Context, ElementTrait, ValidState};
+use asteroids::{Context, CreateInnerInfo, ElementTrait, ValidState};
 use stardust_xr_fusion::{
 	node::NodeError,
 	spatial::{Spatial, SpatialAspect, SpatialRef, Transform},
@@ -15,12 +13,11 @@ impl<State: ValidState> ElementTrait<State> for InitialPositioner {
 
 	fn create_inner(
 		&self,
-		parent_space: &SpatialRef,
 		_context: &Context,
-		_path: &Path,
+		info: CreateInnerInfo,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
-		let spatial = Spatial::create(parent_space, Transform::identity(), false)?;
+		let spatial = Spatial::create(info.parent_space, Transform::identity(), false)?;
 		spatial.set_relative_transform(&self.0, Transform::identity())?;
 		Ok(spatial)
 	}
