@@ -247,7 +247,8 @@ impl Reify for ToplevelState {
 			let geometry_size_half = vec2(geometry.size.x as f32, geometry.size.y as f32) / 2.0;
 			let panel_size_px_half = vec2(self.info.size.x as f32, self.info.size.y as f32) / 2.0;
 
-			let pos_px = cursor_pos - geometry_origin + geometry_size_half - panel_size_px_half;
+			dbg!(geometry);
+			let pos_px = cursor_pos - panel_size_px_half + geometry_size_half - geometry_origin;
 			let pos_m = pos_px * vec2(1.0, -1.0) / self.density;
 
 			Model::namespaced("flatland", "panel")
