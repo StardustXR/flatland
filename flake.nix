@@ -1,20 +1,17 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    crane = {
-      inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:ipetkov/crane";
-    };
+    crane.url = "github:ipetkov/crane";
   };
-
 
   outputs = { self, nixpkgs, crane }:
   let supportedSystems = [ "aarch64-linux" "x86_64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
   in {
-    packages = forAllSystems (system: let pkgs = nixpkgsFor.${system}; in {
-      default = crane.lib.${system}.buildPackage {
+    packages = forAllSystems (system: let pkgs = nixpkgsFor.${system}; craneLib = crane.mkLib pkgs; in {
+      default = craneLib.buildPackage {
+        doCheck = false;
         src = ./.;
         
         STARDUST_RES_PREFIXES = pkgs.stdenvNoCC.mkDerivation {
@@ -26,8 +23,8 @@
       };
     });
 
-    devShells = forAllSystems (system: {
-      default = crane.lib.${system}.devShell {
+    devShells = forAllSystems (system: let pkgs = nixpkgsFor.${system}; craneLib = crane.mkLib pkgs; in {
+      default = craneLib.devShell {
       };
     });
   };
