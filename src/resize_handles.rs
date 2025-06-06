@@ -33,12 +33,13 @@ async fn pos(transform: &impl SpatialRefAspect, relative_to: &impl SpatialRefAsp
 
 pub struct ResizeHandle {
 	settings: GrabBallSettings,
-
 	model: Model,
 	sphere: ModelPart,
 	_field: Field,
 	input: InputQueue,
 	grab_action: SingleAction,
+	pointer_distance: f32,
+	old_interact_point: Vec3,
 }
 impl ResizeHandle {
 	pub fn create(
@@ -69,6 +70,8 @@ impl ResizeHandle {
 			_field: field,
 			input,
 			grab_action: Default::default(),
+			pointer_distance: 0.0,
+			old_interact_point: Vec3::ZERO,
 		})
 	}
 }
@@ -81,12 +84,13 @@ impl UIElement for ResizeHandle {
 			true,
 			&self.input,
 			|input| match &input.input {
-				InputDataType::Pointer(_) => false,
+				InputDataType::Pointer(_) => true,
 				_ => input.distance < (self.settings.radius + self.settings.padding),
 			},
 			|input| {
 				input.datamap.with_data(|datamap| match &input.input {
 					InputDataType::Hand(_) => datamap.idx("pinch_strength").as_f32() > 0.90,
+					InputDataType::Pointer(_) => datamap.idx("grab").as_f32() > 0.90,
 					_ => datamap.idx("grab").as_f32() > 0.90,
 				})
 			},
@@ -131,10 +135,29 @@ impl UIElement for ResizeHandle {
 	}
 }
 impl ResizeHandle {
-	fn grab_point(&self) -> Option<Vec3> {
+	fn grab_point(&mut self) -> Option<Vec3> {
 		let grabbing = self.grab_action.actor()?;
 		match &grabbing.input {
-			InputDataType::Pointer(_) => None,
+			InputDataType::Pointer(p) => {
+				if self.grab_action.actor_started() {
+					// Set initial pointer distance based on deepest point
+					self.pointer_distance =
+						Vec3::from(p.origin).distance(Vec3::from(p.deepest_point));
+					self.old_interact_point = Vec3::from(p.origin)
+						+ Vec3::from(p.direction()).normalize() * self.pointer_distance;
+				}
+
+				// Adjust pointer_distance based on scroll input
+				let scroll = grabbing
+					.datamap
+					.with_data(|d| d.idx("scroll_continuous").as_vector().idx(1).as_f32());
+				self.pointer_distance += scroll * 0.01;
+
+				// Calculate position at current distance along pointer ray
+				let origin = Vec3::from(p.origin);
+				let direction = Vec3::from(p.direction()).normalize();
+				Some(origin + (direction * self.pointer_distance))
+			}
 			InputDataType::Hand(h) => {
 				Some(Vec3::from(h.thumb.tip.position).lerp(Vec3::from(h.index.tip.position), 0.5))
 			}
