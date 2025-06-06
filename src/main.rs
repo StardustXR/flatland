@@ -301,13 +301,13 @@ impl Reify for ToplevelState {
 				let _ = state.panel_item.pointer_scroll(
 					SurfaceId::Toplevel(()),
 					[0.0; 2],
-					scroll_discrete,
+					[scroll_discrete.x, -scroll_discrete.y], // negative because this is surface-local coords
 				);
 			},
 			|state, scroll_continuous| {
 				let _ = state.panel_item.pointer_scroll(
 					SurfaceId::Toplevel(()),
-					scroll_continuous,
+					[scroll_continuous.x, -scroll_continuous.y], // negative because this is surface-local coords
 					[0.0; 2],
 				);
 			},
