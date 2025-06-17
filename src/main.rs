@@ -7,7 +7,7 @@ use asteroids::{
 	CustomElement as _, Element, FnWrapper, Migrate, Reify, Transformable as _,
 };
 use close_button::ExposureButton;
-use glam::{vec2, Quat};
+use glam::{vec2, Quat, Vec2};
 use initial_panel_placement::InitialPanelPlacement;
 use initial_positioner::InitialPositioner;
 use panel_wrapper::PanelWrapper;
@@ -127,7 +127,7 @@ impl Default for State {
 			elapsed_time: 0.0,
 			toplevels: FxHashMap::default(),
 			toplevel_preferences: FxHashMap::default(),
-			mouse_scroll_multiplier: 20.0,
+			mouse_scroll_multiplier: 10.0,
 		}
 	}
 }
@@ -231,6 +231,10 @@ impl ToplevelState {
 impl Reify for ToplevelState {
 	fn reify(&self) -> asteroids::Element<Self> {
 		let panel_thickness = 0.01;
+		let phys_size = Vec2::new(
+			self.info.size.x as f32 / self.density,
+			self.info.size.y as f32 / self.density,
+		);
 
 		// base model
 		let model = Model::namespaced("flatland", "panel")
@@ -238,11 +242,7 @@ impl Reify for ToplevelState {
 				ModelPart::new("Panel")
 					.apply_panel_item(self.panel_item.clone(), SurfaceId::Toplevel(())),
 			)
-			.scl([
-				self.info.size.x as f32 / self.density,
-				self.info.size.y as f32 / self.density,
-				panel_thickness,
-			])
+			.scl(phys_size.extend(panel_thickness))
 			.build();
 
 		let cursor_model = self.cursor.as_ref().map(|geometry| {
@@ -535,6 +535,10 @@ impl Reify for ToplevelState {
 }
 impl ToplevelState {
 	fn reify_children(&self, children: &[ChildState], panel_thickness: f32) -> Vec<Element<Self>> {
+		let phys_size = Vec2::new(
+			self.info.size.x as f32 / self.density,
+			self.info.size.y as f32 / self.density,
+		);
 		children
 			.iter()
 			.map(|child| {
@@ -542,11 +546,7 @@ impl ToplevelState {
 				let mut reified_children = self.reify_children(&child.children, panel_thickness);
 				reified_children.push(child_model);
 				Spatial::default()
-					.pos([
-						self.info.size.x as f32 / -2.0 / self.density,
-						self.info.size.y as f32 / -2.0 / self.density,
-						0.0,
-					])
+					.pos([phys_size.x / -2.0, phys_size.y / 2.0, 0.0])
 					.build()
 					.children(reified_children)
 					.identify(&(self.panel_item.id(), child.info.id, child.info.type_id()))
@@ -577,7 +577,7 @@ impl ChildState {
 			)
 			.pos([
 				origin.x,
-				origin.y,
+				-origin.y,
 				panel_thickness * (1.0 + self.info.z_order as f32),
 			])
 			.scl([
