@@ -1,4 +1,4 @@
-use asteroids::{Context, CreateInnerInfo, ElementTrait, FnWrapper, Transformable, ValidState};
+use asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::{vec3, Mat4, Vec2, Vec3};
 use stardust_xr_fusion::{
@@ -72,7 +72,7 @@ impl<State: ValidState> TouchPlane<State> {
 	}
 }
 
-impl<State: ValidState> ElementTrait<State> for TouchPlane<State> {
+impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 	type Inner = TouchSurfaceInputInner;
 	type Resource = ();
 	type Error = NodeError;

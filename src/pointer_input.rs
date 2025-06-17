@@ -1,4 +1,4 @@
-use asteroids::{Context, CreateInnerInfo, ElementTrait, FnWrapper, Transformable, ValidState};
+use asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::{vec3, Mat4, Vec2, Vec3};
 use serde::Deserialize;
@@ -80,7 +80,7 @@ impl<State: ValidState> PointerPlane<State> {
 	}
 }
 
-impl<State: ValidState> ElementTrait<State> for PointerPlane<State> {
+impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 	type Inner = PointerSurfaceInputInner;
 	type Resource = ();
 	type Error = NodeError;

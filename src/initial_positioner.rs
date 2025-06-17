@@ -1,4 +1,4 @@
-use asteroids::{Context, CreateInnerInfo, ElementTrait, ValidState};
+use asteroids::{Context, CreateInnerInfo, CustomElement, ValidState};
 use stardust_xr_fusion::{
 	node::NodeError,
 	spatial::{Spatial, SpatialAspect, SpatialRef, Transform},
@@ -6,7 +6,7 @@ use stardust_xr_fusion::{
 
 #[derive(Debug, PartialEq)]
 pub struct InitialPositioner(pub SpatialRef);
-impl<State: ValidState> ElementTrait<State> for InitialPositioner {
+impl<State: ValidState> CustomElement<State> for InitialPositioner {
 	type Inner = Spatial;
 	type Resource = ();
 	type Error = NodeError;

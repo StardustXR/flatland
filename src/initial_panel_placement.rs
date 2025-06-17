@@ -1,4 +1,4 @@
-use asteroids::{Context, CreateInnerInfo, ElementTrait, ValidState};
+use asteroids::{Context, CreateInnerInfo, CustomElement, ValidState};
 use glam::{vec3, Quat, Vec3};
 use stardust_xr_fusion::{
 	node::{NodeError, NodeResult, NodeType},
@@ -56,7 +56,7 @@ async fn initial_placement(spatial_root: Spatial) -> NodeResult<()> {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct InitialPanelPlacement;
-impl<State: ValidState> ElementTrait<State> for InitialPanelPlacement {
+impl<State: ValidState> CustomElement<State> for InitialPanelPlacement {
 	type Inner = Spatial;
 	type Resource = ();
 	type Error = NodeError;

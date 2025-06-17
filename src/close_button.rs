@@ -1,5 +1,5 @@
 // use crate::toplevel::TOPLEVEL_THICKNESS;
-use asteroids::{Context, CreateInnerInfo, ElementTrait, FnWrapper, Transformable, ValidState};
+use asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::Quat;
 use stardust_xr_fusion::{
@@ -24,7 +24,7 @@ pub struct ExposureButton<State: ValidState> {
 	pub thickness: f32,
 	pub on_click: FnWrapper<dyn Fn(&mut State) + Send + Sync>,
 }
-impl<State: ValidState> ElementTrait<State> for ExposureButton<State> {
+impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 	type Inner = ExposureButtonInner;
 	type Resource = ();
 	type Error = NodeError;

@@ -4,7 +4,7 @@ use asteroids::{
 		AccentColorListener, KeyboardHandler, Model, ModelPart, MouseHandler, PanelUI, Spatial,
 		Text,
 	},
-	Element, ElementTrait, FnWrapper, Migrate, Reify, Transformable as _,
+	CustomElement as _, Element, FnWrapper, Migrate, Reify, Transformable as _,
 };
 use close_button::ExposureButton;
 use glam::{vec2, Quat};
@@ -116,6 +116,7 @@ pub struct State {
 	#[serde(skip)]
 	elapsed_time: f32,
 	toplevel_preferences: FxHashMap<String, f32>,
+	mouse_scroll_multiplier: f32,
 	#[serde(skip)]
 	toplevels: FxHashMap<u64, ToplevelState>,
 	// acceptors: FxHashMap<u64, (PanelItemAcceptor, Field)>,
@@ -126,6 +127,7 @@ impl Default for State {
 			elapsed_time: 0.0,
 			toplevels: FxHashMap::default(),
 			toplevel_preferences: FxHashMap::default(),
+			mouse_scroll_multiplier: 20.0,
 		}
 	}
 }
@@ -133,9 +135,7 @@ impl Migrate for State {
 	type Old = Self;
 }
 impl ClientState for State {
-	const QUALIFIER: &'static str = "org";
-	const ORGANIZATION: &'static str = "stardustxr";
-	const NAME: &'static str = "flatland";
+	const APP_ID: &str = "org.stardustxr.flatland";
 
 	fn on_frame(&mut self, info: &FrameInfo) {
 		#[cfg(feature = "tracy")]
@@ -160,6 +160,7 @@ impl ClientState for State {
 						cursor: None,
 						children: process_initial_children(data.children),
 						density: 3000.0,
+						mouse_scroll_multiplier: state.mouse_scroll_multiplier,
 					},
 				);
 			})),
@@ -191,8 +192,10 @@ impl ClientState for State {
 					.identify(&t.panel_item.id())
 			})
 		});
-		let toplevel_group = Spatial::default().with_children(toplevels);
-		Spatial::default().with_children([panel_ui, toplevel_group])
+		let toplevel_group = Spatial::default().build().children(toplevels);
+		Spatial::default()
+			.build()
+			.children([panel_ui, toplevel_group])
 	}
 }
 
@@ -213,6 +216,7 @@ pub struct ToplevelState {
 	cursor: Option<Geometry>,
 	children: Vec<ChildState>,
 	density: f32, //pixels per meter
+	mouse_scroll_multiplier: f32,
 }
 impl ToplevelState {
 	#[inline]
@@ -301,13 +305,19 @@ impl Reify for ToplevelState {
 				let _ = state.panel_item.pointer_scroll(
 					SurfaceId::Toplevel(()),
 					[0.0; 2],
-					[scroll_discrete.x, -scroll_discrete.y], // negative because this is surface-local coords
+					[
+						scroll_discrete.x * state.mouse_scroll_multiplier,
+						scroll_discrete.y * state.mouse_scroll_multiplier,
+					], // negative because this is surface-local coords
 				);
 			},
 			|state, scroll_continuous| {
 				let _ = state.panel_item.pointer_scroll(
 					SurfaceId::Toplevel(()),
-					[scroll_continuous.x, -scroll_continuous.y], // negative because this is surface-local coords
+					[
+						scroll_continuous.x * state.mouse_scroll_multiplier,
+						scroll_continuous.y * state.mouse_scroll_multiplier,
+					], // negative because this is surface-local coords
 					[0.0; 2],
 				);
 			},
@@ -330,6 +340,8 @@ impl Reify for ToplevelState {
 			.on_pointer_motion(|state, pos| {
 				let pixel_pos = [pos.x * state.density, pos.y * state.density];
 				state.cursor_pos = pixel_pos.into();
+				state.cursor_pos.x = state.cursor_pos.x.clamp(0.0, state.info.size.x as f32);
+				state.cursor_pos.y = state.cursor_pos.y.clamp(0.0, state.info.size.y as f32);
 				let _ = state
 					.panel_item
 					.pointer_motion(SurfaceId::Toplevel(()), pixel_pos);
@@ -461,7 +473,8 @@ impl Reify for ToplevelState {
 				state.cursor_pos.y = state.cursor_pos.y.clamp(0.0, size[1] as f32);
 			})),
 		}
-		.with_children([
+		.build()
+		.children([
 			close_button,
 			text,
 			model,
@@ -470,7 +483,9 @@ impl Reify for ToplevelState {
 			mouse_handler,
 			pointer_plane,
 			touch_plane,
-			Spatial::default().with_children(self.reify_children(&self.children, panel_thickness)),
+			Spatial::default()
+				.build()
+				.children(self.reify_children(&self.children, panel_thickness)),
 		]);
 
 		let panel_wrapper = PanelWrapper::<Self>::new(self.panel_item.clone())
@@ -508,12 +523,14 @@ impl Reify for ToplevelState {
 			.as_item()
 			.as_spatial()
 			.as_spatial_ref();
-		let panel_aligner = InitialPanelPlacement.with_children([
+		let panel_aligner = InitialPanelPlacement.build().children([
 			panel_wrapper,
 			accent_color_listener,
 			resize_handles,
 		]);
-		InitialPositioner(panel_spatial_ref).with_children([panel_aligner])
+		InitialPositioner(panel_spatial_ref)
+			.build()
+			.children([panel_aligner])
 	}
 }
 impl ToplevelState {
@@ -530,7 +547,8 @@ impl ToplevelState {
 						self.info.size.y as f32 / -2.0 / self.density,
 						0.0,
 					])
-					.with_children(reified_children)
+					.build()
+					.children(reified_children)
 					.identify(&(self.panel_item.id(), child.info.id, child.info.type_id()))
 			})
 			.collect()

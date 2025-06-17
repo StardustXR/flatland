@@ -1,5 +1,5 @@
 use crate::grab_ball::GrabBallSettings;
-use asteroids::{Context, CreateInnerInfo, ElementTrait, FnWrapper, ValidState};
+use asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
 use derive_setters::Setters;
 use glam::{vec2, vec3, Mat4, Quat, Vec3, Vec3Swizzles};
 use stardust_xr_fusion::{
@@ -326,7 +326,7 @@ pub struct ResizeHandles<State: ValidState> {
 	pub max_size: Option<Vector2<f32>>,
 	pub on_size_changed: FnWrapper<dyn Fn(&mut State, Vector2<f32>) + Send + Sync>,
 }
-impl<State: ValidState> ElementTrait<State> for ResizeHandles<State> {
+impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 	type Inner = ResizeHandlesInner;
 	type Resource = ();
 	type Error = NodeError;
