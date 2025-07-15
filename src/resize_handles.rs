@@ -373,8 +373,8 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 
 #[tokio::test]
 async fn test_resize_handles() {
+	use asteroids::Reify;
 	use asteroids::Transformable;
-	use asteroids::{Reify, View};
 	use stardust_xr_fusion::{client::Client, objects::connect_client, root::RootAspect};
 
 	// Simple test state
@@ -385,26 +385,28 @@ async fn test_resize_handles() {
 	}
 	impl Reify for TestState {
 		fn reify(&self) -> asteroids::Element<Self> {
-			let text = asteroids::elements::Text::default()
-				.text("uwu")
-				.character_height(0.05)
-				.build();
-
-			let resize_handles = ResizeHandles::<Self> {
-				zoneable: true,
-				accent_color: rgba_linear!(0.0, 0.75, 1.0, 1.0),
-				current_size: self.size,
-				min_size: None,
-				max_size: None,
-				on_size_changed: FnWrapper(Box::new(|state, new_size| {
-					state.size = new_size;
-				})),
-			}
-			.with_children([text]);
-
 			asteroids::elements::Spatial::default()
 				.rot(Quat::from_rotation_y(self.time))
-				.with_children([resize_handles])
+				.build()
+				.child(
+					ResizeHandles::<Self> {
+						zoneable: true,
+						accent_color: rgba_linear!(0.0, 0.75, 1.0, 1.0),
+						current_size: self.size,
+						min_size: None,
+						max_size: None,
+						on_size_changed: FnWrapper(Box::new(|state, new_size| {
+							state.size = new_size;
+						})),
+					}
+					.build()
+					.child(
+						asteroids::elements::Text::default()
+							.text("uwu")
+							.character_height(0.05)
+							.build(),
+					),
+				)
 		}
 	}
 
@@ -420,7 +422,7 @@ async fn test_resize_handles() {
 		time: 0.0,
 		size: [0.3, 0.3].into(),
 	};
-	let mut view = View::new(&state, &context, client.handle().get_root());
+	let mut projector = asteroids::Projector::new(&state, &context, client.handle().get_root());
 
 	// Run a few frames to test basic functionality
 	client
@@ -429,8 +431,8 @@ async fn test_resize_handles() {
 				client.get_root().recv_root_event()
 			{
 				state.time += info.delta;
-				view.frame(&info, &mut state);
-				view.update(&context, &mut state);
+				projector.frame(&info, &mut state);
+				projector.update(&context, &mut state);
 			}
 		})
 		.await
