@@ -98,6 +98,7 @@ impl ExposureButtonInner {
 			&ResourceID::new_namespaced("flatland", "close_button"),
 		)?;
 		let shell = model.part("Shell")?;
+		let x = model.part("X")?;
 		let exposure = Exposure {
 			exposure: 0.0,
 			cooling: 5.0,
@@ -106,13 +107,9 @@ impl ExposureButtonInner {
 
 		// compensate for the server not being able to handle scaled fields
 		let field = Field::create(
-			&root,
+			&x,
 			Transform::none(),
-			Shape::Box([1.5 * 0.025, 0.025, thickness].into()),
-		)?;
-		field.set_relative_transform(
-			&shell,
-			Transform::from_translation_rotation([0.0; 3], Quat::IDENTITY),
+			Shape::Box([1.5 * 0.025, thickness, 0.025].into()),
 		)?;
 
 		let input = InputHandler::create(&shell, Transform::none(), &field)?.queue()?;
