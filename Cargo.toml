@@ -14,19 +14,16 @@ tracy = ["dep:tracing-tracy", "dep:tracy-client"]
 
 [dependencies]
 glam = { version = "0.28.0", features = ["mint"] }
-lazy_static = "1.4.0"
 tokio = { version = "1.38.0", features = ["full"] }
 input-event-codes = "6.2.0"
 rustc-hash = "1.1.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing = "0.1.40"
-color-eyre = "0.6.3"
 colorgrad = "0.6.2"
 map-range = "0.1.2"
 derive_setters = "0.1.6"
 derive-where = "1.2.7"
 serde = { version = "1.0.216", features = ["derive"] }
-futures-util = "0.3.31"
 tracing-tracy = { version = "0.11.4", optional = true }
 tracy-client = { version = "0.18.0", optional = true }
 
@@ -37,10 +34,6 @@ branch = "dev"
 [dependencies.stardust-xr-molecules]
 git = "https://github.com/StardustXR/molecules.git"
 branch = "dev"
-
-# [patch.'https://github.com/StardustXR/molecules.git']
-# stardust-xr-molecules.path = "../molecules"
-
 
 [dependencies.asteroids]
 git = "https://github.com/StardustXR/asteroids.git"

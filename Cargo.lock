@@ -766,14 +766,11 @@ name = "flatland"
 version = "0.8.0"
 dependencies = [
  "asteroids",
- "color-eyre",
  "colorgrad",
  "derive-where",
  "derive_setters",
- "futures-util",
  "glam 0.28.0",
  "input-event-codes",
- "lazy_static",
  "map-range",
  "rustc-hash 1.1.0",
  "serde",
