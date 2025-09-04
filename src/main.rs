@@ -225,14 +225,8 @@ impl Reify for ToplevelState {
 	fn reify(&self) -> asteroids::Element<Self> {
 		let panel_thickness = 0.01;
 
-		let shape = Shape::Box(
-			[
-				self.size_meters().y,
-				self.info.size.y as f32 / self.density,
-				panel_thickness,
-			]
-			.into(),
-		);
+		let shape =
+			Shape::Box([self.size_meters().x, self.size_meters().y, panel_thickness].into());
 		let app_name = self
 			.info
 			.app_id
@@ -362,7 +356,7 @@ impl Reify for ToplevelState {
 							.pos([
 								self.size_meters().x / 2.0 + 0.0005,
 								self.size_meters().y / 2.0,
-								panel_thickness / 2.0,
+								0.0,
 							])
 							.rot(
 								Quat::from_rotation_z(FRAC_PI_2)
@@ -421,7 +415,6 @@ impl Reify for ToplevelState {
 					)
 					.child(
 						PointerPlane::<Self>::default()
-							.pos([0.0, 0.0, panel_thickness / 2.0])
 							.physical_size([self.size_meters().x, self.size_meters().y])
 							.thickness(panel_thickness)
 							.on_mouse_button(|state, button, pressed| {
@@ -462,7 +455,6 @@ impl Reify for ToplevelState {
 					)
 					.child(
 						TouchPlane::<Self>::default()
-							.pos([0.0, 0.0, panel_thickness / 2.0])
 							.physical_size([self.size_meters().x, self.size_meters().y])
 							.thickness(panel_thickness)
 							.on_touch_down(|state, id, position| {
