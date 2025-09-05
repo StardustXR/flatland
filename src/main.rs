@@ -334,6 +334,7 @@ impl Reify for ToplevelState {
 								panel_thickness / 2.0,
 							]),
 							thickness: panel_thickness,
+							gain: 2.0,
 							on_click: FnWrapper(Box::new(|state: &mut Self| {
 								let _ = state.panel_item.close_toplevel();
 							})),

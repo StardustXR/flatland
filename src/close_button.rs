@@ -21,6 +21,7 @@ use stardust_xr_molecules::{
 pub struct ExposureButton<State: ValidState> {
 	pub transform: Transform,
 	pub thickness: f32,
+	pub gain: f32,
 	pub on_click: FnWrapper<dyn Fn(&mut State) + Send + Sync>,
 }
 impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
@@ -124,7 +125,7 @@ impl ExposureButtonInner {
 		})
 	}
 
-	pub fn frame(&mut self, frame_info: &FrameInfo) -> bool {
+	pub fn frame(&mut self, frame_info: &FrameInfo, gain: f32) -> bool {
 		self.input.handle_events();
 		self.distance_action.update(&self.input, &|data| {
 			data.distance < 0.0
@@ -140,7 +141,7 @@ impl ExposureButtonInner {
 			.map(|d| d.distance.abs().powf(1.0 / 2.2))
 			.sum();
 		self.exposure.update(frame_info.delta);
-		self.exposure.expose(exposure * 2.0, frame_info.delta);
+		self.exposure.expose(exposure * gain, frame_info.delta);
 		self.exposure
 			.expose_flash(self.distance_action.currently_acting().len() as f32 * 0.25);
 		if self.exposure.exposure > 1.0 {
