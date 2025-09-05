@@ -38,7 +38,7 @@ impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 		ExposureButtonInner::new(info.parent_space, self.transform, self.thickness)
 	}
 	fn frame(&self, info: &FrameInfo, _state: &mut State, inner: &mut Self::Inner) {
-		inner.frame(info);
+		inner.frame(info, self.gain);
 	}
 	fn update(
 		&self,
