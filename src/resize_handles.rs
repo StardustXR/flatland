@@ -374,7 +374,7 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 		inner.handle_events();
 
 		if inner.size.has_changed().is_ok_and(|t| t) {
-			(self.on_size_changed.0)(state, *inner.size.borrow());
+			(self.on_size_changed.0)(state, *inner.size.borrow_and_update());
 		} else if self.current_size != old.current_size {
 			inner.set_handle_positions(self.current_size);
 		}
