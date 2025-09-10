@@ -25,7 +25,6 @@ use stardust_xr_fusion::{
 	spatial::Transform,
 	values::{color::rgba_linear, Color, Vector2},
 };
-use stardust_xr_molecules::DebugSettings;
 use std::{any::Any, f32::consts::FRAC_PI_2};
 use touch_input::TouchPlane;
 use tracing_subscriber::{layer::SubscriberExt as _, EnvFilter};
@@ -225,8 +224,6 @@ impl Reify for ToplevelState {
 	fn reify(&self) -> asteroids::Element<Self> {
 		let panel_thickness = 0.01;
 
-		let shape =
-			Shape::Box([self.size_meters().x, self.size_meters().y, panel_thickness].into());
 		let app_name = self
 			.info
 			.app_id
@@ -314,18 +311,6 @@ impl Reify for ToplevelState {
 					}
 					.build()
 					.child(
-						// Main panel model
-						Model::namespaced("flatland", "panel")
-							.part(
-								ModelPart::new("Panel").apply_panel_item(
-									self.panel_item.clone(),
-									SurfaceId::Toplevel(()),
-								),
-							)
-							.scl([self.size_meters().x, self.size_meters().y, panel_thickness])
-							.build(),
-					)
-					.child(
 						// Close button
 						ExposureButton::<Self> {
 							transform: Transform::from_translation([
@@ -365,121 +350,17 @@ impl Reify for ToplevelState {
 							)
 							.build(),
 					)
-					.child(
-						KeyboardHandler::<Self>::new(shape.clone(), |state, key_data| {
-							let _ = state.panel_item.keyboard_key(
-								SurfaceId::Toplevel(()),
-								key_data.keymap_id,
-								key_data.key,
-								key_data.pressed,
-							);
-						})
-						.build(),
-					)
-					.child(
-						MouseHandler::<Self>::new(
-							shape,
-							|state, button, pressed| {
-								let _ = state.panel_item.pointer_button(
-									SurfaceId::Toplevel(()),
-									button,
-									pressed,
-								);
-							},
-							|state, motion| {
-								state.cursor_pos.x += motion.x;
-								state.cursor_pos.y += motion.y;
-								state.cursor_pos.x =
-									state.cursor_pos.x.clamp(0.0, state.info.size.x as f32);
-								state.cursor_pos.y =
-									state.cursor_pos.y.clamp(0.0, state.info.size.y as f32);
-								let _ = state
-									.panel_item
-									.pointer_motion(SurfaceId::Toplevel(()), state.cursor_pos);
-							},
-							|state, scroll_discrete| {
-								let _ = state.panel_item.pointer_scroll(
-									SurfaceId::Toplevel(()),
-									[0.0; 2],
-									scroll_discrete,
-								);
-							},
-							|state, scroll_continuous| {
-								let _ = state.panel_item.pointer_scroll(
-									SurfaceId::Toplevel(()),
-									scroll_continuous,
-									[0.0; 2],
-								);
-							},
-						)
-						.build(),
-					)
-					.child(
-						PointerPlane::<Self>::default()
-							.physical_size([self.size_meters().x, self.size_meters().y])
-							.thickness(panel_thickness)
-							.on_mouse_button(|state, button, pressed| {
-								let _ = state.panel_item.pointer_button(
-									SurfaceId::Toplevel(()),
-									button,
-									pressed,
-								);
-							})
-							.on_pointer_motion(|state, pos| {
-								let pixel_pos = [pos.x * state.density, pos.y * state.density];
-								state.cursor_pos = pixel_pos.into();
-								let _ = state
-									.panel_item
-									.pointer_motion(SurfaceId::Toplevel(()), pixel_pos);
-							})
-							.on_scroll(|state, scroll| {
-								let _ = match (scroll.scroll_continuous, scroll.scroll_discrete) {
-									(None, None) => state
-										.panel_item
-										.pointer_stop_scroll(SurfaceId::Toplevel(())),
-									(None, Some(steps)) => state.panel_item.pointer_scroll(
-										SurfaceId::Toplevel(()),
-										[0.0; 2],
-										steps,
-									),
-									(Some(continuous), None) => state.panel_item.pointer_scroll(
-										SurfaceId::Toplevel(()),
-										continuous,
-										[0.0; 2],
-									),
-									(Some(continuous), Some(steps)) => state
-										.panel_item
-										.pointer_scroll(SurfaceId::Toplevel(()), continuous, steps),
-								};
-							})
-							.build(),
-					)
-					.child(
-						TouchPlane::<Self>::default()
-							.physical_size([self.size_meters().x, self.size_meters().y])
-							.thickness(panel_thickness)
-							.on_touch_down(|state, id, position| {
-								let _ = state.panel_item.touch_down(
-									SurfaceId::Toplevel(()),
-									id,
-									[position.x * state.density, position.y * state.density],
-								);
-							})
-							.on_touch_move(|state, id, position| {
-								let _ = state.panel_item.touch_move(
-									id,
-									[position.x * state.density, position.y * state.density],
-								);
-							})
-							.on_touch_up(|state, id| {
-								let _ = state.panel_item.touch_up(id);
-							})
-							.debug_line_settings(DebugSettings {
-								line_color: self.accent_color,
-								..Default::default()
-							})
-							.build(),
-					)
+					.child(reify_surface(
+						&self.panel_item,
+						SurfaceId::Toplevel(()),
+						self.info.size,
+						Geometry {
+							origin: [0; 2].into(),
+							size: self.info.size,
+						},
+						panel_thickness,
+						self.density,
+					))
 					.children(self.children.iter().map(|child| {
 						child.reify(
 							self.info.size,
