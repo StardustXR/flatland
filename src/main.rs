@@ -480,7 +480,14 @@ impl Reify for ToplevelState {
 							})
 							.build(),
 					)
-					.children(self.reify_children(&self.children, panel_thickness))
+					.children(self.children.iter().map(|child| {
+						child.reify(
+							self.info.size,
+							&self.panel_item,
+							self.density,
+							panel_thickness,
+						)
+					}))
 					.children(
 						// cursor
 						self.cursor.as_ref().map(|geometry| {
@@ -515,24 +522,10 @@ impl Reify for ToplevelState {
 		)
 	}
 }
-impl ToplevelState {
-	fn reify_children(&self, children: &[ChildState], panel_thickness: f32) -> Vec<Element<Self>> {
-		children
-			.iter()
-			.map(|child| {
-				Spatial::default()
-					.pos([self.size_meters().x / -2.0, self.size_meters().y / 2.0, 0.0])
-					.build()
-					.child(child.reify(&self.panel_item, self.density, panel_thickness))
-					.children(self.reify_children(&child.children, panel_thickness))
-					.identify(&(self.panel_item.id(), child.info.id, child.info.type_id()))
-			})
-			.collect()
-	}
-}
 impl ChildState {
 	fn reify(
 		&self,
+		parent_size: impl Into<Vector2<u32>>,
 		panel_item: &PanelItem,
 		density: f32,
 		panel_thickness: f32,
@@ -540,11 +533,21 @@ impl ChildState {
 		reify_surface(
 			panel_item,
 			SurfaceId::Child(self.info.id),
-			[0; 2],
+			parent_size,
 			self.info.geometry.clone(),
 			panel_thickness,
 			density,
 		)
+		.children(self.children.iter().map(|child| {
+			child
+				.reify(
+					self.info.geometry.size,
+					panel_item,
+					density,
+					panel_thickness,
+				)
+				.identify(&(panel_item.id(), child.info.id, child.info.type_id()))
+		}))
 	}
 }
 
@@ -559,7 +562,7 @@ fn reify_surface(
 	let parent_size = parent_size.into();
 	let parent_origin_meters = vec2(
 		parent_size.x as f32 / density / 2.0,
-		parent_size.y as f32 / density / 2.0,
+		parent_size.y as f32 / density / -2.0,
 	);
 	let origin_meters = vec2(
 		geometry.origin.x as f32 / density,
