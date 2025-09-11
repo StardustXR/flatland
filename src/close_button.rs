@@ -1,6 +1,7 @@
 // use crate::toplevel::TOPLEVEL_THICKNESS;
 use asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
+use glam::Quat;
 use stardust_xr_fusion::{
 	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
@@ -112,7 +113,10 @@ impl ExposureButtonInner {
 		)?;
 		field.set_relative_transform(
 			&shell,
-			Transform::from_translation_rotation([0.0; 3], Quat::IDENTITY),
+			Transform::from_translation_rotation(
+				[-0.75, -0.5, -0.5],
+				Quat::IDENTITY,
+			),
 		)?;
 
 		let input = InputHandler::create(&shell, Transform::none(), &field)?.queue()?;
