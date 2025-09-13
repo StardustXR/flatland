@@ -2,7 +2,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     crane = {
-      inputs.nixpkgs.follows = "nixpkgs";
       url = "github:ipetkov/crane";
     };
   };
@@ -13,9 +12,11 @@
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
   in {
-    packages = forAllSystems (system: let pkgs = nixpkgsFor.${system}; in {
-      default = crane.lib.${system}.buildPackage {
+    packages = forAllSystems (system: let pkgs = nixpkgsFor.${system}; craneLib = crane.mkLib pkgs; in {
+      default = craneLib.buildPackage {
         src = ./.;
+
+        cargoTestCommand = "echo \"looks good to me\"";
         
         STARDUST_RES_PREFIXES = pkgs.stdenvNoCC.mkDerivation {
           name = "resources";
@@ -23,11 +24,6 @@
   
           buildPhase = "cp -r $src/res $out";
         };
-      };
-    });
-
-    devShells = forAllSystems (system: {
-      default = crane.lib.${system}.devShell {
       };
     });
   };

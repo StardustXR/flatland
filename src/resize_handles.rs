@@ -179,6 +179,7 @@ pub struct ResizeHandlesInner {
 	bottom: ResizeHandle,
 	top: ResizeHandle,
 
+	hmd: watch::Receiver<Option<SpatialRef>>,
 	zoneable: bool,
 	size_tx: watch::Sender<Vector2<f32>>,
 	size: watch::Receiver<Vector2<f32>>,
@@ -206,11 +207,21 @@ impl ResizeHandlesInner {
 		let top = ResizeHandle::create(&content_parent, settings.clone())?;
 
 		let (size_tx, size) = watch::channel(initial_size);
+		let (hmd_tx, hmd_rx) = watch::channel(None);
+		tokio::task::spawn({
+			let client = content_parent.client().unwrap();
+			async move {
+				if let Some(hmd) = hmd(&client).await {
+					let _ = hmd_tx.send(Some(hmd));
+				}
+			}
+		});
 		let mut resize_handles = ResizeHandlesInner {
 			content_parent,
 			bottom,
 			top,
 
+			hmd: hmd_rx,
 			zoneable,
 			size_tx,
 			size,
@@ -260,12 +271,15 @@ impl ResizeHandlesInner {
 		let min_size = self.min_size.unwrap_or([0.0; 2].into());
 		let max_size = self.max_size.unwrap_or([4096.0; 2].into());
 
+		let hmd = self.hmd.clone();
+
 		tokio::task::spawn(async move {
-			let hmd = hmd(&client).await.unwrap();
+			let Some(hmd) = hmd.borrow().clone() else {
+				return;
+			};
 			let root = client.get_root();
-			let hmd_pos = pos(&hmd, root).await;
-			let mut corner1 = pos(&corner1, root).await;
-			let mut corner2 = pos(&corner2, root).await;
+			let (hmd_pos, mut corner1, mut corner2) =
+				tokio::join!(pos(&hmd, root), pos(&corner1, root), pos(&corner2, root));
 			let center_point = (corner1 + corner2) * 0.5;
 
 			let center_hmd_relative = center_point - hmd_pos;
@@ -360,7 +374,7 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 		inner.handle_events();
 
 		if inner.size.has_changed().is_ok_and(|t| t) {
-			(self.on_size_changed.0)(state, *inner.size.borrow());
+			(self.on_size_changed.0)(state, *inner.size.borrow_and_update());
 		} else if self.current_size != old.current_size {
 			inner.set_handle_positions(self.current_size);
 		}

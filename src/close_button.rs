@@ -1,6 +1,7 @@
 // use crate::toplevel::TOPLEVEL_THICKNESS;
 use asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
+use glam::Quat;
 use stardust_xr_fusion::{
 	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
@@ -21,6 +22,7 @@ use stardust_xr_molecules::{
 pub struct ExposureButton<State: ValidState> {
 	pub transform: Transform,
 	pub thickness: f32,
+	pub gain: f32,
 	pub on_click: FnWrapper<dyn Fn(&mut State) + Send + Sync>,
 }
 impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
@@ -37,7 +39,7 @@ impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 		ExposureButtonInner::new(info.parent_space, self.transform, self.thickness)
 	}
 	fn frame(&self, info: &FrameInfo, _state: &mut State, inner: &mut Self::Inner) {
-		inner.frame(info);
+		inner.frame(info, self.gain);
 	}
 	fn update(
 		&self,
@@ -105,9 +107,16 @@ impl ExposureButtonInner {
 
 		// compensate for the server not being able to handle scaled fields
 		let field = Field::create(
-			&model,
-			Transform::from_translation([-0.75, -0.5, -0.5]),
-			Shape::Box([1.5, 1.0, 1.0].into()),
+			&root,
+			Transform::none(),
+			Shape::Box([1.5 * 0.025, 0.025, thickness].into()),
+		)?;
+		field.set_relative_transform(
+			&shell,
+			Transform::from_translation_rotation(
+				[-0.75, -0.5, -0.5],
+				Quat::IDENTITY,
+			),
 		)?;
 
 		let input = InputHandler::create(&shell, Transform::none(), &field)?.queue()?;
@@ -123,7 +132,7 @@ impl ExposureButtonInner {
 		})
 	}
 
-	pub fn frame(&mut self, frame_info: &FrameInfo) -> bool {
+	pub fn frame(&mut self, frame_info: &FrameInfo, gain: f32) -> bool {
 		self.input.handle_events();
 		self.distance_action.update(&self.input, &|data| {
 			data.distance < 0.0
@@ -139,7 +148,7 @@ impl ExposureButtonInner {
 			.map(|d| d.distance.abs().powf(1.0 / 2.2))
 			.sum();
 		self.exposure.update(frame_info.delta);
-		self.exposure.expose(exposure * 2.0, frame_info.delta);
+		self.exposure.expose(exposure * gain, frame_info.delta);
 		self.exposure
 			.expose_flash(self.distance_action.currently_acting().len() as f32 * 0.25);
 		if self.exposure.exposure > 1.0 {
