@@ -90,7 +90,7 @@ impl UIElement for ResizeHandle {
 			|input| {
 				input.datamap.with_data(|datamap| match &input.input {
 					InputDataType::Hand(_) => datamap.idx("pinch_strength").as_f32() > 0.90,
-					InputDataType::Pointer(_) => datamap.idx("grab").as_f32() > 0.90,
+					InputDataType::Pointer(_) => datamap.idx("select").as_f32() > 0.90,
 					_ => datamap.idx("grab").as_f32() > 0.90,
 				})
 			},
