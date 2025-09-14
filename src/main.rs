@@ -550,25 +550,26 @@ fn reify_surface(
 								.pointer_motion(SurfaceId::Toplevel(()), pixel_pos);
 						})
 						.on_scroll(|state, scroll| {
-							let _ =
-								match (scroll.scroll_continuous, scroll.scroll_discrete) {
-									(None, None) => state
-										.panel_item
-										.pointer_stop_scroll(SurfaceId::Toplevel(())),
-									(None, Some(steps)) => state.panel_item.pointer_scroll(
-										SurfaceId::Toplevel(()),
-										[0.0; 2],
-										steps,
-									),
-									(Some(continuous), None) => state.panel_item.pointer_scroll(
-										SurfaceId::Toplevel(()),
-										continuous,
-										[0.0; 2],
-									),
-									(Some(continuous), Some(steps)) => state
-										.panel_item
-										.pointer_scroll(SurfaceId::Toplevel(()), continuous, steps),
-								};
+							let _ = match (scroll.scroll_continuous, scroll.scroll_discrete) {
+								(None, None) => state
+									.panel_item
+									.pointer_stop_scroll(SurfaceId::Toplevel(())),
+								(None, Some(steps)) => state.panel_item.pointer_scroll(
+									SurfaceId::Toplevel(()),
+									[0.0; 2],
+									[steps.x, -steps.y],
+								),
+								(Some(continuous), None) => state.panel_item.pointer_scroll(
+									SurfaceId::Toplevel(()),
+									[continuous.x, -continuous.y],
+									[0.0; 2],
+								),
+								(Some(continuous), Some(steps)) => state.panel_item.pointer_scroll(
+									SurfaceId::Toplevel(()),
+									[continuous.x, -continuous.y],
+									[steps.x, -steps.y],
+								),
+							};
 						})
 						.build(),
 				)
