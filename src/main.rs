@@ -341,11 +341,11 @@ impl Reify for ToplevelState {
 							})
 							.pos([
 								self.size_meters().x / 2.0 + 0.0005,
-								self.size_meters().y / 2.0,
-								0.0,
+								self.size_meters().y / 2.0 - 0.001,
+								panel_thickness / 2.0,
 							])
 							.rot(
-								Quat::from_rotation_z(FRAC_PI_2)
+								Quat::from_rotation_z(-FRAC_PI_2)
 									* Quat::from_rotation_x(-FRAC_PI_2),
 							)
 							.build(),
