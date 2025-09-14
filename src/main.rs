@@ -4,7 +4,7 @@ use asteroids::{
 		AccentColorListener, KeyboardHandler, Model, ModelPart, MouseHandler, PanelUI, Spatial,
 		Text,
 	},
-	CustomElement, Element, FnWrapper, Migrate, Reify, Transformable as _,
+	CustomElement, Element, FnWrapper, Identifiable, Migrate, Reify, Transformable as _,
 };
 use close_button::ExposureButton;
 use glam::{vec2, Quat};
@@ -25,7 +25,7 @@ use stardust_xr_fusion::{
 	spatial::Transform,
 	values::{color::rgba_linear, Color, Vector2},
 };
-use std::{any::Any, f32::consts::FRAC_PI_2};
+use std::{any::Any, f32::consts::FRAC_PI_2, hash::Hash};
 use touch_input::TouchPlane;
 use tracing_subscriber::{layer::SubscriberExt as _, EnvFilter};
 
@@ -145,7 +145,9 @@ impl ClientState for State {
 		}
 		self.elapsed_time = info.elapsed;
 	}
-	fn reify(&self) -> asteroids::Element<Self> {
+}
+impl Reify for State {
+	fn reify(&self) -> impl asteroids::Element<Self> {
 		PanelUI::<State> {
 			on_create_item: FnWrapper(Box::new(|state, item, data| {
 				state.toplevels.insert(
@@ -184,10 +186,8 @@ impl ClientState for State {
 		.children(self.toplevels.iter().filter_map(|(uid, t)| {
 			let uid = *uid;
 			// self.toplevels.get_mut(&uid)?;
-			t.enabled.then(|| {
-				t.reify_substate(move |s: &mut Self| s.toplevels.get_mut(&uid))
-					.identify(&t.panel_item.id())
-			})
+			t.enabled
+				.then(|| t.reify_substate(move |s: &mut Self| s.toplevels.get_mut(&uid)))
 		}))
 	}
 }
@@ -221,7 +221,7 @@ impl ToplevelState {
 	}
 }
 impl Reify for ToplevelState {
-	fn reify(&self) -> asteroids::Element<Self> {
+	fn reify(&self) -> impl asteroids::Element<Self> {
 		let panel_thickness = 0.01;
 
 		let app_name = self
@@ -250,6 +250,7 @@ impl Reify for ToplevelState {
 				.as_spatial_ref(),
 		)
 		.build()
+		.identify(&self.panel_item.id())
 		.child(
 			InitialPanelPlacement
 				.build()
@@ -328,11 +329,10 @@ impl Reify for ToplevelState {
 					)
 					.child(
 						// Side text
-						Text::default()
-							.text(title_text)
+						Text::new(title_text)
 							.character_height(panel_thickness * 0.75)
-							.text_align_x(XAlign::Left)
-							.text_align_y(YAlign::Center)
+							.align_x(XAlign::Left)
+							.align_y(YAlign::Center)
 							.bounds(TextBounds {
 								bounds: [self.size_meters().y, panel_thickness].into(),
 								fit: TextFit::Squeeze,
@@ -362,15 +362,19 @@ impl Reify for ToplevelState {
 						0,
 						panel_thickness,
 						self.density,
+						&(),
+						self.children
+							.iter()
+							.map(|child| {
+								child.reify(
+									self.info.size,
+									&self.panel_item,
+									panel_thickness.clone(),
+									self.density,
+								)
+							})
+							.collect::<Vec<_>>(),
 					))
-					.children(self.children.iter().map(|child| {
-						child.reify(
-							self.info.size,
-							&self.panel_item,
-							panel_thickness,
-							self.density,
-						)
-					}))
 					.children(
 						// cursor
 						self.cursor.as_ref().map(|geometry| {
@@ -408,11 +412,11 @@ impl Reify for ToplevelState {
 impl ChildState {
 	fn reify(
 		&self,
-		parent_size: impl Into<Vector2<u32>>,
+		parent_size: Vector2<u32>,
 		panel_item: &PanelItem,
 		panel_thickness: f32,
 		density: f32,
-	) -> Element<ToplevelState> {
+	) -> impl Element<ToplevelState> {
 		reify_surface(
 			panel_item,
 			SurfaceId::Child(self.info.id),
@@ -422,17 +426,21 @@ impl ChildState {
 			1,
 			panel_thickness,
 			density,
+			&(panel_item.id(), self.info.id, self.info.type_id()),
+			self.children
+				.iter()
+				.map(|child| {
+					child
+						.reify(
+							self.info.geometry.size,
+							panel_item,
+							panel_thickness,
+							density,
+						)
+						.heap()
+				})
+				.collect::<Vec<_>>(),
 		)
-		.children(self.children.iter().map(|child| {
-			child
-				.reify(
-					self.info.geometry.size,
-					panel_item,
-					panel_thickness,
-					density,
-				)
-				.identify(&(panel_item.id(), child.info.id, child.info.type_id()))
-		}))
 	}
 }
 
@@ -446,7 +454,9 @@ fn reify_surface(
 	z_offset: i32,
 	thickness: f32,
 	density: f32,
-) -> Element<ToplevelState> {
+	id: &impl Hash,
+	children: impl IntoIterator<Item = impl Element<ToplevelState>>,
+) -> impl Element<ToplevelState> {
 	let parent_size = parent_size.into();
 	let parent_origin_meters = vec2(
 		parent_size.x as f32 / density / 2.0,
@@ -595,5 +605,7 @@ fn reify_surface(
 						})
 						.build(),
 				)
+				.children(children)
 		}))
+		.identify(id)
 }

@@ -103,21 +103,22 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 		})
 	}
 
-	fn update(
-		&self,
-		old: &Self,
-		state: &mut State,
-		inner: &mut Self::Inner,
-		_resource: &mut Self::Resource,
-	) {
-		self.apply_transform(old, &inner.field);
-		if self.debug_line_settings != old.debug_line_settings {
+	fn diff(&self, old_self: &Self, inner: &mut Self::Inner, _resource: &mut Self::Resource) {
+		self.apply_transform(old_self, &inner.field);
+		if self.debug_line_settings != old_self.debug_line_settings {
 			inner.set_debug(self.debug_line_settings);
 		}
-		if self.physical_size != old.physical_size {
+		if self.physical_size != old_self.physical_size {
 			inner.resize(self.physical_size.into());
 		}
+	}
 
+	fn frame(
+		&self,
+		_info: &stardust_xr_fusion::root::FrameInfo,
+		state: &mut State,
+		inner: &mut Self::Inner,
+	) {
 		inner.handle_events(state, self);
 	}
 

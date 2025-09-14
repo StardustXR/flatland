@@ -361,22 +361,24 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 		)
 	}
 
-	fn update(
-		&self,
-		old: &Self,
-		state: &mut State,
-		inner: &mut Self::Inner,
-		_resource: &mut Self::Resource,
-	) {
+	fn diff(&self, old: &Self, inner: &mut Self::Inner, _resource: &mut Self::Resource) {
 		inner.min_size = self.min_size;
 		inner.max_size = self.max_size;
+		if self.current_size != old.current_size {
+			inner.set_handle_positions(self.current_size);
+		}
+	}
 
+	fn frame(
+		&self,
+		_info: &stardust_xr_fusion::root::FrameInfo,
+		state: &mut State,
+		inner: &mut Self::Inner,
+	) {
 		inner.handle_events();
 
 		if inner.size.has_changed().is_ok_and(|t| t) {
 			(self.on_size_changed.0)(state, *inner.size.borrow_and_update());
-		} else if self.current_size != old.current_size {
-			inner.set_handle_positions(self.current_size);
 		}
 	}
 
@@ -398,7 +400,7 @@ async fn test_resize_handles() {
 		size: Vector2<f32>,
 	}
 	impl Reify for TestState {
-		fn reify(&self) -> asteroids::Element<Self> {
+		fn reify(&self) -> impl asteroids::Element<Self> {
 			asteroids::elements::Spatial::default()
 				.rot(Quat::from_rotation_y(self.time))
 				.build()

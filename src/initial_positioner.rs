@@ -22,14 +22,7 @@ impl<State: ValidState> CustomElement<State> for InitialPositioner {
 		Ok(spatial)
 	}
 
-	fn update(
-		&self,
-		_old_decl: &Self,
-		_state: &mut State,
-		_inner: &mut Self::Inner,
-		_resource: &mut Self::Resource,
-	) {
-	}
+	fn diff(&self, _old_self: &Self, _inner: &mut Self::Inner, _resource: &mut Self::Resource) {}
 
 	fn spatial_aspect(&self, inner: &Self::Inner) -> SpatialRef {
 		inner.clone().as_spatial_ref()

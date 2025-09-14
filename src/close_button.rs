@@ -38,20 +38,10 @@ impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 	) -> Result<Self::Inner, Self::Error> {
 		ExposureButtonInner::new(info.parent_space, self.transform, self.thickness)
 	}
-	fn frame(&self, info: &FrameInfo, _state: &mut State, inner: &mut Self::Inner) {
-		inner.frame(info, self.gain);
-	}
-	fn update(
-		&self,
-		old: &Self,
-		state: &mut State,
-		inner: &mut Self::Inner,
-		_resource: &mut Self::Resource,
-	) {
+
+	fn diff(&self, old: &Self, inner: &mut Self::Inner, _resource: &mut Self::Resource) {
 		self.apply_transform(old, &inner.root);
-		if inner.exposure.exposure > 1.0 {
-			(self.on_click.0)(state);
-		}
+
 		if self.thickness != old.thickness {
 			let _ = inner
 				.field
@@ -61,6 +51,13 @@ impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 				0.025,
 				self.thickness,
 			]));
+		}
+	}
+
+	fn frame(&self, info: &FrameInfo, state: &mut State, inner: &mut Self::Inner) {
+		inner.frame(info, self.gain);
+		if inner.exposure.exposure > 1.0 {
+			(self.on_click.0)(state);
 		}
 	}
 
@@ -113,10 +110,7 @@ impl ExposureButtonInner {
 		)?;
 		field.set_relative_transform(
 			&shell,
-			Transform::from_translation_rotation(
-				[-0.75, -0.5, -0.5],
-				Quat::IDENTITY,
-			),
+			Transform::from_translation_rotation([-0.75, -0.5, -0.5], Quat::IDENTITY),
 		)?;
 
 		let input = InputHandler::create(&shell, Transform::none(), &field)?.queue()?;
