@@ -148,10 +148,13 @@ impl ResizeHandle {
 				}
 
 				// Adjust pointer_distance based on scroll input
-				let scroll = grabbing
+				let scroll_continuous = grabbing
 					.datamap
 					.with_data(|d| d.idx("scroll_continuous").as_vector().idx(1).as_f32());
-				self.pointer_distance += scroll * 0.01;
+				let scroll_discrete = grabbing
+					.datamap
+					.with_data(|d| d.idx("scroll_discrete").as_vector().idx(1).as_f32());
+				self.pointer_distance += (scroll_continuous * 0.01) + (scroll_discrete * 0.05);
 
 				// Calculate position at current distance along pointer ray
 				let origin = Vec3::from(p.origin);
@@ -402,7 +405,7 @@ async fn test_resize_handles() {
 	impl Reify for TestState {
 		fn reify(&self) -> impl asteroids::Element<Self> {
 			asteroids::elements::Spatial::default()
-				.rot(Quat::from_rotation_y(self.time))
+				.rot(Quat::from_rotation_y(self.time / 10.0))
 				.build()
 				.child(
 					ResizeHandles::<Self> {
@@ -417,8 +420,7 @@ async fn test_resize_handles() {
 					}
 					.build()
 					.child(
-						asteroids::elements::Text::default()
-							.text("uwu")
+						asteroids::elements::Text::new("uwu")
 							.character_height(0.05)
 							.build(),
 					),
@@ -438,7 +440,11 @@ async fn test_resize_handles() {
 		time: 0.0,
 		size: [0.3, 0.3].into(),
 	};
-	let mut projector = asteroids::Projector::new(&state, &context, client.handle().get_root());
+	let mut projector = asteroids::Projector::new(
+		&state,
+		&context,
+		client.handle().get_root().clone().as_spatial_ref(),
+	);
 
 	// Run a few frames to test basic functionality
 	client
