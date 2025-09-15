@@ -2161,7 +2161,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 [[package]]
 name = "stardust-xr"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#32fd11dc199406e9a38194d937567b9e6b88122e"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#8aa50e038c5eb1610813b675e749ea80207d1206"
 dependencies = [
  "cluFlock",
  "color-eyre",
@@ -2181,7 +2181,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#32fd11dc199406e9a38194d937567b9e6b88122e"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#8aa50e038c5eb1610813b675e749ea80207d1206"
 dependencies = [
  "color-eyre",
  "dashmap",
@@ -2202,7 +2202,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion-codegen"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#32fd11dc199406e9a38194d937567b9e6b88122e"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#8aa50e038c5eb1610813b675e749ea80207d1206"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -2232,7 +2232,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-schemas"
 version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#32fd11dc199406e9a38194d937567b9e6b88122e"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#8aa50e038c5eb1610813b675e749ea80207d1206"
 dependencies = [
  "flatbuffers",
  "flexbuffers",
