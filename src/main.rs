@@ -229,7 +229,7 @@ impl Reify for ToplevelState {
 			.app_id
 			.as_ref()
 			.map(|id| id.split('.').next_back().unwrap_or_default());
-		let title_text = match (&self.info.app_id, app_name) {
+		let title_text = match (&self.info.title, app_name) {
 			(Some(title), Some(app_name)) => {
 				if title == app_name {
 					title.to_string()
@@ -362,7 +362,7 @@ impl Reify for ToplevelState {
 						0,
 						panel_thickness,
 						self.density,
-						&(),
+						&self.panel_item.id(),
 						self.children
 							.iter()
 							.map(|child| {
