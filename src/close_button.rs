@@ -1,5 +1,5 @@
 // use crate::toplevel::TOPLEVEL_THICKNESS;
-use asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
+use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::Quat;
 use stardust_xr_fusion::{

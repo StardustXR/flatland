@@ -1,4 +1,4 @@
-use asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
+use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::{vec3, Mat4, Vec2, Vec3};
 use stardust_xr_fusion::{

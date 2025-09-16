@@ -1,4 +1,4 @@
-use asteroids::{
+use stardust_xr_asteroids::{
 	client::{run, ClientState},
 	elements::{
 		AccentColorListener, KeyboardHandler, Model, ModelPart, MouseHandler, PanelUI, Spatial,
@@ -147,7 +147,7 @@ impl ClientState for State {
 	}
 }
 impl Reify for State {
-	fn reify(&self) -> impl asteroids::Element<Self> {
+	fn reify(&self) -> impl stardust_xr_asteroids::Element<Self> {
 		PanelUI::<State> {
 			on_create_item: FnWrapper(Box::new(|state, item, data| {
 				state.toplevels.insert(
@@ -221,7 +221,7 @@ impl ToplevelState {
 	}
 }
 impl Reify for ToplevelState {
-	fn reify(&self) -> impl asteroids::Element<Self> {
+	fn reify(&self) -> impl stardust_xr_asteroids::Element<Self> {
 		let panel_thickness = 0.01;
 
 		let app_name = self

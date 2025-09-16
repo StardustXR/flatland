@@ -1,5 +1,5 @@
 use crate::grab_ball::GrabBallSettings;
-use asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
+use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
 use derive_setters::Setters;
 use glam::{vec2, vec3, Mat4, Quat, Vec3, Vec3Swizzles};
 use stardust_xr_fusion::{
@@ -392,8 +392,8 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 
 #[tokio::test]
 async fn test_resize_handles() {
-	use asteroids::Reify;
-	use asteroids::Transformable;
+	use stardust_xr_asteroids::Reify;
+	use stardust_xr_asteroids::Transformable;
 	use stardust_xr_fusion::{client::Client, objects::connect_client, root::RootAspect};
 
 	// Simple test state
@@ -403,7 +403,7 @@ async fn test_resize_handles() {
 		size: Vector2<f32>,
 	}
 	impl Reify for TestState {
-		fn reify(&self) -> impl asteroids::Element<Self> {
+		fn reify(&self) -> impl stardust_xr_asteroids::Element<Self> {
 			asteroids::elements::Spatial::default()
 				.rot(Quat::from_rotation_y(self.time / 10.0))
 				.build()
@@ -440,7 +440,7 @@ async fn test_resize_handles() {
 		time: 0.0,
 		size: [0.3, 0.3].into(),
 	};
-	let mut projector = asteroids::Projector::new(
+	let mut projector = stardust_xr_asteroids::Projector::new(
 		&state,
 		&context,
 		client.handle().get_root().clone().as_spatial_ref(),

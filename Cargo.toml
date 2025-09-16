@@ -35,7 +35,7 @@ branch = "dev"
 git = "https://github.com/StardustXR/molecules.git"
 branch = "dev"
 
-[dependencies.asteroids]
+[dependencies.stardust-xr-asteroids]
 git = "https://github.com/StardustXR/asteroids.git"
 branch = "dev"
 

@@ -1,4 +1,4 @@
-use asteroids::{Context, CreateInnerInfo, CustomElement, ValidState};
+use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, ValidState};
 use glam::{vec3, Quat, Vec3};
 use stardust_xr_fusion::{
 	node::{NodeError, NodeResult, NodeType},

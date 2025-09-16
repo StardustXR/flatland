@@ -61,34 +61,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "asteroids"
-version = "2.0.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#1d15cf034b957b37fae968d2a6ccf1d80932fc0f"
-dependencies = [
- "ashpd",
- "bumpalo",
- "derive-where",
- "derive_setters",
- "dioxus-devtools",
- "directories",
- "futures-util",
- "glam 0.30.5",
- "inotify",
- "lazy_static",
- "map-range",
- "mint",
- "ouroboros",
- "ron",
- "rustc-hash 2.1.1",
- "serde",
- "stardust-xr-fusion",
- "stardust-xr-molecules",
- "tokio",
- "tracing",
- "zbus",
-]
-
-[[package]]
 name = "async-broadcast"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -768,7 +740,6 @@ dependencies = [
 name = "flatland"
 version = "0.8.0"
 dependencies = [
- "asteroids",
  "colorgrad",
  "derive-where",
  "derive_setters",
@@ -777,6 +748,7 @@ dependencies = [
  "map-range",
  "rustc-hash 1.1.0",
  "serde",
+ "stardust-xr-asteroids",
  "stardust-xr-fusion",
  "stardust-xr-molecules",
  "tokio",
@@ -2176,6 +2148,34 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "stardust-xr-asteroids"
+version = "2.0.0"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#6e94d9be18b7b38775d02dd49508d215d758500c"
+dependencies = [
+ "ashpd",
+ "bumpalo",
+ "derive-where",
+ "derive_setters",
+ "dioxus-devtools",
+ "directories",
+ "futures-util",
+ "glam 0.30.5",
+ "inotify",
+ "lazy_static",
+ "map-range",
+ "mint",
+ "ouroboros",
+ "ron",
+ "rustc-hash 2.1.1",
+ "serde",
+ "stardust-xr-fusion",
+ "stardust-xr-molecules",
+ "tokio",
+ "tracing",
+ "zbus",
 ]
 
 [[package]]

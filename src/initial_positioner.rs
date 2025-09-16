@@ -1,4 +1,4 @@
-use asteroids::{Context, CreateInnerInfo, CustomElement, ValidState};
+use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, ValidState};
 use stardust_xr_fusion::{
 	node::NodeError,
 	spatial::{Spatial, SpatialAspect, SpatialRef, Transform},

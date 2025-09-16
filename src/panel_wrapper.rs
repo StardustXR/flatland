@@ -1,4 +1,4 @@
-use asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
+use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
 use derive_setters::Setters;
 use stardust_xr_fusion::{
 	items::panel::{ChildInfo, Geometry, PanelItem, PanelItemAspect, PanelItemEvent::*},
