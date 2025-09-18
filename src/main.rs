@@ -1,11 +1,3 @@
-use stardust_xr_asteroids::{
-	client::{run, ClientState},
-	elements::{
-		AccentColorListener, KeyboardHandler, Model, ModelPart, MouseHandler, PanelUI, Spatial,
-		Text,
-	},
-	CustomElement, Element, FnWrapper, Identifiable, Migrate, Reify, Transformable as _,
-};
 use close_button::ExposureButton;
 use glam::{vec2, Quat};
 use initial_panel_placement::InitialPanelPlacement;
@@ -15,17 +7,21 @@ use pointer_input::PointerPlane;
 use resize_handles::ResizeHandles;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use stardust_xr_asteroids::{
+	client::{run, ClientState},
+	elements::{KeyboardHandler, Model, ModelPart, MouseHandler, PanelUI, Spatial, Text},
+	CustomElement, Element, FnWrapper, Migrate, Reify, Transformable as _,
+};
 use stardust_xr_fusion::{
 	drawable::{TextBounds, TextFit, XAlign, YAlign},
 	fields::Shape,
 	items::panel::{ChildInfo, Geometry, PanelItem, PanelItemAspect, SurfaceId, ToplevelInfo},
 	node::NodeType,
 	project_local_resources,
-	root::FrameInfo,
 	spatial::Transform,
-	values::{color::rgba_linear, Color, Vector2},
+	values::Vector2,
 };
-use std::{any::Any, f32::consts::FRAC_PI_2, hash::Hash};
+use std::f32::consts::FRAC_PI_2;
 use touch_input::TouchPlane;
 use tracing_subscriber::{layer::SubscriberExt as _, EnvFilter};
 
@@ -113,8 +109,7 @@ pub fn process_initial_children(children: Vec<ChildInfo>) -> Vec<ChildState> {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct State {
 	#[serde(skip)]
-	elapsed_time: f32,
-	toplevel_preferences: FxHashMap<String, f32>,
+	_toplevel_preferences: FxHashMap<String, f32>,
 	mouse_scroll_multiplier: f32,
 	#[serde(skip)]
 	toplevels: FxHashMap<u64, ToplevelState>,
@@ -123,9 +118,8 @@ pub struct State {
 impl Default for State {
 	fn default() -> Self {
 		State {
-			elapsed_time: 0.0,
 			toplevels: FxHashMap::default(),
-			toplevel_preferences: FxHashMap::default(),
+			_toplevel_preferences: FxHashMap::default(),
 			mouse_scroll_multiplier: 10.0,
 		}
 	}
@@ -135,16 +129,6 @@ impl Migrate for State {
 }
 impl ClientState for State {
 	const APP_ID: &'static str = "org.stardustxr.flatland";
-
-	fn on_frame(&mut self, info: &FrameInfo) {
-		#[cfg(feature = "tracy")]
-		{
-			use tracing::info;
-			info!("frame info {info:#?}");
-			tracy_client::frame_mark();
-		}
-		self.elapsed_time = info.elapsed;
-	}
 }
 impl Reify for State {
 	fn reify(&self) -> impl stardust_xr_asteroids::Element<Self> {
@@ -154,7 +138,6 @@ impl Reify for State {
 					item.id(),
 					ToplevelState {
 						enabled: true,
-						accent_color: rgba_linear!(1.0, 1.0, 1.0, 1.0),
 						panel_item: item,
 						info: data.toplevel,
 						cursor_pos: [0.0; 2].into(),
@@ -183,11 +166,16 @@ impl Reify for State {
 			on_destroy_acceptor: FnWrapper(Box::new(|_, _| {})),
 		}
 		.build()
-		.children(self.toplevels.iter().filter_map(|(uid, t)| {
+		.stable_children(self.toplevels.iter().filter_map(|(uid, t)| {
 			let uid = *uid;
 			// self.toplevels.get_mut(&uid)?;
-			t.enabled
-				.then(|| t.reify_substate(move |s: &mut Self| s.toplevels.get_mut(&uid)))
+			if !t.enabled {
+				return None;
+			}
+			Some((
+				uid,
+				t.reify_substate(move |s: &mut Self| s.toplevels.get_mut(&uid)),
+			))
 		}))
 	}
 }
@@ -201,7 +189,6 @@ pub struct ChildState {
 #[derive(Debug)]
 pub struct ToplevelState {
 	enabled: bool,
-	accent_color: Color,
 	panel_item: PanelItem,
 	info: ToplevelInfo,
 	/// in px
@@ -250,7 +237,6 @@ impl Reify for ToplevelState {
 				.as_spatial_ref(),
 		)
 		.build()
-		.identify(&self.panel_item.id())
 		.child(
 			InitialPanelPlacement
 				.build()
@@ -281,14 +267,7 @@ impl Reify for ToplevelState {
 						.build(),
 				)
 				.child(
-					AccentColorListener::new(|state: &mut ToplevelState, accent_color| {
-						state.accent_color = accent_color
-					})
-					.build(),
-				)
-				.child(
 					ResizeHandles::<ToplevelState> {
-						accent_color: self.accent_color,
 						zoneable: true,
 						current_size: self.size_meters(),
 						min_size: self
@@ -362,18 +341,20 @@ impl Reify for ToplevelState {
 						0,
 						panel_thickness,
 						self.density,
-						&self.panel_item.id(),
 						self.children
 							.iter()
 							.map(|child| {
-								child.reify(
-									self.info.size,
-									&self.panel_item,
-									panel_thickness,
-									self.density,
+								(
+									child.info.id,
+									child.reify(
+										self.info.size,
+										&self.panel_item,
+										panel_thickness,
+										self.density,
+									),
 								)
 							})
-							.collect::<Vec<_>>(),
+							.collect(),
 					))
 					.children(
 						// cursor
@@ -402,7 +383,6 @@ impl Reify for ToplevelState {
 									panel_thickness,
 								])
 								.build()
-								.identify(&"cursor".to_string())
 						}),
 					),
 				),
@@ -426,21 +406,22 @@ impl ChildState {
 			1,
 			panel_thickness,
 			density,
-			&(panel_item.id(), self.info.id, self.info.type_id()),
 			self.children
 				.iter()
 				.map(|child| {
-					child
-						.reify(
+					(
+						child.info.id,
+						child.reify(
 							self.info.geometry.size,
 							panel_item,
 							panel_thickness,
 							density,
-						)
-						.heap()
+						),
+					)
 				})
-				.collect::<Vec<_>>(),
+				.collect(),
 		)
+		.dynamic()
 	}
 }
 
@@ -454,8 +435,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 	z_offset: i32,
 	thickness: f32,
 	density: f32,
-	id: &impl Hash,
-	children: Vec<E>,
+	children: FxHashMap<u64, E>,
 ) -> impl Element<ToplevelState> {
 	let parent_size = parent_size.into();
 	let parent_origin_meters = vec2(
@@ -594,6 +574,5 @@ fn reify_surface<E: Element<ToplevelState>>(
 						.build(),
 				)
 		}))
-		.children(children)
-		.identify(id)
+		.stable_children(children)
 }

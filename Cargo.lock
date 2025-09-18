@@ -2131,6 +2131,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
+name = "stack_dst"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d4c67c20215d424cf30fb7a357bbff2853deef160abfb0ff237072e51c843d3"
+dependencies = [
+ "generic-array",
+]
+
+[[package]]
 name = "stardust-xr"
 version = "0.45.0"
 source = "git+https://github.com/StardustXR/core.git?branch=dev#8aa50e038c5eb1610813b675e749ea80207d1206"
@@ -2153,7 +2162,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "2.0.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#6e94d9be18b7b38775d02dd49508d215d758500c"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#7ed23092642d23b77a540183ef6e0d46fc86326c"
 dependencies = [
  "ashpd",
  "bumpalo",
@@ -2171,6 +2180,7 @@ dependencies = [
  "ron",
  "rustc-hash 2.1.1",
  "serde",
+ "stack_dst",
  "stardust-xr-fusion",
  "stardust-xr-molecules",
  "tokio",

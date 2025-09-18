@@ -1,5 +1,5 @@
-use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
 use derive_setters::Setters;
+use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
 use stardust_xr_fusion::{
 	items::panel::{ChildInfo, Geometry, PanelItem, PanelItemAspect, PanelItemEvent::*},
 	node::NodeError,
@@ -156,6 +156,7 @@ impl<State: ValidState> CustomElement<State> for PanelWrapper<State> {
 
 	fn frame(
 		&self,
+		_context: &Context,
 		_info: &stardust_xr_fusion::root::FrameInfo,
 		state: &mut State,
 		inner: &mut Self::Inner,

@@ -1,12 +1,15 @@
-use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::{vec3, Mat4, Vec2, Vec3};
+use stardust_xr_asteroids::{
+	Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
+};
 use stardust_xr_fusion::{
 	core::values::Vector2,
 	drawable::{Line, LinePoint, Lines, LinesAspect},
 	fields::{Field, FieldAspect, Shape},
 	input::{InputData, InputDataType, InputHandler},
 	node::{NodeError, NodeType},
+	root::FrameInfo,
 	spatial::{SpatialRef, Transform},
 	values::{color::rgba_linear, Vector3},
 };
@@ -115,7 +118,8 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 
 	fn frame(
 		&self,
-		_info: &stardust_xr_fusion::root::FrameInfo,
+		_context: &Context,
+		_info: &FrameInfo,
 		state: &mut State,
 		inner: &mut Self::Inner,
 	) {

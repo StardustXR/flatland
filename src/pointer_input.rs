@@ -1,7 +1,9 @@
-use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::{vec3, Mat4, Vec2, Vec3};
 use serde::Deserialize;
+use stardust_xr_asteroids::{
+	Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
+};
 use stardust_xr_fusion::{
 	core::values::Vector2,
 	drawable::{Line, LinePoint, Lines, LinesAspect},
@@ -128,6 +130,7 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 
 	fn frame(
 		&self,
+		_context: &Context,
 		_info: &stardust_xr_fusion::root::FrameInfo,
 		state: &mut State,
 		inner: &mut Self::Inner,

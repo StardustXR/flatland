@@ -1,7 +1,7 @@
 use crate::grab_ball::GrabBallSettings;
-use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
 use derive_setters::Setters;
 use glam::{vec2, vec3, Mat4, Quat, Vec3, Vec3Swizzles};
+use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
 use stardust_xr_fusion::{
 	core::values::ResourceID,
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
@@ -9,6 +9,7 @@ use stardust_xr_fusion::{
 	input::{InputDataType, InputHandler},
 	node::{NodeError, NodeResult, NodeType},
 	objects::hmd,
+	root::FrameInfo,
 	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
 	values::{color::rgba_linear, Color, Vector2},
 };
@@ -337,7 +338,6 @@ impl ResizeHandlesInner {
 #[allow(clippy::type_complexity)]
 pub struct ResizeHandles<State: ValidState> {
 	pub zoneable: bool,
-	pub accent_color: Color,
 	pub current_size: Vector2<f32>,
 	pub min_size: Option<Vector2<f32>>,
 	pub max_size: Option<Vector2<f32>>,
@@ -350,14 +350,14 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 
 	fn create_inner(
 		&self,
-		_context: &Context,
+		context: &Context,
 		info: CreateInnerInfo,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		ResizeHandlesInner::create(
 			info.parent_space,
 			self.zoneable,
-			self.accent_color,
+			context.accent_color,
 			self.current_size,
 			self.min_size,
 			self.max_size,
@@ -374,7 +374,8 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 
 	fn frame(
 		&self,
-		_info: &stardust_xr_fusion::root::FrameInfo,
+		_context: &Context,
+		_info: &FrameInfo,
 		state: &mut State,
 		inner: &mut Self::Inner,
 	) {
@@ -392,25 +393,37 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 
 #[tokio::test]
 async fn test_resize_handles() {
-	use stardust_xr_asteroids::Reify;
-	use stardust_xr_asteroids::Transformable;
-	use stardust_xr_fusion::{client::Client, objects::connect_client, root::RootAspect};
+	use serde::{Deserialize, Serialize};
+	use stardust_xr_asteroids::{client, ClientState, Migrate, Reify, Transformable};
 
 	// Simple test state
-	#[derive(Debug)]
-	struct TestState {
+	#[derive(Debug, Serialize, Deserialize)]
+	struct State {
 		time: f32,
 		size: Vector2<f32>,
 	}
-	impl Reify for TestState {
+	impl Default for State {
+		fn default() -> Self {
+			Self {
+				time: 0.0,
+				size: [0.3, 0.3].into(),
+			}
+		}
+	}
+	impl Migrate for State {
+		type Old = Self;
+	}
+	impl ClientState for State {
+		const APP_ID: &'static str = "org.stardustxr.flatland.ResizeHandles";
+	}
+	impl Reify for State {
 		fn reify(&self) -> impl stardust_xr_asteroids::Element<Self> {
-			asteroids::elements::Spatial::default()
+			stardust_xr_asteroids::elements::Spatial::default()
 				.rot(Quat::from_rotation_y(self.time / 10.0))
 				.build()
 				.child(
 					ResizeHandles::<Self> {
 						zoneable: true,
-						accent_color: rgba_linear!(0.0, 0.75, 1.0, 1.0),
 						current_size: self.size,
 						min_size: None,
 						max_size: None,
@@ -420,7 +433,7 @@ async fn test_resize_handles() {
 					}
 					.build()
 					.child(
-						asteroids::elements::Text::new("uwu")
+						stardust_xr_asteroids::elements::Text::new("uwu")
 							.character_height(0.05)
 							.build(),
 					),
@@ -428,35 +441,5 @@ async fn test_resize_handles() {
 		}
 	}
 
-	// Set up client and state
-	let mut client = Client::connect().await.unwrap();
-	client
-		.setup_resources(&[&stardust_xr_fusion::project_local_resources!("res")])
-		.unwrap();
-	let context = Context {
-		dbus_connection: connect_client().await.unwrap(),
-	};
-	let mut state = TestState {
-		time: 0.0,
-		size: [0.3, 0.3].into(),
-	};
-	let mut projector = stardust_xr_asteroids::Projector::new(
-		&state,
-		&context,
-		client.handle().get_root().clone().as_spatial_ref(),
-	);
-
-	// Run a few frames to test basic functionality
-	client
-		.sync_event_loop(|client, _| {
-			while let Some(stardust_xr_fusion::root::RootEvent::Frame { info }) =
-				client.get_root().recv_root_event()
-			{
-				state.time += info.delta;
-				projector.frame(&info, &mut state);
-				projector.update(&context, &mut state);
-			}
-		})
-		.await
-		.unwrap();
+	client::run::<State>(&[]).await;
 }

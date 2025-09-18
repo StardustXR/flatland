@@ -1,7 +1,9 @@
 // use crate::toplevel::TOPLEVEL_THICKNESS;
-use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState};
 use derive_setters::Setters;
 use glam::Quat;
+use stardust_xr_asteroids::{
+	Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
+};
 use stardust_xr_fusion::{
 	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
@@ -54,7 +56,13 @@ impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 		}
 	}
 
-	fn frame(&self, info: &FrameInfo, state: &mut State, inner: &mut Self::Inner) {
+	fn frame(
+		&self,
+		_context: &Context,
+		info: &FrameInfo,
+		state: &mut State,
+		inner: &mut Self::Inner,
+	) {
 		inner.frame(info, self.gain);
 		if inner.exposure.exposure > 1.0 {
 			(self.on_click.0)(state);
