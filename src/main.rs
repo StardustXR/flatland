@@ -469,7 +469,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 				.build(),
 		)
 		// inputs
-		.maybe_child((input && children.is_empty()).then(move || {
+		.maybe_child(input.then(move || {
 			Spatial::default()
 				.build()
 				.child(
