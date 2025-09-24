@@ -59,7 +59,7 @@ impl ResizeHandle {
 		)?;
 
 		let field = Field::create(&model, Transform::identity(), Shape::Sphere(0.005))?;
-		let client = initial_parent.client()?;
+		let client = initial_parent.client().clone();
 		let root = client.get_root();
 		let input = InputHandler::create(root, Transform::identity(), &field)?.queue()?;
 
@@ -213,7 +213,7 @@ impl ResizeHandlesInner {
 		let (size_tx, size) = watch::channel(initial_size);
 		let (hmd_tx, hmd_rx) = watch::channel(None);
 		tokio::task::spawn({
-			let client = content_parent.client().unwrap();
+			let client = content_parent.client().clone();
 			async move {
 				if let Some(hmd) = hmd(&client).await {
 					let _ = hmd_tx.send(Some(hmd));
@@ -236,7 +236,7 @@ impl ResizeHandlesInner {
 		Ok(resize_handles)
 	}
 	pub fn handle_events(&mut self) {
-		let client = self.content_parent.client().unwrap().clone();
+		let client = self.content_parent.client().clone();
 		let root = client.get_root();
 		self.bottom.handle_events();
 		self.top.handle_events();
@@ -266,7 +266,7 @@ impl ResizeHandlesInner {
 		}
 	}
 	fn update_content_transform(&self) {
-		let client = self.content_parent.client().unwrap().clone();
+		let client = self.content_parent.client().clone();
 		let content_parent = self.content_parent.clone();
 		let corner1 = self.bottom.model.clone();
 		let corner2 = self.top.model.clone();

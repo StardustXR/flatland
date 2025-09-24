@@ -1,5 +1,5 @@
-use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, ValidState};
 use glam::{vec3, Quat, Vec3};
+use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, ValidState};
 use stardust_xr_fusion::{
 	node::{NodeError, NodeResult, NodeType},
 	objects::hmd,
@@ -14,8 +14,8 @@ fn look_direction(direction: Vec3) -> Quat {
 }
 
 async fn initial_placement(spatial_root: Spatial) -> NodeResult<()> {
-	let client = spatial_root.client()?;
-	let Some(hmd) = hmd(&client).await else {
+	let client = spatial_root.client();
+	let Some(hmd) = hmd(client).await else {
 		return Err(NodeError::NotAliased);
 	};
 	let root = client.get_root();
