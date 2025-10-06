@@ -3,7 +3,7 @@ use derive_setters::Setters;
 use glam::{vec2, vec3, Mat4, Quat, Vec3, Vec3Swizzles};
 use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
 use stardust_xr_fusion::{
-	core::values::ResourceID,
+	core::{schemas::zbus::Connection, values::ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
 	fields::{Field, Shape},
 	input::{InputDataType, InputHandler},
@@ -15,9 +15,13 @@ use stardust_xr_fusion::{
 };
 use stardust_xr_molecules::{
 	input_action::{InputQueue, InputQueueable, SingleAction},
+	reparentable::Reparentable,
 	UIElement,
 };
-use std::f32::consts::FRAC_PI_2;
+use std::{
+	f32::consts::FRAC_PI_2,
+	path::{Path, PathBuf},
+};
 use tokio::sync::watch;
 
 const RESIZE_HANDLE_FLOATING: f32 = 0.025;
@@ -182,17 +186,24 @@ pub struct ResizeHandlesInner {
 	content_parent: Spatial,
 	bottom: ResizeHandle,
 	top: ResizeHandle,
+	reparentable: Option<Reparentable>,
+	path: PathBuf,
+	connection: Connection,
+	parent: SpatialRef,
 
 	hmd: watch::Receiver<Option<SpatialRef>>,
-	zoneable: bool,
+	is_reparentable: bool,
 	size_tx: watch::Sender<Vector2<f32>>,
 	size: watch::Receiver<Vector2<f32>>,
 	pub min_size: Option<Vector2<f32>>,
 	pub max_size: Option<Vector2<f32>>,
 }
 impl ResizeHandlesInner {
+	#[allow(clippy::too_many_arguments)]
 	pub fn create(
-		parent: &SpatialRef,
+		parent: SpatialRef,
+		connection: Connection,
+		path: impl AsRef<Path>,
 		zoneable: bool,
 		accent_color: Color,
 		initial_size: Vector2<f32>,
@@ -206,7 +217,7 @@ impl ResizeHandlesInner {
 			connector_color: accent_color,
 		};
 
-		let content_parent = Spatial::create(parent, Transform::identity(), false)?;
+		let content_parent = Spatial::create(&parent, Transform::identity(), false)?;
 		let bottom = ResizeHandle::create(&content_parent, settings.clone())?;
 		let top = ResizeHandle::create(&content_parent, settings.clone())?;
 
@@ -224,15 +235,20 @@ impl ResizeHandlesInner {
 			content_parent,
 			bottom,
 			top,
+			parent,
+			reparentable: None,
+			path: path.as_ref().to_path_buf(),
+			connection,
 
 			hmd: hmd_rx,
-			zoneable,
+			is_reparentable: zoneable,
 			size_tx,
 			size,
 			min_size,
 			max_size,
 		};
 		resize_handles.set_handle_positions(initial_size);
+		resize_handles.make_reparentable();
 		Ok(resize_handles)
 	}
 	pub fn handle_events(&mut self) {
@@ -245,7 +261,7 @@ impl ResizeHandlesInner {
 		{
 			let _ = self.top.model.set_spatial_parent_in_place(root);
 			let _ = self.bottom.model.set_spatial_parent_in_place(root);
-			let _ = self.content_parent.set_zoneable(false);
+			let _ = self.reparentable.take();
 		}
 		if self.top.grab_action.actor_acting() || self.bottom.grab_action.actor_acting() {
 			self.update_content_transform();
@@ -262,8 +278,24 @@ impl ResizeHandlesInner {
 				.bottom
 				.model
 				.set_spatial_parent_in_place(&self.content_parent);
-			let _ = self.content_parent.set_zoneable(self.zoneable);
+			self.make_reparentable();
 		}
+	}
+	fn make_reparentable(&mut self) {
+		self.reparentable = self
+			.is_reparentable
+			.then(|| {
+				Reparentable::create(
+					self.connection.clone(),
+					&self.path,
+					self.parent.clone(),
+					self.content_parent.clone(),
+					// TODO: figure out how to make a field for the entire panel
+					None,
+				)
+				.ok()
+			})
+			.flatten();
 	}
 	fn update_content_transform(&self) {
 		let client = self.content_parent.client().clone();
@@ -337,7 +369,7 @@ impl ResizeHandlesInner {
 #[setters(into, strip_option)]
 #[allow(clippy::type_complexity)]
 pub struct ResizeHandles<State: ValidState> {
-	pub zoneable: bool,
+	pub reparentable: bool,
 	pub current_size: Vector2<f32>,
 	pub min_size: Option<Vector2<f32>>,
 	pub max_size: Option<Vector2<f32>>,
@@ -355,8 +387,10 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		ResizeHandlesInner::create(
-			info.parent_space,
-			self.zoneable,
+			info.parent_space.clone(),
+			context.dbus_connection.clone(),
+			info.element_path,
+			self.reparentable,
 			context.accent_color,
 			self.current_size,
 			self.min_size,
@@ -423,7 +457,7 @@ async fn test_resize_handles() {
 				.build()
 				.child(
 					ResizeHandles::<Self> {
-						zoneable: true,
+						reparentable: true,
 						current_size: self.size,
 						min_size: None,
 						max_size: None,

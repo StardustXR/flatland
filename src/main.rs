@@ -144,6 +144,7 @@ impl Reify for State {
 						cursor: None,
 						children: process_initial_children(data.children),
 						density: 3000.0,
+						mouse_scroll_multiplier: state.mouse_scroll_multiplier,
 					},
 				);
 			})),
@@ -196,6 +197,7 @@ pub struct ToplevelState {
 	cursor: Option<Geometry>,
 	children: Vec<ChildState>,
 	density: f32, //pixels per meter
+	mouse_scroll_multiplier: f32,
 }
 impl ToplevelState {
 	#[inline]
@@ -268,7 +270,7 @@ impl Reify for ToplevelState {
 				)
 				.child(
 					ResizeHandles::<ToplevelState> {
-						zoneable: true,
+						reparentable: true,
 						current_size: self.size_meters(),
 						min_size: self
 							.info
@@ -535,17 +537,29 @@ fn reify_surface<E: Element<ToplevelState>>(
 								(None, Some(steps)) => state.panel_item.pointer_scroll(
 									surface_id,
 									[0.0; 2],
-									[steps.x, -steps.y],
+									[
+										steps.x * state.mouse_scroll_multiplier,
+										-steps.y * state.mouse_scroll_multiplier,
+									],
 								),
 								(Some(continuous), None) => state.panel_item.pointer_scroll(
 									surface_id,
-									[continuous.x, -continuous.y],
+									[
+										continuous.x * state.mouse_scroll_multiplier,
+										-continuous.y * state.mouse_scroll_multiplier,
+									],
 									[0.0; 2],
 								),
 								(Some(continuous), Some(steps)) => state.panel_item.pointer_scroll(
 									surface_id,
-									[continuous.x, -continuous.y],
-									[steps.x, -steps.y],
+									[
+										continuous.x * state.mouse_scroll_multiplier,
+										continuous.y * state.mouse_scroll_multiplier,
+									],
+									[
+										steps.x * state.mouse_scroll_multiplier,
+										steps.y * state.mouse_scroll_multiplier,
+									],
 								),
 							};
 						})
