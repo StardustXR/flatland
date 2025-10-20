@@ -101,14 +101,13 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "ashpd"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da0986d5b4f0802160191ad75f8d33ada000558757db3defb70299ca95d9fcbd"
+version = "0.13.0"
+source = "git+https://github.com/technobaboo/ashpd.git?branch=feature/custom-session-connection#3c25e0bad0312e3dd6fcc594f1335149cb1d65a7"
 dependencies = [
  "enumflags2",
+ "fastrand",
  "futures-channel",
  "futures-util",
- "rand 0.9.2",
  "serde",
  "serde_repr",
  "tokio",
@@ -425,12 +424,6 @@ name = "cfg-if"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fd1289c04a9ea8cb22300a459a72a385d7c73d3259e2ed7dcb2af674838cfa9"
-
-[[package]]
-name = "cfg_aliases"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "clap"
@@ -825,7 +818,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -885,7 +878,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1340,7 +1333,7 @@ dependencies = [
  "hyper",
  "libc",
  "pin-project-lite",
- "socket2 0.6.0",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -1813,19 +1806,6 @@ checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
 dependencies = [
  "bitflags 2.9.4",
  "cfg-if",
- "libc",
- "memoffset",
-]
-
-[[package]]
-name = "nix"
-version = "0.30.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
-dependencies = [
- "bitflags 2.9.4",
- "cfg-if",
- "cfg_aliases",
  "libc",
  "memoffset",
 ]
@@ -2376,7 +2356,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2574,13 +2554,13 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 [[package]]
 name = "stardust-xr"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#c716d332d682306291db16e9753cb7cb9dcc5a4c"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#0b33b006a71d26fa245f9b32636d67eb5d733751"
 dependencies = [
  "color-eyre",
  "dirs",
  "global_counter",
  "mint",
- "nix 0.27.1",
+ "nix",
  "rustc-hash 2.1.1",
  "serde",
  "shiva-color-rs",
@@ -2593,7 +2573,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "2.0.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#9b6dc632c56b917d8cd25697262239bddcf7bc98"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#3af69d058139a33d76cb9e982739867df013b415"
 dependencies = [
  "ashpd",
  "bumpalo",
@@ -2620,7 +2600,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#c716d332d682306291db16e9753cb7cb9dcc5a4c"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#0b33b006a71d26fa245f9b32636d67eb5d733751"
 dependencies = [
  "clap",
  "color-eyre",
@@ -2664,7 +2644,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-schemas"
 version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#c716d332d682306291db16e9753cb7cb9dcc5a4c"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#0b33b006a71d26fa245f9b32636d67eb5d733751"
 dependencies = [
  "console-subscriber",
  "flatbuffers",
@@ -2678,6 +2658,7 @@ dependencies = [
  "serde_repr",
  "thiserror 2.0.17",
  "tokio",
+ "tokio-stream",
  "variadics_please",
  "zbus",
 ]
@@ -2771,7 +2752,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3209,6 +3190,17 @@ name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
+
+[[package]]
+name = "uuid"
+version = "1.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f87b8aa10b915a06587d0dec516c282ff295b475d94abf425d62b57710070a2"
+dependencies = [
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "valuable"
@@ -3736,9 +3728,8 @@ dependencies = [
 
 [[package]]
 name = "zbus"
-version = "5.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d07e46d035fb8e375b2ce63ba4e4ff90a7f73cf2ffb0138b29e1158d2eaadf7"
+version = "5.13.0"
+source = "git+https://github.com/Schmarni-Dev/zbus?branch=better_obj_destruct#9bb6a958fdbfcc6c46f2766cae8e60ee20ec81ee"
 dependencies = [
  "async-broadcast",
  "async-executor",
@@ -3754,14 +3745,16 @@ dependencies = [
  "futures-core",
  "futures-lite",
  "hex",
- "nix 0.30.1",
+ "libc",
  "ordered-stream",
+ "rustix",
  "serde",
  "serde_repr",
  "tokio",
  "tracing",
  "uds_windows",
- "windows-sys 0.60.2",
+ "uuid",
+ "windows-sys 0.61.2",
  "winnow 0.7.13",
  "zbus_macros",
  "zbus_names",
@@ -3770,9 +3763,8 @@ dependencies = [
 
 [[package]]
 name = "zbus_macros"
-version = "5.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57e797a9c847ed3ccc5b6254e8bcce056494b375b511b3d6edcec0aeb4defaca"
+version = "5.13.0"
+source = "git+https://github.com/Schmarni-Dev/zbus?branch=better_obj_destruct#9bb6a958fdbfcc6c46f2766cae8e60ee20ec81ee"
 dependencies = [
  "proc-macro-crate 3.4.0",
  "proc-macro2",
@@ -3786,11 +3778,9 @@ dependencies = [
 [[package]]
 name = "zbus_names"
 version = "4.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7be68e64bf6ce8db94f63e72f0c7eb9a60d733f7e0499e628dfab0f84d6bcb97"
+source = "git+https://github.com/Schmarni-Dev/zbus?branch=better_obj_destruct#9bb6a958fdbfcc6c46f2766cae8e60ee20ec81ee"
 dependencies = [
  "serde",
- "static_assertions",
  "winnow 0.7.13",
  "zvariant",
 ]
@@ -3871,9 +3861,8 @@ dependencies = [
 
 [[package]]
 name = "zvariant"
-version = "5.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "999dd3be73c52b1fccd109a4a81e4fcd20fab1d3599c8121b38d04e1419498db"
+version = "5.8.0"
+source = "git+https://github.com/Schmarni-Dev/zbus?branch=better_obj_destruct#9bb6a958fdbfcc6c46f2766cae8e60ee20ec81ee"
 dependencies = [
  "endi",
  "enumflags2",
@@ -3886,9 +3875,8 @@ dependencies = [
 
 [[package]]
 name = "zvariant_derive"
-version = "5.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6643fd0b26a46d226bd90d3f07c1b5321fe9bb7f04673cb37ac6d6883885b68e"
+version = "5.8.0"
+source = "git+https://github.com/Schmarni-Dev/zbus?branch=better_obj_destruct#9bb6a958fdbfcc6c46f2766cae8e60ee20ec81ee"
 dependencies = [
  "proc-macro-crate 3.4.0",
  "proc-macro2",
@@ -3900,8 +3888,7 @@ dependencies = [
 [[package]]
 name = "zvariant_utils"
 version = "3.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6949d142f89f6916deca2232cf26a8afacf2b9fdc35ce766105e104478be599"
+source = "git+https://github.com/Schmarni-Dev/zbus?branch=better_obj_destruct#9bb6a958fdbfcc6c46f2766cae8e60ee20ec81ee"
 dependencies = [
  "proc-macro2",
  "quote",
