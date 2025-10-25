@@ -818,7 +818,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -878,7 +878,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1333,7 +1333,7 @@ dependencies = [
  "hyper",
  "libc",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.0",
  "tokio",
  "tower-service",
  "tracing",
@@ -2356,7 +2356,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2554,7 +2554,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 [[package]]
 name = "stardust-xr"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#0b33b006a71d26fa245f9b32636d67eb5d733751"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#c03b8c09c2bc1096aedaf66025d47879729d6d10"
 dependencies = [
  "color-eyre",
  "dirs",
@@ -2573,7 +2573,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "2.0.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#3af69d058139a33d76cb9e982739867df013b415"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#43d17ea8c0aab4204a59dc52cc5d2ac7ef24a254"
 dependencies = [
  "ashpd",
  "bumpalo",
@@ -2590,6 +2590,7 @@ dependencies = [
  "ron",
  "rustc-hash 2.1.1",
  "serde",
+ "shiva-color-rs",
  "stardust-xr-fusion",
  "stardust-xr-molecules",
  "tokio",
@@ -2600,7 +2601,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#0b33b006a71d26fa245f9b32636d67eb5d733751"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#c03b8c09c2bc1096aedaf66025d47879729d6d10"
 dependencies = [
  "clap",
  "color-eyre",
@@ -2626,7 +2627,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=dev#283fcf6bcdb74adcb2a1bd1d37ce39dcb5d0368d"
+source = "git+https://github.com/StardustXR/molecules.git?branch=dev#c75db684db5742c31b747cde97aff40bb2865d74"
 dependencies = [
  "futures-util",
  "glam 0.30.8",
@@ -2644,13 +2645,12 @@ dependencies = [
 [[package]]
 name = "stardust-xr-schemas"
 version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#0b33b006a71d26fa245f9b32636d67eb5d733751"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#c03b8c09c2bc1096aedaf66025d47879729d6d10"
 dependencies = [
  "console-subscriber",
  "flatbuffers",
  "flexbuffers",
  "fnv",
- "futures-util",
  "kdl",
  "manifest-dir-macros",
  "nanoid",
@@ -2752,7 +2752,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
