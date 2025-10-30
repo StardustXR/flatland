@@ -5,7 +5,7 @@ use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, 
 use stardust_xr_fusion::{
 	core::{schemas::zbus::Connection, values::ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
-	fields::{Field, Shape},
+	fields::{Field, FieldAspect, Shape},
 	input::{InputDataType, InputHandler},
 	node::{NodeError, NodeResult, NodeType},
 	objects::hmd,
@@ -14,6 +14,7 @@ use stardust_xr_fusion::{
 	values::{color::rgba_linear, Color, Vector2},
 };
 use stardust_xr_molecules::{
+	dbus::AbortOnDrop,
 	input_action::{InputQueue, InputQueueable, SingleAction},
 	reparentable::Reparentable,
 	UIElement,
@@ -187,6 +188,8 @@ pub struct ResizeHandlesInner {
 	bottom: ResizeHandle,
 	top: ResizeHandle,
 	reparentable: Option<Reparentable>,
+	reparentable_field: Field,
+	_field_update_task: AbortOnDrop,
 	path: PathBuf,
 	connection: Connection,
 	parent: SpatialRef,
@@ -231,12 +234,32 @@ impl ResizeHandlesInner {
 				}
 			}
 		});
+		let reparentable_field = Field::create(
+			&content_parent,
+			Transform::none(),
+			Shape::Box([initial_size.x, initial_size.y, 0.01].into()),
+		)?;
+		let _field_update_task = AbortOnDrop(
+			tokio::task::spawn({
+				let mut size = size.clone();
+				let field = reparentable_field.clone();
+				async move {
+					while size.changed().await.is_ok() {
+						let size = size.borrow();
+						_ = field.set_shape(Shape::Box([size.x, size.y, 0.01].into()));
+					}
+				}
+			})
+			.abort_handle(),
+		);
 		let mut resize_handles = ResizeHandlesInner {
 			content_parent,
 			bottom,
 			top,
 			parent,
 			reparentable: None,
+			reparentable_field,
+			_field_update_task,
 			path: path.as_ref().to_path_buf(),
 			connection,
 
@@ -290,8 +313,7 @@ impl ResizeHandlesInner {
 					&self.path,
 					self.parent.clone(),
 					self.content_parent.clone(),
-					// TODO: figure out how to make a field for the entire panel
-					None,
+					Some(self.reparentable_field.clone()),
 				)
 				.ok()
 			})
