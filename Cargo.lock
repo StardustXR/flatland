@@ -2573,9 +2573,8 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "2.0.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#43d17ea8c0aab4204a59dc52cc5d2ac7ef24a254"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#5ca8109fdf3fa6672e32340fe7b3ca9ba7c6dcb7"
 dependencies = [
- "ashpd",
  "bumpalo",
  "derive-where",
  "derive_setters",
@@ -2627,8 +2626,9 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=dev#c75db684db5742c31b747cde97aff40bb2865d74"
+source = "git+https://github.com/StardustXR/molecules.git?branch=dev#b41bee4e879462d953c5b5c5a61e5904eb6d55e4"
 dependencies = [
+ "ashpd",
  "futures-util",
  "glam 0.30.8",
  "lazy_static",
