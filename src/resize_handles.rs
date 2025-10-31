@@ -413,7 +413,7 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 			context.dbus_connection.clone(),
 			info.element_path,
 			self.reparentable,
-			context.accent_color,
+			context.accent_color.color(),
 			self.current_size,
 			self.min_size,
 			self.max_size,
