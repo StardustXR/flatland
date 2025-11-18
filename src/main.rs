@@ -120,7 +120,7 @@ impl Default for State {
 		State {
 			toplevels: FxHashMap::default(),
 			_toplevel_preferences: FxHashMap::default(),
-			mouse_scroll_multiplier: 10.0,
+			mouse_scroll_multiplier: 1.0,
 		}
 	}
 }
@@ -493,7 +493,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 						},
 						move |state, motion| {
 							state.cursor_pos.x += motion.x;
-							state.cursor_pos.y += motion.y;
+							state.cursor_pos.y -= motion.y;
 							state.cursor_pos.x =
 								state.cursor_pos.x.clamp(0.0, state.info.size.x as f32);
 							state.cursor_pos.y =
@@ -506,14 +506,22 @@ fn reify_surface<E: Element<ToplevelState>>(
 							let _ = state.panel_item.pointer_scroll(
 								surface_id,
 								[0.0; 2],
-								[scroll_discrete.x, -scroll_discrete.y],
+								[
+									scroll_discrete.x * state.mouse_scroll_multiplier,
+									-scroll_discrete.y * state.mouse_scroll_multiplier,
+								],
 							);
 						},
 						move |state, scroll_continuous| {
+							// TODO: fix the server, we're not sending some events some apps need to register
+							// continuous scroll, we should send that instead of discrete
 							let _ = state.panel_item.pointer_scroll(
 								surface_id,
-								[scroll_continuous.x, -scroll_continuous.y],
 								[0.0; 2],
+								[
+									scroll_continuous.x * state.mouse_scroll_multiplier,
+									-scroll_continuous.y * state.mouse_scroll_multiplier,
+								],
 							);
 						},
 					)
@@ -529,7 +537,13 @@ fn reify_surface<E: Element<ToplevelState>>(
 						.on_pointer_motion(move |state, pos| {
 							let pixel_pos = [pos.x * state.density, pos.y * state.density];
 							state.cursor_pos = pixel_pos.into();
-							let _ = state.panel_item.pointer_motion(surface_id, pixel_pos);
+							state.cursor_pos.x =
+								state.cursor_pos.x.clamp(0.0, state.info.size.x as f32);
+							state.cursor_pos.y =
+								state.cursor_pos.y.clamp(0.0, state.info.size.y as f32);
+							let _ = state
+								.panel_item
+								.pointer_motion(surface_id, state.cursor_pos);
 						})
 						.on_scroll(move |state, scroll| {
 							let _ = match (scroll.scroll_continuous, scroll.scroll_discrete) {
@@ -544,21 +558,24 @@ fn reify_surface<E: Element<ToplevelState>>(
 								),
 								(Some(continuous), None) => state.panel_item.pointer_scroll(
 									surface_id,
+									// TODO: fix the server, we're not sending some events some apps need to register
+									// continuous scroll, we should send that instead of discrete
+									[0.0; 2],
 									[
 										continuous.x * state.mouse_scroll_multiplier,
 										-continuous.y * state.mouse_scroll_multiplier,
 									],
-									[0.0; 2],
 								),
 								(Some(continuous), Some(steps)) => state.panel_item.pointer_scroll(
 									surface_id,
+									// TODO: fix the server, we're not sending some events some apps need to register
+									// continuous scroll, we should send that instead of discrete
+									[0.0; 2],
 									[
-										continuous.x * state.mouse_scroll_multiplier,
-										continuous.y * state.mouse_scroll_multiplier,
-									],
-									[
-										steps.x * state.mouse_scroll_multiplier,
-										steps.y * state.mouse_scroll_multiplier,
+										(steps.x * state.mouse_scroll_multiplier)
+											+ (continuous.x * state.mouse_scroll_multiplier),
+										(steps.y * state.mouse_scroll_multiplier)
+											+ (continuous.y * state.mouse_scroll_multiplier),
 									],
 								),
 							};

@@ -1,5 +1,5 @@
 use derive_setters::Setters;
-use glam::{vec3, Mat4, Vec2, Vec3};
+use glam::{vec2, vec3, Mat4, Vec2, Vec3};
 use serde::Deserialize;
 use stardust_xr_asteroids::{
 	Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
@@ -10,6 +10,7 @@ use stardust_xr_fusion::{
 	fields::{Field, FieldAspect, Shape},
 	input::{Finger, Hand, InputData, InputDataType, InputHandler},
 	node::{NodeError, NodeType},
+	root::FrameInfo,
 	spatial::{SpatialRef, Transform},
 	values::{color::rgba_linear, Vector3},
 };
@@ -131,11 +132,11 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 	fn frame(
 		&self,
 		_context: &Context,
-		_info: &stardust_xr_fusion::root::FrameInfo,
+		frame_info: &FrameInfo,
 		state: &mut State,
 		inner: &mut Self::Inner,
 	) {
-		inner.handle_events(state, self);
+		inner.handle_events(state, self, frame_info);
 	}
 
 	fn spatial_aspect(&self, inner: &Self::Inner) -> SpatialRef {
@@ -171,11 +172,12 @@ impl PointerSurfaceInputInner {
 		&mut self,
 		state: &mut State,
 		decl: &PointerPlane<State>,
+		frame_info: &FrameInfo,
 	) {
 		if !self.input.handle_events() {
 			return;
 		}
-		self.update_pointer(state, decl);
+		self.update_pointer(state, decl, frame_info);
 		self.update_signifiers();
 	}
 
@@ -254,7 +256,12 @@ impl PointerSurfaceInputInner {
 		}
 	}
 
-	fn update_pointer<State: ValidState>(&mut self, state: &mut State, decl: &PointerPlane<State>) {
+	fn update_pointer<State: ValidState>(
+		&mut self,
+		state: &mut State,
+		decl: &PointerPlane<State>,
+		frame_info: &FrameInfo,
+	) {
 		self.hover.update(&self.input, &|input| match &input.input {
 			InputDataType::Pointer(_) => input.distance <= 0.0,
 			_ => {
@@ -317,6 +324,27 @@ impl PointerSurfaceInputInner {
 			.deserialize::<MouseEvent>()
 			.unwrap_or_default();
 		(decl.on_scroll.0)(state, mouse_event);
+
+		#[derive(Deserialize, Default)]
+		struct ScrollInput {
+			scroll: Option<Vector2<f32>>,
+		}
+
+		let scroll = closest_hover
+			.datamap
+			.deserialize::<ScrollInput>()
+			.unwrap_or_default()
+			.scroll;
+		(decl.on_scroll.0)(
+			state,
+			MouseEvent {
+				// TODO: fix the server, we're not sending some events some apps need to register
+				// continuous scroll, we should send that instead of discrete
+				scroll_continuous: None,
+				scroll_discrete: scroll
+					.map(|scroll| (vec2(scroll.x, scroll.y) * frame_info.delta).into()),
+			},
+		);
 	}
 
 	fn update_signifiers(&mut self) {
