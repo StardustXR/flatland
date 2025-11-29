@@ -101,13 +101,14 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "ashpd"
-version = "0.13.0"
-source = "git+https://github.com/technobaboo/ashpd.git?branch=feature/custom-session-connection#3c25e0bad0312e3dd6fcc594f1335149cb1d65a7"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da0986d5b4f0802160191ad75f8d33ada000558757db3defb70299ca95d9fcbd"
 dependencies = [
  "enumflags2",
- "fastrand",
  "futures-channel",
  "futures-util",
+ "rand 0.9.2",
  "serde",
  "serde_repr",
  "tokio",
@@ -2553,8 +2554,9 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "stardust-xr"
-version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#9af552174a80aff6745c37db014a3e0f7a785be8"
+version = "0.50.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22916ee1f8f365c87e24483567eb7ff33c05a5f9297543ac377902190b8566f7"
 dependencies = [
  "color-eyre",
  "dirs",
@@ -2572,8 +2574,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-asteroids"
-version = "2.0.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#5ca8109fdf3fa6672e32340fe7b3ca9ba7c6dcb7"
+version = "0.50.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e42a7ea4f5eee697ce53e0b236886575858891843ca0c5b45f396789eb6eb7b"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -2599,8 +2602,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-fusion"
-version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#9af552174a80aff6745c37db014a3e0f7a785be8"
+version = "0.50.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd205b5bf8c9002a3221e2bc7be2de7af2be611941902548f48b629038092e17"
 dependencies = [
  "clap",
  "color-eyre",
@@ -2625,8 +2629,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-molecules"
-version = "0.45.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=dev#b41bee4e879462d953c5b5c5a61e5904eb6d55e4"
+version = "0.50.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ec1ee38d90e7095c3399abf1313c70639f2b7205ac7f6c7f1aed1be42313b79"
 dependencies = [
  "ashpd",
  "futures-util",
@@ -2644,8 +2649,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-schemas"
-version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#9af552174a80aff6745c37db014a3e0f7a785be8"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a58107854dcff44ae2e8582c552877a34e42b60ea1b6adcb4089676d9242055a"
 dependencies = [
  "console-subscriber",
  "flatbuffers",
