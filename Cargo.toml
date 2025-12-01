@@ -27,9 +27,17 @@ serde = { version = "1.0.216", features = ["derive"] }
 tracing-tracy = { version = "0.11.4", optional = true }
 tracy-client = { version = "0.18.0", optional = true }
 
-stardust-xr-fusion = "0.50.0"
-stardust-xr-molecules = "0.50.0"
-stardust-xr-asteroids = "0.50.0"
+[dependencies.stardust-xr-fusion]
+version = "0.50.0"
+git = "https://github.com/StardustXR/core"
+
+[dependencies.stardust-xr-molecules]
+version = "0.50.0"
+git = "https://github.com/StardustXR/molecules"
+
+[dependencies.stardust-xr-asteroids]
+version = "0.50.0"
+git = "https://github.com/StardustXR/asteroids"
 
 [patch.crates-io]
 zbus = { git = "https://github.com/Schmarni-Dev/zbus", branch = "better_obj_destruct" }

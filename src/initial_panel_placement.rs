@@ -67,7 +67,7 @@ impl<State: ValidState> CustomElement<State> for InitialPanelPlacement {
 		info: CreateInnerInfo,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
-		let spatial = Spatial::create(info.parent_space, Transform::identity(), false)?;
+		let spatial = Spatial::create(info.parent_space, Transform::identity())?;
 		tokio::task::spawn(initial_placement(spatial.clone()));
 		Ok(spatial)
 	}

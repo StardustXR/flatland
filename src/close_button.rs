@@ -97,7 +97,7 @@ impl ExposureButtonInner {
 		transform: Transform,
 		thickness: f32,
 	) -> Result<Self, NodeError> {
-		let root = Spatial::create(parent, transform, false)?;
+		let root = Spatial::create(parent, transform)?;
 		let model = Model::create(
 			&root,
 			Transform::from_scale([0.025, 0.025, thickness]),

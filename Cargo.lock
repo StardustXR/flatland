@@ -2555,8 +2555,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 [[package]]
 name = "stardust-xr"
 version = "0.50.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22916ee1f8f365c87e24483567eb7ff33c05a5f9297543ac377902190b8566f7"
+source = "git+https://github.com/StardustXR/core#06cfe6a7986d0a6acfa82c5764b1370fdaa5550f"
 dependencies = [
  "color-eyre",
  "dirs",
@@ -2575,8 +2574,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.50.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e42a7ea4f5eee697ce53e0b236886575858891843ca0c5b45f396789eb6eb7b"
+source = "git+https://github.com/StardustXR/asteroids#b3315628501bb87c093060d59947ef98bef8e21e"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -2603,8 +2601,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.50.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd205b5bf8c9002a3221e2bc7be2de7af2be611941902548f48b629038092e17"
+source = "git+https://github.com/StardustXR/core#06cfe6a7986d0a6acfa82c5764b1370fdaa5550f"
 dependencies = [
  "clap",
  "color-eyre",
@@ -2630,8 +2627,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.50.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ec1ee38d90e7095c3399abf1313c70639f2b7205ac7f6c7f1aed1be42313b79"
+source = "git+https://github.com/StardustXR/molecules#90d9dcfd87aef11f6af86ba191108bad93745f9c"
 dependencies = [
  "ashpd",
  "futures-util",
@@ -2650,8 +2646,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-schemas"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a58107854dcff44ae2e8582c552877a34e42b60ea1b6adcb4089676d9242055a"
+source = "git+https://github.com/StardustXR/core#06cfe6a7986d0a6acfa82c5764b1370fdaa5550f"
 dependencies = [
  "console-subscriber",
  "flatbuffers",

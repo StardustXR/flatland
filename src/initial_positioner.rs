@@ -17,7 +17,7 @@ impl<State: ValidState> CustomElement<State> for InitialPositioner {
 		info: CreateInnerInfo,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
-		let spatial = Spatial::create(info.parent_space, Transform::identity(), false)?;
+		let spatial = Spatial::create(info.parent_space, Transform::identity())?;
 		spatial.set_relative_transform(&self.0, Transform::identity())?;
 		Ok(spatial)
 	}

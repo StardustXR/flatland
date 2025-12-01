@@ -220,7 +220,7 @@ impl ResizeHandlesInner {
 			connector_color: accent_color,
 		};
 
-		let content_parent = Spatial::create(&parent, Transform::identity(), false)?;
+		let content_parent = Spatial::create(&parent, Transform::identity())?;
 		let bottom = ResizeHandle::create(&content_parent, settings.clone())?;
 		let top = ResizeHandle::create(&content_parent, settings.clone())?;
 
