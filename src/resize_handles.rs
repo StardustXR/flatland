@@ -3,14 +3,15 @@ use derive_setters::Setters;
 use glam::{vec2, vec3, Mat4, Quat, Vec3, Vec3Swizzles};
 use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
 use stardust_xr_fusion::{
-	core::{schemas::zbus::Connection, values::ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
 	fields::{Field, FieldAspect, Shape},
 	input::{InputDataType, InputHandler},
 	node::{NodeError, NodeResult, NodeType},
 	objects::hmd,
+	objects::zbus::Connection,
 	root::FrameInfo,
 	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
+	values::ResourceID,
 	values::{color::rgba_linear, Color, Vector2},
 };
 use stardust_xr_molecules::{

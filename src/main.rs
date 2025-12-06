@@ -492,6 +492,9 @@ fn reify_surface<E: Element<ToplevelState>>(
 							let _ = state.panel_item.pointer_button(surface_id, button, pressed);
 						},
 						move |state, motion| {
+							let _ = state
+								.panel_item
+								.relative_pointer_motion(surface_id, [motion.x, -motion.y]);
 							state.cursor_pos.x += motion.x;
 							state.cursor_pos.y -= motion.y;
 							state.cursor_pos.x =
@@ -500,7 +503,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 								state.cursor_pos.y.clamp(0.0, state.info.size.y as f32);
 							let _ = state
 								.panel_item
-								.pointer_motion(surface_id, state.cursor_pos);
+								.absolute_pointer_motion(surface_id, state.cursor_pos);
 						},
 						move |state, scroll_discrete| {
 							let _ = state.panel_item.pointer_scroll(
@@ -543,7 +546,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 								state.cursor_pos.y.clamp(0.0, state.info.size.y as f32);
 							let _ = state
 								.panel_item
-								.pointer_motion(surface_id, state.cursor_pos);
+								.absolute_pointer_motion(surface_id, state.cursor_pos);
 						})
 						.on_scroll(move |state, scroll| {
 							let _ = match (scroll.scroll_continuous, scroll.scroll_discrete) {

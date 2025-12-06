@@ -1,14 +1,14 @@
 use glam::Vec3;
 use stardust_xr_fusion::{
-	core::values::{
-		color::{color_space::LinearRgb, rgba_linear, Rgba},
-		Vector3,
-	},
 	drawable::{Lines, LinesAspect},
 	fields::{Field, Shape},
 	input::{InputDataType, InputHandler},
 	node::{NodeError, NodeType},
 	spatial::{Spatial, SpatialAspect, Transform},
+	values::{
+		color::{color_space::LinearRgb, rgba_linear, Rgba},
+		Vector3,
+	},
 };
 use stardust_xr_molecules::{
 	input_action::{InputQueue, InputQueueable, SingleAction},

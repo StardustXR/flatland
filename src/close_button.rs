@@ -5,13 +5,13 @@ use stardust_xr_asteroids::{
 	Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
 };
 use stardust_xr_fusion::{
-	core::values::{color::rgba_linear, ResourceID},
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
 	fields::{Field, FieldAspect, Shape},
 	input::{InputDataType::Pointer, InputHandler},
 	node::{NodeError, NodeType},
 	root::FrameInfo,
 	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
+	values::{color::rgba_linear, ResourceID},
 };
 use stardust_xr_molecules::{
 	input_action::{InputQueue, InputQueueable, SimpleAction},
