@@ -161,7 +161,7 @@ impl<State: ValidState> CustomElement<State> for PanelWrapper<State> {
 		state: &mut State,
 		inner: &mut Self::Inner,
 	) {
-		if let Some(event) = inner.recv_panel_item_event() {
+		while let Some(event) = inner.recv_panel_item_event() {
 			match event {
 				ToplevelParentChanged { parent_id } => {
 					(self.on_toplevel_parent_changed.0)(state, parent_id)
