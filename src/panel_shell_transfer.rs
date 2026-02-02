@@ -1,5 +1,4 @@
-use glam::Vec3;
-use map_range::MapRange;
+use glam::{FloatExt, Vec3};
 use rustc_hash::FxHashMap;
 use stardust_xr_fusion::{
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
@@ -81,7 +80,7 @@ impl PanelShellTransfer {
 
 			let gradient = colorgrad::magma();
 			let color =
-				gradient.at(closest_distance.map_range(0.25..MAX_ACCEPT_DISTANCE, 0.0..1.0) as f64);
+				gradient.at(closest_distance.remap(0.25, MAX_ACCEPT_DISTANCE, 0.0, 1.0) as f64);
 			let _ = outside.set_material_parameter(
 				"emission_factor",
 				MaterialParameter::Color(rgba_linear!(

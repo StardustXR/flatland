@@ -703,7 +703,6 @@ dependencies = [
  "derive_setters",
  "glam 0.28.0",
  "input-event-codes",
- "map-range",
  "rustc-hash 1.1.0",
  "serde",
  "stardust-xr-asteroids",
