@@ -202,7 +202,7 @@ impl PointerSurfaceInputInner {
 			&& point.z.is_sign_positive() == front
 	}
 
-	fn hover_point(input: &InputData) -> Vec3 {
+	fn hover_point(input: &InputData, stable: bool) -> Vec3 {
 		match &input.input {
 			InputDataType::Pointer(p) => {
 				let normal = vec3(0.0, 0.0, 1.0);
@@ -211,7 +211,11 @@ impl PointerSurfaceInputInner {
 				Vec3::from(p.origin) + Vec3::from(p.direction()) * t
 			}
 			InputDataType::Hand(h) => {
-				(Vec3::from(h.index.tip.position) + Vec3::from(h.thumb.tip.position)) * 0.5
+				if stable {
+					h.stable_pinch_position().into()
+				} else {
+					h.predicted_pinch_position().into()
+				}
 			}
 			InputDataType::Tip(t) => t.origin.into(),
 		}
@@ -272,7 +276,7 @@ impl PointerSurfaceInputInner {
 		self.hover.update(&self.input, &|input| match &input.input {
 			InputDataType::Pointer(_) => input.distance <= 0.0,
 			_ => {
-				let hover_point = Self::hover_point(input);
+				let hover_point = Self::hover_point(input, true);
 				(0.05..0.2).contains(&hover_point.z.abs())
 					&& Self::hovering(self.physical_size.into(), hover_point.into(), true)
 			}
@@ -329,7 +333,7 @@ impl PointerSurfaceInputInner {
 			return;
 		};
 
-		let position = self.to_local_coords(Self::hover_point(&closest_hover));
+		let position = self.to_local_coords(Self::hover_point(&closest_hover, true));
 		if frame_info.elapsed - self.start_click_time > decl.click_freeze_time.as_secs_f32() {
 			(decl.on_pointer_motion.0)(state, position);
 		}
@@ -404,20 +408,24 @@ impl PointerSurfaceInputInner {
 		if let InputDataType::Pointer(_) = &input.input {
 			None
 		} else {
-			Some(self.line_from_point(PointerSurfaceInputInner::hover_point(input), interacting))
+			Some(self.line_from_point(
+				PointerSurfaceInputInner::hover_point(input, true),
+				PointerSurfaceInputInner::hover_point(input, false),
+				interacting,
+			))
 		}
 	}
 
-	fn line_from_point(&self, point: Vec3, interacting: bool) -> Line {
+	fn line_from_point(&self, stable_point: Vec3, unstable_point: Vec3, interacting: bool) -> Line {
 		let settings = stardust_xr_molecules::hover_plane::HoverPlaneSettings::default();
 		Line {
 			points: vec![
 				LinePoint {
 					point: [
-						point
+						stable_point
 							.x
 							.clamp(self.physical_size.x * -0.5, self.physical_size.x * 0.5),
-						point
+						stable_point
 							.y
 							.clamp(self.physical_size.y * -0.5, self.physical_size.y * 0.5),
 						0.0,
@@ -431,7 +439,7 @@ impl PointerSurfaceInputInner {
 					},
 				},
 				LinePoint {
-					point: point.into(),
+					point: unstable_point.into(),
 					thickness: settings.line_end_thickness,
 					color: if interacting {
 						settings.line_end_color_interact
