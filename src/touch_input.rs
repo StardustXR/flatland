@@ -1,5 +1,6 @@
 use derive_setters::Setters;
 use glam::{vec3, Mat4, Vec2, Vec3};
+use rustc_hash::FxHashMap;
 use stardust_xr_asteroids::{
 	Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
 };
@@ -18,6 +19,7 @@ use stardust_xr_molecules::{
 	lines::{self, LineExt},
 	DebugSettings, VisualDebug,
 };
+use std::time::Duration;
 
 #[derive_where::derive_where(Debug, PartialEq)]
 #[derive(Setters)]
@@ -27,6 +29,7 @@ pub struct TouchPlane<State: ValidState> {
 	pub transform: Transform,
 	pub physical_size: Vector2<f32>,
 	pub thickness: f32,
+	pub click_freeze_time: Duration,
 	pub debug_line_settings: Option<DebugSettings>,
 
 	#[setters(skip)]
@@ -43,6 +46,7 @@ impl<State: ValidState> Default for TouchPlane<State> {
 			transform: Transform::identity(),
 			physical_size: [1.0; 2].into(),
 			thickness: 0.0,
+			click_freeze_time: Duration::from_millis(300),
 			debug_line_settings: None,
 
 			on_touch_down: FnWrapper(Box::new(|_, _, _| {})),
@@ -99,6 +103,7 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 			input,
 			field,
 			touch: MultiAction::default(),
+			start_tap_times: FxHashMap::default(),
 			physical_size: self.physical_size.into(),
 			thickness: self.thickness,
 			lines,
@@ -119,11 +124,11 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 	fn frame(
 		&self,
 		_context: &Context,
-		_info: &FrameInfo,
+		info: &FrameInfo,
 		state: &mut State,
 		inner: &mut Self::Inner,
 	) {
-		inner.handle_events(state, self);
+		inner.handle_events(state, self, info);
 	}
 
 	fn spatial_aspect(&self, inner: &Self::Inner) -> SpatialRef {
@@ -144,6 +149,7 @@ pub struct TouchSurfaceInputInner {
 	input: InputQueue,
 	field: Field,
 	touch: MultiAction,
+	start_tap_times: FxHashMap<u32, f32>,
 	physical_size: Vec2,
 	thickness: f32,
 	lines: Lines,
@@ -155,11 +161,12 @@ impl TouchSurfaceInputInner {
 		&mut self,
 		state: &mut State,
 		decl: &TouchPlane<State>,
+		info: &FrameInfo,
 	) {
 		if !self.input.handle_events() {
 			return;
 		}
-		self.update_touches(state, decl);
+		self.update_touches(state, decl, info);
 		self.update_signifiers();
 	}
 
@@ -201,6 +208,7 @@ impl TouchSurfaceInputInner {
 		&mut self,
 		state: &mut State,
 		decl: &TouchPlane<State>,
+		info: &FrameInfo,
 	) {
 		let physical_size = self.physical_size.into();
 		self.touch.update(
@@ -221,13 +229,20 @@ impl TouchSurfaceInputInner {
 
 		for input_data in self.touch.interact().added().iter() {
 			let position = self.to_local_coords(Self::hover_point(input_data));
+			self.start_tap_times
+				.insert(input_data.id as u32, info.elapsed);
 			(decl.on_touch_down.0)(state, input_data.id as u32, position);
 		}
 		for input_data in self.touch.interact().current().iter() {
 			let position = self.to_local_coords(Self::hover_point(input_data));
-			(decl.on_touch_move.0)(state, input_data.id as u32, position);
+			if let Some(start_time) = self.start_tap_times.get(&(input_data.id as u32)) {
+				if info.elapsed - start_time > decl.click_freeze_time.as_secs_f32() {
+					(decl.on_touch_move.0)(state, input_data.id as u32, position);
+				}
+			}
 		}
 		for input_data in self.touch.interact().removed().iter() {
+			self.start_tap_times.remove(&(input_data.id as u32));
 			(decl.on_touch_up.0)(state, input_data.id as u32);
 		}
 	}

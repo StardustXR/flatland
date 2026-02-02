@@ -19,7 +19,7 @@ use stardust_xr_molecules::{
 	lines::{self, LineExt},
 	DebugSettings, VisualDebug,
 };
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct MouseEvent {
@@ -35,6 +35,7 @@ pub struct PointerPlane<State: ValidState> {
 	pub transform: Transform,
 	pub physical_size: Vector2<f32>,
 	pub thickness: f32,
+	pub click_freeze_time: Duration,
 	pub debug_line_settings: Option<DebugSettings>,
 
 	#[setters(skip)]
@@ -51,6 +52,7 @@ impl<State: ValidState> Default for PointerPlane<State> {
 			transform: Transform::identity(),
 			physical_size: [1.0; 2].into(),
 			thickness: 0.0,
+			click_freeze_time: Duration::from_millis(300),
 			debug_line_settings: None,
 
 			on_mouse_button: FnWrapper(Box::new(|_, _, _| {})),
@@ -112,6 +114,7 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 			left_click: SingleAction::default(),
 			middle_click: SingleAction::default(),
 			right_click: SingleAction::default(),
+			start_click_time: 0.0,
 			physical_size: self.physical_size.into(),
 			thickness: self.thickness,
 			lines,
@@ -161,6 +164,7 @@ pub struct PointerSurfaceInputInner {
 	left_click: SingleAction,
 	middle_click: SingleAction,
 	right_click: SingleAction,
+	start_click_time: f32,
 	physical_size: Vec2,
 	thickness: f32,
 	lines: Lines,
@@ -227,6 +231,8 @@ impl PointerSurfaceInputInner {
 		state: &mut State,
 		input: &InputQueue,
 		decl: &PointerPlane<State>,
+		elapsed_time: f32,
+		start_click_time: &mut f32,
 		action: &mut SingleAction,
 		finger: fn(&Hand) -> &Finger,
 		datamap_key: &str,
@@ -249,6 +255,7 @@ impl PointerSurfaceInputInner {
 			},
 		);
 		if action.actor_started() {
+			*start_click_time = elapsed_time;
 			(decl.on_mouse_button.0)(state, button, true);
 		}
 		if action.actor_stopped() {
@@ -283,6 +290,8 @@ impl PointerSurfaceInputInner {
 			state,
 			&self.input,
 			decl,
+			frame_info.elapsed,
+			&mut self.start_click_time,
 			&mut self.left_click,
 			|hand| &hand.index,
 			"select",
@@ -294,6 +303,8 @@ impl PointerSurfaceInputInner {
 			state,
 			&self.input,
 			decl,
+			frame_info.elapsed,
+			&mut self.start_click_time,
 			&mut self.middle_click,
 			|hand| &hand.middle,
 			"middle",
@@ -305,6 +316,8 @@ impl PointerSurfaceInputInner {
 			state,
 			&self.input,
 			decl,
+			frame_info.elapsed,
+			&mut self.start_click_time,
 			&mut self.right_click,
 			|hand| &hand.ring,
 			"context",
@@ -317,7 +330,9 @@ impl PointerSurfaceInputInner {
 		};
 
 		let position = self.to_local_coords(Self::hover_point(&closest_hover));
-		(decl.on_pointer_motion.0)(state, position);
+		if frame_info.elapsed - self.start_click_time > decl.click_freeze_time.as_secs_f32() {
+			(decl.on_pointer_motion.0)(state, position);
+		}
 
 		let mouse_event = closest_hover
 			.datamap
