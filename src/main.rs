@@ -9,7 +9,9 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use stardust_xr_asteroids::{
 	client::{run, ClientState},
-	elements::{KeyboardHandler, Model, ModelPart, MouseHandler, PanelUI, Spatial, Text},
+	elements::{
+		Derezzable, KeyboardHandler, Model, ModelPart, MouseHandler, PanelUI, Spatial, Text,
+	},
 	CustomElement, Element, FnWrapper, Migrate, Reify, Transformable as _,
 };
 use stardust_xr_fusion::{
@@ -460,6 +462,15 @@ fn reify_surface<E: Element<ToplevelState>>(
 				.extend(thickness * (z_offset as f32)),
 		)
 		.build()
+		.child(
+			Derezzable::<ToplevelState>::new(
+				|state| {
+					_ = state.panel_item.close_toplevel();
+				},
+				shape.clone(),
+			)
+			.build(),
+		)
 		.child(
 			Model::namespaced("flatland", "panel")
 				.part(ModelPart::new("Panel").apply_panel_item(panel_item.clone(), surface_id))
