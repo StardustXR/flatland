@@ -12,7 +12,7 @@ use stardust_xr_asteroids::{
 	elements::{
 		Derezzable, KeyboardHandler, Model, ModelPart, MouseHandler, PanelUI, Spatial, Text,
 	},
-	CustomElement, Element, FnWrapper, Migrate, Reify, Transformable as _,
+	Context, CustomElement, Element, FnWrapper, Migrate, Reify, Tasker, Transformable as _,
 };
 use stardust_xr_fusion::{
 	drawable::{TextBounds, TextFit, XAlign, YAlign},
@@ -133,7 +133,11 @@ impl ClientState for State {
 	const APP_ID: &'static str = "org.stardustxr.flatland";
 }
 impl Reify for State {
-	fn reify(&self) -> impl stardust_xr_asteroids::Element<Self> {
+	fn reify(
+		&self,
+		context: &Context,
+		tasks: impl Tasker<Self>,
+	) -> impl stardust_xr_asteroids::Element<Self> {
 		PanelUI::<State> {
 			on_create_item: FnWrapper(Box::new(|state, item, data| {
 				state.toplevels.insert(
@@ -177,7 +181,9 @@ impl Reify for State {
 			}
 			Some((
 				uid,
-				t.reify_substate(move |s: &mut Self| s.toplevels.get_mut(&uid)),
+				t.reify_substate(context, tasks.clone(), move |s: &mut Self| {
+					s.toplevels.get_mut(&uid)
+				}),
 			))
 		}))
 	}
@@ -212,7 +218,11 @@ impl ToplevelState {
 	}
 }
 impl Reify for ToplevelState {
-	fn reify(&self) -> impl stardust_xr_asteroids::Element<Self> {
+	fn reify(
+		&self,
+		_context: &Context,
+		_tasks: impl Tasker<Self>,
+	) -> impl stardust_xr_asteroids::Element<Self> {
 		let panel_thickness = 0.01;
 
 		let app_name = self
