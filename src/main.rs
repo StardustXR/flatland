@@ -28,7 +28,7 @@ use stardust_xr_panel_item_asteroids::{
 	panel_shell::{PanelShell, PanelShellHandler},
 	surface_model::SurfaceModel,
 };
-use std::{f32::consts::FRAC_PI_2, sync::Arc};
+use std::{f32::consts::FRAC_PI_2, process, sync::Arc};
 use touch_input::TouchPlane;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt as _};
 
@@ -137,6 +137,7 @@ impl Default for ToplevelState {
 			children: Default::default(),
 			density: 3000.0,
 			mouse_scroll_multiplier: Default::default(),
+			exit_on_disconnect: false,
 		}
 	}
 }
@@ -225,6 +226,8 @@ pub struct ToplevelState {
 	children: Vec<ChildState>,
 	density: f32, //pixels per meter
 	mouse_scroll_multiplier: f32,
+	#[serde(skip)]
+	exit_on_disconnect: bool,
 }
 impl ToplevelState {
 	#[inline]
@@ -276,6 +279,9 @@ impl Reify for ToplevelState {
 			.maybe_child(self.panel_shell.as_ref().map(|shell| {
 				PanelShell::new(&shell, |state: &mut Self| {
 					_ = state.panel_shell.take();
+					if state.exit_on_disconnect {
+						process::exit(0);
+					}
 				})
 				.on_toplevel_resolution_changed(|state: &mut Self, _item, size| {
 					state.info.size = size.into();
@@ -509,6 +515,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 		.child(
 			Derezzable::<ToplevelState>::new(
 				|state| {
+					state.exit_on_disconnect = true;
 					if let Some(shell) = state.panel_shell.as_ref() {
 						_ = shell.item().close_toplevel();
 					}
@@ -545,6 +552,10 @@ fn reify_surface<E: Element<ToplevelState>>(
 				binder_dev,
 				shape.clone(),
 				|state, shell| {
+					shell
+						.item()
+						.request_toplevel_resize(state.info.size)
+						.unwrap();
 					state.panel_shell.replace(shell);
 				},
 			)

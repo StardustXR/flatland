@@ -2300,7 +2300,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids#50b5f95ad40a150be61ba7e82c90fbc56d1e6c2c"
+source = "git+https://github.com/StardustXR/asteroids#82e6d5f713beadc6fc8cf25a0717256838885111"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -2384,7 +2384,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item#ec6e70ba992e32edf0be094bad133f7fe9372cff"
+source = "git+https://github.com/StardustXR/panel-item#09faf0d29db68116389f9d191a5a32fd3c671d46"
 dependencies = [
  "binderbinder",
  "gluon-codegen-rust",
@@ -2402,7 +2402,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item-asteroids"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item#ec6e70ba992e32edf0be094bad133f7fe9372cff"
+source = "git+https://github.com/StardustXR/panel-item#09faf0d29db68116389f9d191a5a32fd3c671d46"
 dependencies = [
  "binderbinder",
  "derive-where",
