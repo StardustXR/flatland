@@ -2106,7 +2106,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids#50b5f95ad40a150be61ba7e82c90fbc56d1e6c2c"
+source = "git+https://github.com/StardustXR/asteroids#82e6d5f713beadc6fc8cf25a0717256838885111"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -2132,8 +2132,8 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-fusion"
-version = "0.51.0"
-source = "git+https://github.com/StardustXR/core#e7ce3bc3962c563967dfad6b00e1fb290f11eeb7"
+version = "0.51.1"
+source = "git+https://github.com/StardustXR/core#3ffb5dfa2f4fdda03f8bb860fb44fade1151b4ff"
 dependencies = [
  "color-eyre",
  "convert_case",
@@ -2158,8 +2158,8 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-gluon"
-version = "0.51.0"
-source = "git+https://github.com/StardustXR/core#e7ce3bc3962c563967dfad6b00e1fb290f11eeb7"
+version = "0.51.1"
+source = "git+https://github.com/StardustXR/core#3ffb5dfa2f4fdda03f8bb860fb44fade1151b4ff"
 dependencies = [
  "futures",
  "nanoid",
@@ -2189,8 +2189,8 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-protocol"
-version = "0.51.0"
-source = "git+https://github.com/StardustXR/core#e7ce3bc3962c563967dfad6b00e1fb290f11eeb7"
+version = "0.51.1"
+source = "git+https://github.com/StardustXR/core#3ffb5dfa2f4fdda03f8bb860fb44fade1151b4ff"
 dependencies = [
  "fnv",
  "kdl",
@@ -2199,8 +2199,8 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-wire"
-version = "0.51.0"
-source = "git+https://github.com/StardustXR/core#e7ce3bc3962c563967dfad6b00e1fb290f11eeb7"
+version = "0.51.1"
+source = "git+https://github.com/StardustXR/core#3ffb5dfa2f4fdda03f8bb860fb44fade1151b4ff"
 dependencies = [
  "dirs",
  "flatbuffers",
