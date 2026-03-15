@@ -1,6 +1,6 @@
 [package]
-edition = "2021"
-rust-version = "1.75"
+edition = "2024"
+# rust-version = "1.75"
 name = "flatland"
 version = "0.50.0"
 authors = ["Nova King <technobaboo@proton.me>"]
@@ -26,16 +26,34 @@ serde = { version = "1.0.216", features = ["derive"] }
 tracing-tracy = { version = "0.11.4", optional = true }
 tracy-client = { version = "0.18.0", optional = true }
 
+[profile.dev]
+panic = "abort"
+
+[dependencies.binderbinder]
+# version = "0.50.0"
+git = "https://github.com/Technobaboo/binderbinder"
+[dependencies.pion-binder]
+# version = "0.50.0"
+git = "https://github.com/Technobaboo/pion"
+
+[dependencies.stardust-xr-panel-item]
+# version = "0.50.0"
+git = "https://github.com/StardustXR/panel-item"
+
+[dependencies.stardust-xr-panel-item-asteroids]
+# version = "0.50.0"
+git = "https://github.com/StardustXR/panel-item"
+
 [dependencies.stardust-xr-fusion]
-version = "0.50.0"
+version = "0.51.0"
 git = "https://github.com/StardustXR/core"
 
 [dependencies.stardust-xr-molecules]
-version = "0.50.0"
+version = "0.51.0"
 git = "https://github.com/StardustXR/molecules"
 
 [dependencies.stardust-xr-asteroids]
-version = "0.50.0"
+version = "0.51.0"
 git = "https://github.com/StardustXR/asteroids"
 
 [patch.crates-io]
