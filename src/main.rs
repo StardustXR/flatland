@@ -1,6 +1,6 @@
 use binderbinder::binder_object::BinderObject;
 use close_button::ExposureButton;
-use glam::{Quat, vec2, vec3};
+use glam::{Quat, vec2};
 use initial_panel_placement::InitialPanelPlacement;
 use pion_binder::PionBinderDevice;
 use pointer_input::PointerPlane;
@@ -239,8 +239,8 @@ impl ToplevelState {
 impl Reify for ToplevelState {
 	fn reify(
 		&self,
-		context: &Context,
-		tasks: impl Tasker<Self>,
+		_context: &Context,
+		_tasks: impl Tasker<Self>,
 	) -> impl stardust_xr_asteroids::Element<Self> {
 		let panel_thickness = 0.01;
 
@@ -274,29 +274,31 @@ impl Reify for ToplevelState {
 		InitialPanelPlacement
 			.build()
 			.maybe_child(self.panel_shell.as_ref().map(|shell| {
-				PanelShell::new(&shell)
-					.on_toplevel_resolution_changed(|state: &mut Self, _item, size| {
-						state.info.size = size.into();
-					})
-					.on_toplevel_app_id_changed(|state: &mut Self, _, app_id| {
-						state.info.app_id.replace(app_id);
-					})
-					.on_toplevel_title_changed(|state: &mut Self, _, title| {
-						state.info.title.replace(title);
-					})
-					.cursor_visuals_changed(|state: &mut Self, _, geometry| {
-						state.cursor = geometry;
-					})
-					.new_child(|state: &mut Self, _, child_state| {
-						add_child(&mut state.children, child_state);
-					})
-					.child_moved(|state: &mut Self, _, id, geometry| {
-						update_child_geometry(&mut state.children, id, geometry);
-					})
-					.child_removed(|state: &mut Self, _, id| {
-						remove_child(&mut state.children, id);
-					})
-					.build()
+				PanelShell::new(&shell, |state: &mut Self| {
+					_ = state.panel_shell.take();
+				})
+				.on_toplevel_resolution_changed(|state: &mut Self, _item, size| {
+					state.info.size = size.into();
+				})
+				.on_toplevel_app_id_changed(|state: &mut Self, _, app_id| {
+					state.info.app_id.replace(app_id);
+				})
+				.on_toplevel_title_changed(|state: &mut Self, _, title| {
+					state.info.title.replace(title);
+				})
+				.cursor_visuals_changed(|state: &mut Self, _, geometry| {
+					state.cursor = geometry;
+				})
+				.new_child(|state: &mut Self, _, child_state| {
+					add_child(&mut state.children, child_state);
+				})
+				.child_moved(|state: &mut Self, _, id, geometry| {
+					update_child_geometry(&mut state.children, id, geometry);
+				})
+				.child_removed(|state: &mut Self, _, id| {
+					remove_child(&mut state.children, id);
+				})
+				.build()
 			}))
 			.child(
 				ResizeHandles::<ToplevelState> {
@@ -316,7 +318,7 @@ impl Reify for ToplevelState {
 							(size_meters.y * state.density) as u32,
 						]);
 						if let Some(shell) = state.panel_shell.as_ref() {
-							shell.item().request_toplevel_resize(size.into());
+							shell.item().request_toplevel_resize(size.into()).unwrap();
 						}
 						state.info.size = size.into();
 						state.cursor_pos.x = state.cursor_pos.x.clamp(0.0, size.x as f32);
@@ -336,7 +338,7 @@ impl Reify for ToplevelState {
 						gain: 2.0,
 						on_click: FnWrapper(Box::new(|state: &mut Self| {
 							if let Some(shell) = state.panel_shell.as_ref() {
-								shell.item().close_toplevel();
+								shell.item().close_toplevel().unwrap();
 							}
 						})),
 					}
@@ -555,14 +557,17 @@ fn reify_surface<E: Element<ToplevelState>>(
 				.child(
 					KeyboardHandler::<ToplevelState>::new(shape.clone(), move |state, key_data| {
 						if let Some(shell) = state.panel_shell.as_ref() {
-							shell.item().key(
-								surface_id,
-								KeymapId {
-									id: key_data.keymap_id,
-								},
-								key_data.key,
-								key_data.pressed,
-							);
+							shell
+								.item()
+								.key(
+									surface_id,
+									KeymapId {
+										id: key_data.keymap_id,
+									},
+									key_data.key,
+									key_data.pressed,
+								)
+								.unwrap();
 						}
 					})
 					.build(),
@@ -596,30 +601,36 @@ fn reify_surface<E: Element<ToplevelState>>(
 						},
 						move |state, scroll_discrete| {
 							if let Some(shell) = state.panel_shell.as_ref() {
-								shell.item().pointer_scroll_discrete(
-									surface_id,
-									Vector2::from([
-										scroll_discrete.x * state.mouse_scroll_multiplier,
-										-scroll_discrete.y * state.mouse_scroll_multiplier,
-									])
-									.into(),
-									// TODO: forward this over the non-spatial-input protocol
-									ScrollSource::Wheel,
-								);
+								shell
+									.item()
+									.pointer_scroll_discrete(
+										surface_id,
+										Vector2::from([
+											scroll_discrete.x * state.mouse_scroll_multiplier,
+											-scroll_discrete.y * state.mouse_scroll_multiplier,
+										])
+										.into(),
+										// TODO: forward this over the non-spatial-input protocol
+										ScrollSource::Wheel,
+									)
+									.unwrap();
 							}
 						},
 						move |state, scroll_continuous| {
 							if let Some(shell) = state.panel_shell.as_ref() {
-								shell.item().pointer_scroll_pixels(
-									surface_id,
-									Vector2::from([
-										scroll_continuous.x * state.mouse_scroll_multiplier,
-										-scroll_continuous.y * state.mouse_scroll_multiplier,
-									])
-									.into(),
-									// TODO: forward this over the non-spatial-input protocol
-									ScrollSource::Wheel,
-								);
+								shell
+									.item()
+									.pointer_scroll_pixels(
+										surface_id,
+										Vector2::from([
+											scroll_continuous.x * state.mouse_scroll_multiplier,
+											-scroll_continuous.y * state.mouse_scroll_multiplier,
+										])
+										.into(),
+										// TODO: forward this over the non-spatial-input protocol
+										ScrollSource::Wheel,
+									)
+									.unwrap();
 							}
 						},
 					)
@@ -651,28 +662,34 @@ fn reify_surface<E: Element<ToplevelState>>(
 							if let Some(scroll_continuous) = scroll.scroll_continuous
 								&& let Some(shell) = state.panel_shell.as_ref()
 							{
-								shell.item().pointer_scroll_pixels(
-									surface_id,
-									Vector2::from([
-										scroll_continuous.x * state.mouse_scroll_multiplier,
-										-scroll_continuous.y * state.mouse_scroll_multiplier,
-									])
-									.into(),
-									ScrollSource::Continuous,
-								);
+								shell
+									.item()
+									.pointer_scroll_pixels(
+										surface_id,
+										Vector2::from([
+											scroll_continuous.x * state.mouse_scroll_multiplier,
+											-scroll_continuous.y * state.mouse_scroll_multiplier,
+										])
+										.into(),
+										ScrollSource::Continuous,
+									)
+									.unwrap();
 							}
 							if let Some(scroll_discrete) = scroll.scroll_discrete
 								&& let Some(shell) = state.panel_shell.as_ref()
 							{
-								shell.item().pointer_scroll_pixels(
-									surface_id,
-									Vector2::from([
-										scroll_discrete.x * state.mouse_scroll_multiplier,
-										-scroll_discrete.y * state.mouse_scroll_multiplier,
-									])
-									.into(),
-									ScrollSource::Continuous,
-								);
+								shell
+									.item()
+									.pointer_scroll_pixels(
+										surface_id,
+										Vector2::from([
+											scroll_discrete.x * state.mouse_scroll_multiplier,
+											-scroll_discrete.y * state.mouse_scroll_multiplier,
+										])
+										.into(),
+										ScrollSource::Continuous,
+									)
+									.unwrap();
 							}
 							// TODO: figure out how to send this only when scroll actually stops,
 							// instead of every frame without scroll
@@ -680,7 +697,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 								&& scroll.scroll_discrete.is_none()
 								&& let Some(shell) = state.panel_shell.as_ref()
 							{
-								shell.item().pointer_scroll_stop(surface_id);
+								shell.item().pointer_scroll_stop(surface_id).unwrap();
 							}
 						})
 						.build(),
