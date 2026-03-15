@@ -1,4 +1,4 @@
-use crate::{grab_ball::GrabBallSettings, State};
+use crate::{grab_ball::GrabBallSettings, ToplevelState};
 use derive_setters::Setters;
 use glam::{vec2, vec3, Mat4, Quat, Vec3, Vec3Swizzles};
 use stardust_xr_asteroids::{
@@ -58,7 +58,7 @@ impl ResizeHandle {
 		let model = Model::create(
 			initial_parent,
 			Transform::identity(),
-			&ResourceID::new_namespaced(State::APP_ID, "resize_handle"),
+			&ResourceID::new_namespaced(ToplevelState::APP_ID, "resize_handle"),
 		)?;
 		let sphere = model.part("sphere")?;
 		sphere.set_material_parameter(

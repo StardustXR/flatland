@@ -18,7 +18,7 @@ use stardust_xr_molecules::{
 	Exposure,
 };
 
-use crate::State;
+use crate::ToplevelState;
 
 #[derive_where::derive_where(Debug, PartialEq)]
 #[derive(Setters)]
@@ -103,7 +103,7 @@ impl ExposureButtonInner {
 		let model = Model::create(
 			&root,
 			Transform::from_scale([0.025, 0.025, thickness]),
-			&ResourceID::new_namespaced(State::APP_ID, "close_button"),
+			&ResourceID::new_namespaced(ToplevelState::APP_ID, "close_button"),
 		)?;
 		let shell = model.part("Shell")?;
 		let exposure = Exposure {

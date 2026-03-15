@@ -12,7 +12,7 @@ use stardust_xr_fusion::{
 use stardust_xr_molecules::input_action::SingleAction;
 use tokio::task::JoinSet;
 
-use crate::{grab_ball::GrabBallHead, State};
+use crate::{grab_ball::GrabBallHead, ToplevelState};
 
 const MAX_ACCEPT_DISTANCE: f32 = 0.05;
 pub struct PanelShellTransfer {
@@ -28,7 +28,7 @@ impl PanelShellTransfer {
 		let model = Model::create(
 			connect_root,
 			Transform::identity(),
-			&ResourceID::new_namespaced(State::APP_ID, "panel_shell"),
+			&ResourceID::new_namespaced(ToplevelState::APP_ID, "panel_shell"),
 		)?;
 		let outside = model.part("Outside")?;
 
