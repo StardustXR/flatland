@@ -2,7 +2,7 @@
 use derive_setters::Setters;
 use glam::Quat;
 use stardust_xr_asteroids::{
-	Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
+	ClientState, Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
 };
 use stardust_xr_fusion::{
 	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
@@ -17,6 +17,8 @@ use stardust_xr_molecules::{
 	input_action::{InputQueue, InputQueueable, SimpleAction},
 	Exposure,
 };
+
+use crate::State;
 
 #[derive_where::derive_where(Debug, PartialEq)]
 #[derive(Setters)]
@@ -101,7 +103,7 @@ impl ExposureButtonInner {
 		let model = Model::create(
 			&root,
 			Transform::from_scale([0.025, 0.025, thickness]),
-			&ResourceID::new_namespaced("flatland", "close_button"),
+			&ResourceID::new_namespaced(State::APP_ID, "close_button"),
 		)?;
 		let shell = model.part("Shell")?;
 		let exposure = Exposure {

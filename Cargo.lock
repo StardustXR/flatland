@@ -2106,7 +2106,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids#82e6d5f713beadc6fc8cf25a0717256838885111"
+source = "git+https://github.com/StardustXR/asteroids#5d0ff56a8a3a9581c1bb005b65d7746ef0577921"
 dependencies = [
  "bumpalo",
  "derive-where",

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<component type="desktop-application">
+  <id>org.StardustXR.Flatland.desktop</id>
+  <project_license>MIT</project_license>
+  <name>Flatland</name>
+  <summary>Virtual displays for desktop apps</summary>
+  <description>
+    <p>
+    	Panel shell (like a window manager) for Stardust XR that puts 2D apps inside flat slabs with resize handles.
+    </p>
+    <p>
+    	You're meant to leave them around your space, walking around (not seated).
+    </p>
+  </description>
+  <url type="homepage">https://github.com/StardustXR/flatland</url>
+  <url type="bugtracker">https://github.com/StardustXR/flatland/issues</url>
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-bloodshed">0</content_attribute>
+    <content_attribute id="violence-cartoon">0</content_attribute>
+    <content_attribute id="violence-fantasy">0</content_attribute>
+    <content_attribute id="drugs-alcohol">0</content_attribute>
+    <content_attribute id="drugs-nicotine">0</content_attribute>
+    <content_attribute id="drugs-illegal">0</content_attribute>
+    <content_attribute id="sex-nudity">0</content_attribute>
+    <content_attribute id="sex-themes">0</content_attribute>
+    <content_attribute id="language-profanity">0</content_attribute>
+  </content_rating>
+  <releases>
+    <release version="0.51.0" date="2025-03-15" />
+  </releases>
+  <developer_name>Nova King</developer_name>
+  <update_contact>technobaboo@proton.me</update_contact>
+  <translation type="gettext">flatland</translation>
+  <launchable type="desktop-id">org.stardustxr.Flatland.desktop</launchable>
+</component>

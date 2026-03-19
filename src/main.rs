@@ -12,14 +12,14 @@ use stardust_xr_asteroids::{
 	elements::{
 		Derezzable, KeyboardHandler, Model, ModelPart, MouseHandler, PanelUI, Spatial, Text,
 	},
-	Context, CustomElement, Element, FnWrapper, Migrate, Reify, Tasker, Transformable as _,
+	project_local_resources, Context, CustomElement, Element, FnWrapper, Migrate, Reify, Tasker,
+	Transformable as _,
 };
 use stardust_xr_fusion::{
 	drawable::{TextBounds, TextFit, XAlign, YAlign},
 	fields::Shape,
 	items::panel::{ChildInfo, Geometry, PanelItem, PanelItemAspect, SurfaceId, ToplevelInfo},
 	node::NodeType,
-	project_local_resources,
 	spatial::Transform,
 	values::Vector2,
 };
@@ -49,7 +49,7 @@ async fn main() {
 	)
 	.unwrap();
 
-	run::<State>(&[&project_local_resources!("res")]).await
+	run::<State>(&[&project_local_resources!("data")]).await
 }
 
 pub fn add_child(children: &mut Vec<ChildState>, child_info: ChildInfo) {
@@ -130,7 +130,7 @@ impl Migrate for State {
 	type Old = Self;
 }
 impl ClientState for State {
-	const APP_ID: &'static str = "org.stardustxr.flatland";
+	const APP_ID: &'static str = "org.stardustxr.Flatland";
 }
 impl Reify for State {
 	fn reify(
@@ -385,7 +385,7 @@ impl Reify for ToplevelState {
 								- geometry_origin;
 							let pos_m = pos_px * vec2(1.0, -1.0) / self.density;
 
-							Model::namespaced("flatland", "panel")
+							Model::namespaced(State::APP_ID, "panel")
 								.part(
 									ModelPart::new("Panel")
 										.apply_panel_item_cursor(self.panel_item.clone()),
@@ -482,7 +482,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 			.build(),
 		)
 		.child(
-			Model::namespaced("flatland", "panel")
+			Model::namespaced(State::APP_ID, "panel")
 				.part(ModelPart::new("Panel").apply_panel_item(panel_item.clone(), surface_id))
 				.scl([
 					geometry.size.x as f32 / density,

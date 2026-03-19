@@ -1,5 +1,5 @@
 name := 'flatland'
-export APPID := 'org.stardustxr.flatland'
+export APPID := 'org.stardustxr.Flatland'
 
 # Use mold linker if clang and mold exists.
 

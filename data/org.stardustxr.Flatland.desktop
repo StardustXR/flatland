@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Flatland
+Comment=Virtual displays for desktop apps
+Type=Application
+Exec=fatland
+Terminal=false
+Categories=GNOME;GTK;
+Keywords=Gnome;GTK;
+Icon=org.stardustxr.Flatland
+StartupNotify=false
+NoDisplay=true
