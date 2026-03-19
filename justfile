@@ -11,6 +11,7 @@ rootdir := ''
 prefix := '/usr'
 base-dir := absolute_path(clean(rootdir / prefix))
 export INSTALL_DIR := base-dir / 'share'
+export STARDUST_RES_PREFIXES := INSTALL_DIR
 cargo-target-dir := env('CARGO_TARGET_DIR', 'target')
 bin-src := cargo-target-dir / 'release' / name
 bin-dst := base-dir / 'bin' / name
