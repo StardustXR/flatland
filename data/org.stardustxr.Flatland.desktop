@@ -2,10 +2,10 @@
 Name=Flatland
 Comment=Virtual displays for desktop apps
 Type=Application
-Exec=fatland
+Exec=flatland
 Terminal=false
-Categories=GNOME;GTK;
-Keywords=Gnome;GTK;
+Categories=XR;Stardust;
+Keywords=XR;Stardust;
 Icon=org.stardustxr.Flatland
 StartupNotify=false
 NoDisplay=true
