@@ -257,7 +257,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 [[package]]
 name = "binderbinder"
 version = "0.1.0"
-source = "git+https://github.com/Technobaboo/binderbinder#743782a85500eb375d5e25e20f88823a8f4bdde7"
+source = "git+https://github.com/Technobaboo/binderbinder#c5eab359d922500717674db5d8727eb394511bd8"
 dependencies = [
  "bitflags 2.11.1",
  "byteorder",
@@ -1042,13 +1042,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "gluon-codegen-rust"
+name = "gluon"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#c1384fa601127df58382b22ff8173cdafd44f667"
+source = "git+https://github.com/technobaboo/gluon#3e7f048d661e8d8100ef4c794a90d1a69a714e13"
+dependencies = [
+ "binderbinder",
+ "bitflags 2.11.1",
+ "gluon-derive",
+ "rustix",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "gluon-codegen"
+version = "0.1.0"
+source = "git+https://github.com/technobaboo/gluon#3e7f048d661e8d8100ef4c794a90d1a69a714e13"
 dependencies = [
  "convert_case 0.11.0",
+ "gluon",
  "gluon-parser",
- "gluon-wire",
  "prettyplease",
  "proc-macro2",
  "quote",
@@ -1056,26 +1069,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "gluon-parser"
+name = "gluon-derive"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#c1384fa601127df58382b22ff8173cdafd44f667"
+source = "git+https://github.com/technobaboo/gluon#3e7f048d661e8d8100ef4c794a90d1a69a714e13"
 dependencies = [
- "ansi_term",
- "binderbinder",
- "chumsky",
- "convert_case 0.11.0",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]
-name = "gluon-wire"
+name = "gluon-parser"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#c1384fa601127df58382b22ff8173cdafd44f667"
+source = "git+https://github.com/technobaboo/gluon#3e7f048d661e8d8100ef4c794a90d1a69a714e13"
 dependencies = [
- "binderbinder",
- "bitflags 2.11.1",
- "rustix",
- "thiserror 2.0.18",
- "tokio",
+ "ansi_term",
+ "chumsky",
+ "convert_case 0.11.0",
 ]
 
 [[package]]
@@ -2417,12 +2426,12 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item#47400feb7816fd58301e1e0a7c17581aff2beb2a"
+source = "git+https://github.com/StardustXR/panel-item#3158347f5d2279f51b57ef5c0ada07533d159c20"
 dependencies = [
  "binderbinder",
- "gluon-codegen-rust",
+ "gluon",
+ "gluon-codegen",
  "gluon-parser",
- "gluon-wire",
  "mint",
  "prettyplease",
  "stardust-xr-fusion",
@@ -2434,12 +2443,12 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item-asteroids"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item#47400feb7816fd58301e1e0a7c17581aff2beb2a"
+source = "git+https://github.com/StardustXR/panel-item#3158347f5d2279f51b57ef5c0ada07533d159c20"
 dependencies = [
  "binderbinder",
  "derive-where",
  "directories",
- "gluon-wire",
+ "gluon",
  "mint",
  "pion-binder",
  "rustc-hash 2.1.2",

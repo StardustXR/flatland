@@ -286,6 +286,12 @@ impl Reify for ToplevelState {
 				.on_toplevel_resolution_changed(|state: &mut Self, _item, size| {
 					state.info.size = size.into();
 				})
+				.on_toplevel_max_size_changed(|state: &mut Self, _item, size| {
+					state.info.max_size = size.map(Into::into);
+				})
+				.on_toplevel_min_size_changed(|state: &mut Self, _item, size| {
+					state.info.min_size = size.map(Into::into);
+				})
 				.on_toplevel_app_id_changed(|state: &mut Self, _, app_id| {
 					state.info.app_id.replace(app_id);
 				})
@@ -324,7 +330,7 @@ impl Reify for ToplevelState {
 							(size_meters.y * state.density) as u32,
 						]);
 						if let Some(shell) = state.panel_shell.as_ref() {
-							shell.item().request_toplevel_resize(size.into()).unwrap();
+							shell.item().request_toplevel_resize(size).unwrap();
 						}
 						state.info.size = size.into();
 						state.cursor_pos.x = state.cursor_pos.x.clamp(0.0, size.x as f32);
@@ -595,7 +601,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 							if let Some(shell) = state.panel_shell.as_ref() {
 								let _ = shell.item().relative_pointer_motion(
 									surface_id,
-									Vector2::from([motion.x, -motion.y]).into(),
+									Vector2::from([motion.x, -motion.y]),
 								);
 							}
 							state.cursor_pos.x += motion.x;
@@ -607,7 +613,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 							if let Some(shell) = state.panel_shell.as_ref() {
 								let _ = shell
 									.item()
-									.absolute_pointer_motion(surface_id, state.cursor_pos.into());
+									.absolute_pointer_motion(surface_id, state.cursor_pos);
 							}
 						},
 						move |state, scroll_discrete| {
@@ -619,8 +625,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 										Vector2::from([
 											scroll_discrete.x * state.mouse_scroll_multiplier,
 											-scroll_discrete.y * state.mouse_scroll_multiplier,
-										])
-										.into(),
+										]),
 										// TODO: forward this over the non-spatial-input protocol
 										ScrollSource::Wheel,
 									)
@@ -636,8 +641,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 										Vector2::from([
 											scroll_continuous.x * state.mouse_scroll_multiplier,
 											-scroll_continuous.y * state.mouse_scroll_multiplier,
-										])
-										.into(),
+										]),
 										// TODO: forward this over the non-spatial-input protocol
 										ScrollSource::Wheel,
 									)
@@ -666,7 +670,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 							if let Some(shell) = state.panel_shell.as_ref() {
 								let _ = shell
 									.item()
-									.absolute_pointer_motion(surface_id, state.cursor_pos.into());
+									.absolute_pointer_motion(surface_id, state.cursor_pos);
 							}
 						})
 						.on_scroll(move |state, scroll| {
@@ -680,8 +684,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 										Vector2::from([
 											scroll_continuous.x * state.mouse_scroll_multiplier,
 											-scroll_continuous.y * state.mouse_scroll_multiplier,
-										])
-										.into(),
+										]),
 										ScrollSource::Continuous,
 									)
 									.unwrap();
@@ -696,8 +699,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 										Vector2::from([
 											scroll_discrete.x * state.mouse_scroll_multiplier,
 											-scroll_discrete.y * state.mouse_scroll_multiplier,
-										])
-										.into(),
+										]),
 										ScrollSource::Continuous,
 									)
 									.unwrap();
@@ -725,8 +727,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 									Vector2::from([
 										position.x * state.density,
 										position.y * state.density,
-									])
-									.into(),
+									]),
 								);
 							}
 						})
@@ -737,8 +738,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 									Vector2::from([
 										position.x * state.density,
 										position.y * state.density,
-									])
-									.into(),
+									]),
 								);
 							}
 						})
