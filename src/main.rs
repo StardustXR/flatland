@@ -2,7 +2,6 @@ use binderbinder::binder_object::BinderObject;
 use close_button::ExposureButton;
 use glam::{Quat, vec2};
 use initial_panel_placement::InitialPanelPlacement;
-use pion_binder::PionBinderDevice;
 use pointer_input::PointerPlane;
 use resize_handles::ResizeHandles;
 use rustc_hash::FxHashMap;
@@ -17,14 +16,14 @@ use stardust_xr_fusion::{
 	fields::Shape,
 	project_local_resources,
 	spatial::Transform,
-	values::{ResourceID, Vector2},
+	types::{Resource, Size2, Timestamp, Vec2F},
 };
-use stardust_xr_panel_item::protocol::{
-	ChildState as ChildInfo, Geometry, KeymapId, Rect, ScrollSource, SurfaceId,
-	SurfaceUpdateTarget, ToplevelState as ToplevelInfo, UVec2, Vec2,
+use stardust_xr_panel_item::panel_item::{
+	ChildState as ChildInfo, Geometry, ModifierState, Rect, ScrollSource, SurfaceId,
+	SurfaceUpdateTarget, ToplevelState as ToplevelInfo,
 };
 use stardust_xr_panel_item_asteroids::{
-	panel_item_acceptor::PanelItemAcceptorElement,
+	panel_item_acceptor::PanelItemAcceptor,
 	panel_shell::{PanelShell, PanelShellHandler},
 	surface_model::SurfaceModel,
 };
@@ -54,14 +53,10 @@ async fn main() {
 			.with(tracing_subscriber::fmt::layer().compact()),
 	)
 	.unwrap();
-	// tokio::spawn(async {
-	// 	loop {
-	// 		tokio::time::sleep(Duration::from_millis(1000)).await;
-	// 		info!("idk");
-	// 	}
-	// });
 
-	run::<ToplevelState>(&[&project_local_resources!("data")]).await
+	run::<ToplevelState>(&[&project_local_resources!("data")])
+		.await
+		.unwrap()
 }
 
 pub fn add_child(children: &mut Vec<ChildState>, child_info: ChildInfo) {
@@ -129,7 +124,6 @@ impl ClientState for ToplevelState {
 impl Default for ToplevelState {
 	fn default() -> Self {
 		Self {
-			binder_dev: Default::default(),
 			panel_shell: Default::default(),
 			info: default_toplevel_info(),
 			cursor_pos: [0.0; 2].into(),
@@ -203,7 +197,7 @@ fn default_toplevel_info() -> ToplevelInfo {
 		parent: None,
 		title: None,
 		app_id: None,
-		size: UVec2 { x: 600, y: 800 },
+		size: Size2 { x: 600, y: 800 },
 		min_size: None,
 		max_size: None,
 	}
@@ -213,13 +207,11 @@ type Shell = BinderObject<PanelShellHandler>;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ToplevelState {
 	#[serde(skip)]
-	binder_dev: PionBinderDevice,
-	#[serde(skip)]
 	panel_shell: Option<Shell>,
 	#[serde(skip, default = "default_toplevel_info")]
 	info: ToplevelInfo,
 	/// in px
-	cursor_pos: Vector2<f32>,
+	cursor_pos: Vec2F,
 	#[serde(skip)]
 	cursor: Option<Geometry>,
 	#[serde(skip)]
@@ -231,7 +223,7 @@ pub struct ToplevelState {
 }
 impl ToplevelState {
 	#[inline]
-	pub fn size_meters(&self) -> Vector2<f32> {
+	pub fn size_meters(&self) -> Vec2F {
 		[
 			self.info.size.x as f32 / self.density,
 			self.info.size.y as f32 / self.density,
@@ -241,17 +233,16 @@ impl ToplevelState {
 	fn set_pointer(
 		&mut self,
 		surface_id: SurfaceId,
-		motion: Option<Vector2<f32>>,
-		new_pos: impl Into<Vector2<f32>>,
+		motion: Option<Vec2F>,
+		new_pos: impl Into<Vec2F>,
+		timestamp: Option<Timestamp>,
 	) {
 		self.cursor_pos = new_pos.into();
 		self.clamp_pointer();
 		if let Some(shell) = self.panel_shell.as_ref() {
-			let _ = shell.item().pointer_motion(
-				surface_id,
-				motion.map(|v| v.into()),
-				self.cursor_pos,
-			);
+			let _ = shell
+				.item()
+				.pointer_motion(surface_id, motion, self.cursor_pos, timestamp);
 		}
 	}
 	fn clamp_pointer(&mut self) {
@@ -264,17 +255,14 @@ impl ToplevelState {
 			.y
 			.clamp(0.0, self.info.size.y.saturating_sub(1) as f32);
 	}
-	fn resize(&mut self, new_size: impl Into<Vector2<u32>>) {
+	fn resize(&mut self, new_size: impl Into<Size2>) {
 		let old_size = self.info.size;
 		self.info.size = new_size.into().into();
 		fn clamp(v: &mut u32, min: u32, max: u32) {
 			*v = (*v).clamp(min, max);
 		}
-		let min_size = self.info.min_size.unwrap_or(UVec2 { x: 0, y: 0 });
-		let max_size = self.info.max_size.unwrap_or(UVec2 {
-			x: u32::MAX,
-			y: u32::MAX,
-		});
+		let min_size = self.info.min_size.unwrap_or([0; 2].into());
+		let max_size = self.info.max_size.unwrap_or([u32::MAX; 2].into());
 		clamp(&mut self.info.size.x, min_size.x, max_size.x);
 		clamp(&mut self.info.size.y, min_size.y, max_size.y);
 		tracing::info!(?min_size,?max_size,?self.info.size,"clamping size");
@@ -425,16 +413,15 @@ impl Reify for ToplevelState {
 				)
 				.child(reify_surface(
 					&self.panel_shell,
-					&self.binder_dev,
 					SurfaceId::Toplevel,
 					self.info.size,
 					Geometry {
-						origin: Vector2::from([0; 2]).into(),
+						origin: [0; 2].into(),
 						size: self.info.size.into(),
 					},
 					&[Rect {
-						origin: Vec2 { x: 0.0, y: 0.0 },
-						size: Vec2 { x: 1.0, y: 1.0 },
+						origin: [0.0; 2].into(),
+						size: [1.0; 2].into(),
 					}],
 					0,
 					panel_thickness,
@@ -445,15 +432,16 @@ impl Reify for ToplevelState {
 							(
 								child.info.id,
 								child.reify(
-									&self.binder_dev,
 									self.info.size.into(),
 									&self.panel_shell,
 									panel_thickness,
 									self.density,
+									self.mouse_scroll_multiplier,
 								),
 							)
 						})
 						.collect(),
+					self.mouse_scroll_multiplier,
 				))
 				.maybe_child(
 					// cursor
@@ -476,7 +464,10 @@ impl Reify for ToplevelState {
 							SurfaceModel::new(
 								shell,
 								SurfaceUpdateTarget::Cursor,
-								ResourceID::new_namespaced(ToplevelState::APP_ID, "panel"),
+								Resource::Namespaced {
+									namespace: ToplevelState::APP_ID.into(),
+									path: "panel".into(),
+								},
 								"Panel",
 							)
 							.pos([pos_m.x, pos_m.y, 0.001])
@@ -495,15 +486,14 @@ impl Reify for ToplevelState {
 impl ChildState {
 	fn reify(
 		&self,
-		binder_dev: &PionBinderDevice,
-		parent_size: Vector2<u32>,
+		parent_size: Size2,
 		panel_item: &Option<Shell>,
 		panel_thickness: f32,
 		density: f32,
+		scroll_multiplier: f32,
 	) -> impl Element<ToplevelState> {
 		reify_surface(
 			panel_item,
-			binder_dev,
 			SurfaceId::Child { id: self.info.id },
 			parent_size,
 			self.info.geometry,
@@ -517,15 +507,16 @@ impl ChildState {
 					(
 						child.info.id,
 						child.reify(
-							binder_dev,
 							self.info.geometry.size.into(),
 							panel_item,
 							panel_thickness,
 							density,
+							scroll_multiplier,
 						),
 					)
 				})
 				.collect(),
+			scroll_multiplier,
 		)
 		.dynamic()
 	}
@@ -534,15 +525,15 @@ impl ChildState {
 #[allow(clippy::too_many_arguments)]
 fn reify_surface<E: Element<ToplevelState>>(
 	panel_item: &Option<Shell>,
-	binder_dev: &PionBinderDevice,
 	surface_id: SurfaceId,
-	parent_size: impl Into<Vector2<u32>>,
+	parent_size: impl Into<Size2>,
 	geometry: Geometry,
 	input_areas: &[Rect],
 	z_offset: i32,
 	thickness: f32,
 	density: f32,
 	children: FxHashMap<u64, E>,
+	scroll_multiplier: f32,
 ) -> impl Element<ToplevelState> {
 	let parent_size = parent_size.into();
 	let parent_origin_meters = vec2(
@@ -581,7 +572,10 @@ fn reify_surface<E: Element<ToplevelState>>(
 			SurfaceModel::new(
 				item,
 				surface_id,
-				ResourceID::new_namespaced(ToplevelState::APP_ID, "panel"),
+				Resource::Namespaced {
+					namespace: ToplevelState::APP_ID.into(),
+					path: "panel".into(),
+				},
 				"Panel",
 			)
 			.scl([
@@ -601,14 +595,10 @@ fn reify_surface<E: Element<ToplevelState>>(
 				.build()
 		}))
 		.maybe_child(panel_item.is_none().then(|| {
-			PanelItemAcceptorElement::<ToplevelState>::new(
-				binder_dev,
-				shape.clone(),
-				|state, shell| {
-					_ = shell.item().request_toplevel_resize(state.info.size);
-					state.panel_shell.replace(shell);
-				},
-			)
+			PanelItemAcceptor::<ToplevelState>::new(shape.clone(), |state, shell| {
+				_ = shell.item().request_toplevel_resize(state.info.size);
+				state.panel_shell.replace(shell);
+			})
 			.build()
 		}))
 		// inputs
@@ -616,70 +606,114 @@ fn reify_surface<E: Element<ToplevelState>>(
 			Spatial::default()
 				.build()
 				.child(
-					KeyboardHandler::<ToplevelState>::new(shape.clone(), move |state, key_data| {
-						if let Some(shell) = state.panel_shell.as_ref() {
-							shell
-								.item()
-								.key(
-									surface_id,
-									KeymapId {
-										id: key_data.keymap_id,
-									},
-									key_data.key,
-									key_data.pressed,
-								)
-								.unwrap();
-						}
-					})
-					.build(),
+					KeyboardHandler::<ToplevelState>::new(shape.clone())
+						.on_key_async({
+							let panel_shell = panel_item.clone();
+							move |key_event, timestamp| {
+								if let Some(shell) = panel_shell.as_ref() {
+									shell
+										.item()
+										.key(
+											surface_id,
+											key_event.keycode,
+											key_event.pressed,
+											ModifierState {
+												depressed: key_event.modifiers.depressed,
+												latched: key_event.modifiers.latched,
+												locked: key_event.modifiers.locked,
+											},
+											key_event.keymap,
+											timestamp,
+										)
+										.unwrap();
+								}
+							}
+						})
+						.build(),
 				)
 				.child(
-					MouseHandler::<ToplevelState>::new(
-						shape,
-						move |state, button, pressed| {
-							if let Some(shell) = state.panel_shell.as_ref() {
-								let _ = shell.item().pointer_button(surface_id, button, pressed);
+					MouseHandler::<ToplevelState>::new(shape)
+						.on_button_async({
+							let panel_shell = panel_item.clone();
+							move |button, pressed, timestamp| {
+								if let Some(shell) = panel_shell.as_ref() {
+									let _ = shell
+										.item()
+										.pointer_button(surface_id, button, pressed, timestamp);
+								}
 							}
-						},
-						move |state, motion| {
+						})
+						.on_motion(move |state, motion, timestamp| {
 							let new_pos =
 								[state.cursor_pos.x + motion.x, state.cursor_pos.y - motion.y];
-							state.set_pointer(surface_id, Some([motion.x, -motion.y].into()), new_pos);
-						},
-						move |state, scroll_discrete| {
-							if let Some(shell) = state.panel_shell.as_ref() {
-								shell
-									.item()
-									.pointer_scroll_discrete(
-										surface_id,
-										Vector2::from([
-											scroll_discrete.x * state.mouse_scroll_multiplier,
-											-scroll_discrete.y * state.mouse_scroll_multiplier,
-										]),
-										// TODO: forward this over the non-spatial-input protocol
-										ScrollSource::Wheel,
-									)
-									.unwrap();
+							state.set_pointer(
+								surface_id,
+								Some([motion.x, -motion.y].into()),
+								new_pos,
+								timestamp,
+							);
+						})
+						.on_scroll_discrete_async({
+							let panel_shell = panel_item.clone();
+							move |scroll_discrete, source, timestamp| {
+								use stardust_xr_asteroids::elements::ScrollSource as MoleculesSource;
+								if let Some(shell) = panel_shell.as_ref() {
+									shell
+										.item()
+										.pointer_scroll_discrete(
+											surface_id,
+											[
+												scroll_discrete.x * scroll_multiplier,
+												-scroll_discrete.y * scroll_multiplier,
+											]
+											.into(),
+											match source {
+												MoleculesSource::Wheel => ScrollSource::Wheel,
+												MoleculesSource::Finger => ScrollSource::Touch,
+												MoleculesSource::Continuous => {
+													ScrollSource::Continuous
+												}
+												MoleculesSource::WheelTilt => {
+													ScrollSource::WheelTilt
+												}
+											},
+											timestamp,
+										)
+										.unwrap();
+								}
 							}
-						},
-						move |state, scroll_continuous| {
-							if let Some(shell) = state.panel_shell.as_ref() {
-								shell
-									.item()
-									.pointer_scroll_pixels(
-										surface_id,
-										Vector2::from([
-											scroll_continuous.x * state.mouse_scroll_multiplier,
-											-scroll_continuous.y * state.mouse_scroll_multiplier,
-										]),
-										// TODO: forward this over the non-spatial-input protocol
-										ScrollSource::Wheel,
-									)
-									.unwrap();
+						})
+						.on_scroll_continuous_async({
+							let panel_shell = panel_item.clone();
+							move |scroll_continuous, source, timestamp| {
+								use stardust_xr_asteroids::elements::ScrollSource as MoleculesSource;
+								if let Some(shell) = panel_shell.as_ref() {
+									shell
+										.item()
+										.pointer_scroll_pixels(
+											surface_id,
+											[
+												scroll_continuous.x * scroll_multiplier,
+												-scroll_continuous.y * scroll_multiplier,
+											]
+											.into(),
+											match source {
+												MoleculesSource::Wheel => ScrollSource::Wheel,
+												MoleculesSource::Finger => ScrollSource::Touch,
+												MoleculesSource::Continuous => {
+													ScrollSource::Continuous
+												}
+												MoleculesSource::WheelTilt => {
+													ScrollSource::WheelTilt
+												}
+											},
+											timestamp,
+										)
+										.unwrap();
+								}
 							}
-						},
-					)
-					.build(),
+						})
+						.build(),
 				)
 				.child(
 					PointerPlane::<ToplevelState>::default()
@@ -687,12 +721,15 @@ fn reify_surface<E: Element<ToplevelState>>(
 						.thickness(thickness)
 						.on_mouse_button(move |state, button, pressed| {
 							if let Some(shell) = state.panel_shell.as_ref() {
-								let _ = shell.item().pointer_button(surface_id, button, pressed);
+								// TODO: somehow get a timestamp for this?
+								let _ = shell
+									.item()
+									.pointer_button(surface_id, button, pressed, None);
 							}
 						})
 						.on_pointer_motion(move |state, pos| {
 							let pixel_pos = [pos.x * state.density, pos.y * state.density];
-							state.set_pointer(surface_id, None, pixel_pos);
+							state.set_pointer(surface_id, None, pixel_pos, None);
 						})
 						.on_scroll(move |state, scroll| {
 							if let Some(scroll_continuous) = scroll.scroll_continuous
@@ -702,11 +739,14 @@ fn reify_surface<E: Element<ToplevelState>>(
 									.item()
 									.pointer_scroll_pixels(
 										surface_id,
-										Vector2::from([
+										[
 											scroll_continuous.x * state.mouse_scroll_multiplier,
 											-scroll_continuous.y * state.mouse_scroll_multiplier,
-										]),
+										]
+										.into(),
 										ScrollSource::Continuous,
+										// TODO: somehow get a timestamp for this?
+										None,
 									)
 									.unwrap();
 							}
@@ -717,11 +757,14 @@ fn reify_surface<E: Element<ToplevelState>>(
 									.item()
 									.pointer_scroll_pixels(
 										surface_id,
-										Vector2::from([
+										[
 											scroll_discrete.x * state.mouse_scroll_multiplier,
 											-scroll_discrete.y * state.mouse_scroll_multiplier,
-										]),
+										]
+										.into(),
 										ScrollSource::Continuous,
+										// TODO: somehow get a timestamp for this?
+										None,
 									)
 									.unwrap();
 							}
@@ -731,7 +774,8 @@ fn reify_surface<E: Element<ToplevelState>>(
 								&& scroll.scroll_discrete.is_none()
 								&& let Some(shell) = state.panel_shell.as_ref()
 							{
-								shell.item().pointer_scroll_stop(surface_id).unwrap();
+								// TODO: somehow get a timestamp for this?
+								shell.item().pointer_scroll_stop(surface_id, None).unwrap();
 							}
 						})
 						.build(),
@@ -745,10 +789,9 @@ fn reify_surface<E: Element<ToplevelState>>(
 								let _ = shell.item().touch_down(
 									surface_id,
 									id,
-									Vector2::from([
-										position.x * state.density,
-										position.y * state.density,
-									]),
+									[position.x * state.density, position.y * state.density].into(),
+									// TODO: somehow get a timestamp for this?
+									None,
 								);
 							}
 						})
@@ -756,16 +799,16 @@ fn reify_surface<E: Element<ToplevelState>>(
 							if let Some(shell) = state.panel_shell.as_ref() {
 								let _ = shell.item().touch_move(
 									id,
-									Vector2::from([
-										position.x * state.density,
-										position.y * state.density,
-									]),
+									[position.x * state.density, position.y * state.density].into(),
+									// TODO: somehow get a timestamp for this?
+									None,
 								);
 							}
 						})
 						.on_touch_up(|state, id| {
 							if let Some(shell) = state.panel_shell.as_ref() {
-								let _ = shell.item().touch_up(id);
+								// TODO: somehow get a timestamp for this?
+								let _ = shell.item().touch_up(id, None);
 							}
 						})
 						.build(),
