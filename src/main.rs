@@ -30,6 +30,7 @@ use stardust_xr_panel_item_asteroids::{
 };
 use std::{f32::consts::FRAC_PI_2, process};
 use touch_input::TouchPlane;
+use tracing::info;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt as _};
 
 pub mod close_button;
@@ -238,6 +239,48 @@ impl ToplevelState {
 		]
 		.into()
 	}
+	fn set_pointer(&mut self, surface_id: SurfaceId, new_pos: impl Into<Vector2<f32>>) {
+		self.cursor_pos = new_pos.into();
+		self.clamp_pointer();
+		if let Some(shell) = self.panel_shell.as_ref() {
+			let _ = shell
+				.item()
+				.absolute_pointer_motion(surface_id, self.cursor_pos);
+		}
+	}
+	fn clamp_pointer(&mut self) {
+		self.cursor_pos.x = self
+			.cursor_pos
+			.x
+			.clamp(0.0, self.info.size.x.saturating_sub(1) as f32);
+		self.cursor_pos.y = self
+			.cursor_pos
+			.y
+			.clamp(0.0, self.info.size.y.saturating_sub(1) as f32);
+	}
+	fn resize(&mut self, new_size: impl Into<Vector2<u32>>) {
+		let old_size = self.info.size;
+		self.info.size = new_size.into().into();
+		fn clamp(v: &mut u32, min: u32, max: u32) {
+			*v = (*v).clamp(min, max);
+		}
+		let min_size = self.info.min_size.unwrap_or(UVec2 { x: 0, y: 0 });
+		let max_size = self.info.max_size.unwrap_or(UVec2 {
+			x: u32::MAX,
+			y: u32::MAX,
+		});
+		clamp(&mut self.info.size.x, min_size.x, max_size.x);
+		clamp(&mut self.info.size.y, min_size.y, max_size.y);
+		tracing::info!(?min_size,?max_size,?self.info.size,"clamping size");
+		if (old_size.x != self.info.size.x || old_size.y != self.info.size.y)
+			&& let Some(shell) = self.panel_shell.as_ref()
+		{
+			shell
+				.item()
+				.request_toplevel_resize(self.info.size)
+				.unwrap();
+		}
+	}
 }
 impl Reify for ToplevelState {
 	fn reify(
@@ -288,9 +331,11 @@ impl Reify for ToplevelState {
 				})
 				.on_toplevel_max_size_changed(|state: &mut Self, _item, size| {
 					state.info.max_size = size.map(Into::into);
+					// state.resize(state.info.size);
 				})
 				.on_toplevel_min_size_changed(|state: &mut Self, _item, size| {
 					state.info.min_size = size.map(Into::into);
+					// state.resize(state.info.size);
 				})
 				.on_toplevel_app_id_changed(|state: &mut Self, _, app_id| {
 					state.info.app_id.replace(app_id);
@@ -325,16 +370,12 @@ impl Reify for ToplevelState {
 						.max_size
 						.map(|s| [s.x as f32 / self.density, s.y as f32 / self.density].into()),
 					on_size_changed: FnWrapper(Box::new(|state, size_meters| {
-						let size = Vector2::from([
+						let size = [
 							(size_meters.x * state.density) as u32,
 							(size_meters.y * state.density) as u32,
-						]);
-						if let Some(shell) = state.panel_shell.as_ref() {
-							shell.item().request_toplevel_resize(size).unwrap();
-						}
-						state.info.size = size.into();
-						state.cursor_pos.x = state.cursor_pos.x.clamp(0.0, size.x as f32);
-						state.cursor_pos.y = state.cursor_pos.y.clamp(0.0, size.y as f32);
+						];
+						state.resize(size);
+						state.clamp_pointer();
 					})),
 				}
 				.build()
@@ -558,10 +599,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 				binder_dev,
 				shape.clone(),
 				|state, shell| {
-					shell
-						.item()
-						.request_toplevel_resize(state.info.size)
-						.unwrap();
+					_ = shell.item().request_toplevel_resize(state.info.size);
 					state.panel_shell.replace(shell);
 				},
 			)
@@ -604,17 +642,9 @@ fn reify_surface<E: Element<ToplevelState>>(
 									Vector2::from([motion.x, -motion.y]),
 								);
 							}
-							state.cursor_pos.x += motion.x;
-							state.cursor_pos.y -= motion.y;
-							state.cursor_pos.x =
-								state.cursor_pos.x.clamp(0.0, state.info.size.x as f32);
-							state.cursor_pos.y =
-								state.cursor_pos.y.clamp(0.0, state.info.size.y as f32);
-							if let Some(shell) = state.panel_shell.as_ref() {
-								let _ = shell
-									.item()
-									.absolute_pointer_motion(surface_id, state.cursor_pos);
-							}
+							let new_pos =
+								[state.cursor_pos.x + motion.x, state.cursor_pos.y - motion.y];
+							state.set_pointer(surface_id, new_pos);
 						},
 						move |state, scroll_discrete| {
 							if let Some(shell) = state.panel_shell.as_ref() {
@@ -662,16 +692,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 						})
 						.on_pointer_motion(move |state, pos| {
 							let pixel_pos = [pos.x * state.density, pos.y * state.density];
-							state.cursor_pos = pixel_pos.into();
-							state.cursor_pos.x =
-								state.cursor_pos.x.clamp(0.0, state.info.size.x as f32);
-							state.cursor_pos.y =
-								state.cursor_pos.y.clamp(0.0, state.info.size.y as f32);
-							if let Some(shell) = state.panel_shell.as_ref() {
-								let _ = shell
-									.item()
-									.absolute_pointer_motion(surface_id, state.cursor_pos);
-							}
+							state.set_pointer(surface_id, pixel_pos);
 						})
 						.on_scroll(move |state, scroll| {
 							if let Some(scroll_continuous) = scroll.scroll_continuous
