@@ -19,11 +19,7 @@ use stardust_xr_molecules::{
 	input_action::{InputQueue, SingleAction},
 	reparentable::Reparentable,
 };
-use std::{
-	f32::consts::FRAC_PI_2,
-	path::{Path, PathBuf},
-	sync::Arc,
-};
+use std::{f32::consts::FRAC_PI_2, sync::Arc};
 use tokio::{sync::watch, task::AbortHandle};
 
 const RESIZE_HANDLE_FLOATING: f32 = 0.025;
@@ -172,15 +168,10 @@ impl UIElement for ResizeHandle {
 
 		if self.grab_action.actor_started() {
 			let sphere = self.sphere.clone();
-            let value = self.settings.connector_color;
+			let value = self.settings.connector_color;
 			tokio::spawn(async move {
 				sphere
-					.set_material_parameter(
-						"color",
-						MaterialParameter::Color {
-							value,
-						},
-					)
+					.set_material_parameter("color", MaterialParameter::Color { value })
 					.await
 					.unwrap();
 			});
@@ -255,7 +246,6 @@ pub struct ResizeHandlesInner {
 	reparentable: watch::Sender<Option<Reparentable>>,
 	reparentable_field: Field,
 	_field_update_task: AbortHandle,
-	path: PathBuf,
 	parent: SpatialRef,
 
 	hmd: SpatialRef,
@@ -270,7 +260,6 @@ impl ResizeHandlesInner {
 	pub async fn create(
 		client: &Arc<Client<impl ClientHandler>>,
 		parent: SpatialRef,
-		path: impl AsRef<Path>,
 		reparentable: bool,
 		accent_color: Color,
 		initial_size: Vec2F,
@@ -322,7 +311,6 @@ impl ResizeHandlesInner {
 			reparentable: watch::channel(None).0,
 			reparentable_field,
 			_field_update_task,
-			path: path.as_ref().to_path_buf(),
 
 			parent,
 			hmd,
@@ -378,7 +366,7 @@ impl ResizeHandlesInner {
 				let v = Reparentable::new(&client, content_parent, parent, field)
 					.await
 					.ok();
-				watch.send(v);
+				_ = watch.send(v);
 			});
 		} else {
 			let _ = self.reparentable.send_modify(|v| {
@@ -476,7 +464,6 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 		let v = ResizeHandlesInner::create(
 			&ctx.stardust_client,
 			info.parent_space.clone(),
-			info.element_path,
 			self.reparentable,
 			ctx.accent_color.color(),
 			self.current_size,
@@ -492,8 +479,8 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 	fn diff(&self, old: &Self, ctx: &Context, inner: &mut Self::Inner) {
 		inner.min_size = self.min_size;
 		inner.max_size = self.max_size;
-        inner.bottom.settings.connector_color = ctx.accent_color.color();
-        inner.top.settings.connector_color = ctx.accent_color.color();
+		inner.bottom.settings.connector_color = ctx.accent_color.color();
+		inner.top.settings.connector_color = ctx.accent_color.color();
 		if self.current_size != old.current_size {
 			inner.set_handle_positions(self.current_size);
 		}
@@ -562,5 +549,5 @@ async fn test_resize_handles() {
 		}
 	}
 
-	client::run::<State>(&[]).await;
+	client::run::<State>(&[]).await.unwrap();
 }
