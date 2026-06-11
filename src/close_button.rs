@@ -38,7 +38,7 @@ impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 		ctx: &Context,
 		info: CreateInnerInfo,
 	) -> Result<Self::Inner, Self::Error> {
-		info.child_space.set_local_transform(self.transform.clone());
+		info.child_space.set_local_transform(self.transform.clone())?;
 		ExposureButtonInner::new(&ctx.stardust_client, info.child_space, self.thickness).await
 	}
 
@@ -79,7 +79,7 @@ impl<State: ValidState> Transformable for ExposureButton<State> {
 
 pub struct ExposureButtonInner {
 	root: Spatial,
-	model: Model,
+	_model: Model,
 	model_spatial: Spatial,
 	shell: ModelPart,
 	exposure: Exposure,
@@ -145,7 +145,7 @@ impl ExposureButtonInner {
 
 		Ok(ExposureButtonInner {
 			root,
-			model,
+			_model: model,
 			model_spatial,
 			shell,
 			exposure,

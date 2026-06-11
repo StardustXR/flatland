@@ -45,7 +45,7 @@ async fn pos(
 
 pub struct ResizeHandle {
 	settings: GrabBallSettings,
-	model: Model,
+	_model: Model,
 	sphere: ModelPart,
 	model_spatial: Spatial,
 	model_spatial_ref: SpatialRef,
@@ -101,7 +101,7 @@ impl ResizeHandle {
 		Ok(ResizeHandle {
 			settings,
 
-			model,
+			_model: model,
 			sphere,
 			model_spatial,
 			model_spatial_ref,
@@ -139,43 +139,68 @@ impl UIElement for ResizeHandle {
 			&& self.grab_action.hovering().added().len()
 				== self.grab_action.hovering().current().len()
 		{
-			let _ = self.sphere.set_material_parameter(
-				"color",
-				MaterialParameter::Color {
-					value: rgba_linear!(1.0, 1.0, 1.0, 1.0),
-				},
-			);
+			let sphere = self.sphere.clone();
+			tokio::spawn(async move {
+				sphere
+					.set_material_parameter(
+						"color",
+						MaterialParameter::Color {
+							value: rgba_linear!(1.0, 1.0, 1.0, 1.0),
+						},
+					)
+					.await
+					.unwrap();
+			});
 		}
 
 		if self.grab_action.hovering().current().is_empty()
 			&& !self.grab_action.hovering().removed().is_empty()
 		{
-			let _ = self.sphere.set_material_parameter(
-				"color",
-				MaterialParameter::Color {
-					value: rgba_linear!(0.5, 0.5, 0.5, 1.0),
-				},
-			);
+			let sphere = self.sphere.clone();
+			tokio::spawn(async move {
+				sphere
+					.set_material_parameter(
+						"color",
+						MaterialParameter::Color {
+							value: rgba_linear!(0.5, 0.5, 0.5, 1.0),
+						},
+					)
+					.await
+					.unwrap();
+			});
 		}
 
 		if self.grab_action.actor_started() {
-			let _ = self.sphere.set_material_parameter(
-				"color",
-				MaterialParameter::Color {
-					value: self.settings.connector_color,
-				},
-			);
+			let sphere = self.sphere.clone();
+            let value = self.settings.connector_color;
+			tokio::spawn(async move {
+				sphere
+					.set_material_parameter(
+						"color",
+						MaterialParameter::Color {
+							value,
+						},
+					)
+					.await
+					.unwrap();
+			});
 		}
 		if let Some(grab_point) = self.grab_point() {
 			self.set_pos(&self.input_spatial_ref, grab_point);
 		}
 		if self.grab_action.actor_stopped() {
-			let _ = self.sphere.set_material_parameter(
-				"color",
-				MaterialParameter::Color {
-					value: rgba_linear!(0.5, 0.5, 0.5, 1.0),
-				},
-			);
+			let sphere = self.sphere.clone();
+			tokio::spawn(async move {
+				sphere
+					.set_material_parameter(
+						"color",
+						MaterialParameter::Color {
+							value: rgba_linear!(0.5, 0.5, 0.5, 1.0),
+						},
+					)
+					.await
+					.unwrap();
+			});
 		}
 		true
 	}
@@ -459,14 +484,16 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 			self.max_size,
 		)
 		.await?;
-		info.child_space.set_parent(v.content_parent_ref.clone());
+		info.child_space.set_parent(v.content_parent_ref.clone())?;
 
 		Ok(v)
 	}
 
-	fn diff(&self, old: &Self, _ctx: &Context, inner: &mut Self::Inner) {
+	fn diff(&self, old: &Self, ctx: &Context, inner: &mut Self::Inner) {
 		inner.min_size = self.min_size;
 		inner.max_size = self.max_size;
+        inner.bottom.settings.connector_color = ctx.accent_color.color();
+        inner.top.settings.connector_color = ctx.accent_color.color();
 		if self.current_size != old.current_size {
 			inner.set_handle_positions(self.current_size);
 		}
