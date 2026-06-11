@@ -1,6 +1,6 @@
 // use crate::toplevel::TOPLEVEL_THICKNESS;
 use derive_setters::Setters;
-use glam::Quat;
+use glam::{Quat, Vec3};
 use stardust_xr_asteroids::{
 	ClientState, Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
 };
@@ -124,7 +124,7 @@ impl ExposureButtonInner {
 		// compensate for the server not being able to handle scaled fields
 		let (field, _) = Field::create(
 			client,
-			&root,
+			&field_spatial,
 			Shape::Box {
 				size: [1.5 * 0.025, 0.025, thickness].into(),
 			},
@@ -132,7 +132,7 @@ impl ExposureButtonInner {
 		.await?;
 		field_spatial.set_relative_transform(
 			shell_spatial_ref.clone(),
-			Transform::from_translation_rotation([-0.75, -0.5, -0.5], Quat::IDENTITY),
+			PartialTransform::from_translation_rotation(Vec3::ZERO, Quat::IDENTITY),
 		)?;
 
 		let input = InputQueue::new(
@@ -170,25 +170,32 @@ impl ExposureButtonInner {
 			.iter()
 			.map(|d| d.distance().abs().powf(1.0 / 2.2))
 			.sum();
+		let last_exposure = self.exposure.exposure;
 		self.exposure.update(frame_info.delta);
 		self.exposure.expose(exposure * gain, frame_info.delta);
 		self.exposure
 			.expose_flash(self.distance_action.currently_acting().len() as f32 * 0.25);
 		if self.exposure.exposure > 1.0 {
 			true
-		} else if self.exposure.exposure > 0.0 {
+		} else if self.exposure.exposure > 0.0 || last_exposure > 0.0 {
 			let color = colorgrad::magma().at(self.exposure.exposure.into());
-			let _ = self.shell.set_material_parameter(
-				"emission_factor",
-				MaterialParameter::Color {
-					value: rgba_linear!(
-						color.r as f32,
-						color.g as f32,
-						color.b as f32,
-						color.a as f32
-					),
-				},
-			);
+			let shell = self.shell.clone();
+			tokio::spawn(async move {
+				shell
+					.set_material_parameter(
+						"emission_factor",
+						MaterialParameter::Color {
+							value: rgba_linear!(
+								color.r as f32,
+								color.g as f32,
+								color.b as f32,
+								color.a as f32
+							),
+						},
+					)
+					.await
+					.unwrap()
+			});
 			false
 		} else {
 			false
