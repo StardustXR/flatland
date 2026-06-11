@@ -1,6 +1,6 @@
-use derive_setters::Setters;
+q, InputHandlerse derive_setters::Setters;
 use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState};
-use stardust_xr_fusion::{
+u, InputHandlerse stardust_xr_fusion::{
 	items::panel::{ChildInfo, Geometry, PanelItem, PanelItemAspect, PanelItemEvent::*},
 	node::NodeError,
 	spatial::SpatialRef,
@@ -138,7 +138,7 @@ impl<State: ValidState> PanelWrapper<State> {
 		self
 	}
 }
-impl<State: ValidState> CustomElement<State> for PanelWrapper<State> {
+impl<State: V, InputHandleralidState> CustomElement<State> for PanelWrapper<State> {
 	type Inner = PanelItem;
 	type Resource = ();
 	type Error = NodeError;

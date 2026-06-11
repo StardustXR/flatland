@@ -1,25 +1,27 @@
 use derive_setters::Setters;
-use glam::{vec3, Mat4, Vec2, Vec3};
+use glam::{Mat4, Vec2, Vec3, vec3};
 use rustc_hash::FxHashMap;
 use stardust_xr_asteroids::{
 	Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
 };
 use stardust_xr_fusion::{
-	drawable::{Line, LinePoint, Lines, LinesAspect},
-	fields::{Field, FieldAspect, Shape},
-	input::{InputData, InputDataType, InputHandler},
-	node::{NodeError, NodeType},
-	root::FrameInfo,
-	spatial::{SpatialRef, Transform},
-	values::Vector2,
-	values::{color::rgba_linear, Vector3},
+	Error,
+	client::FrameInfo,
+	drawable::{Line, LinePoint, Lines, LinesExt as _},
+	fields::{Field, FieldExt as _, Shape},
+	spatial::{PartialTransform, Spatial, Transform},
+	suis::{InputDataType, InputMethod},
+	types::{Vec2F, Vec3F, rgba_linear},
 };
 use stardust_xr_molecules::{
-	input_action::{InputQueue, InputQueueable, MultiAction},
-	lines::{self, LineExt},
 	DebugSettings, VisualDebug,
+	input_action::{InputQueue, InputSnapshot, MultiAction},
+	lines::{self, LineExt},
 };
-use std::time::Duration;
+use std::{
+	collections::HashMap,
+	time::{Duration, Instant},
+};
 
 #[derive_where::derive_where(Debug, PartialEq)]
 #[derive(Setters)]
@@ -27,15 +29,15 @@ use std::time::Duration;
 #[allow(clippy::type_complexity)]
 pub struct TouchPlane<State: ValidState> {
 	pub transform: Transform,
-	pub physical_size: Vector2<f32>,
+	pub physical_size: Vec2F,
 	pub thickness: f32,
 	pub click_freeze_time: Duration,
 	pub debug_line_settings: Option<DebugSettings>,
 
 	#[setters(skip)]
-	pub on_touch_down: FnWrapper<dyn Fn(&mut State, u32, Vector3<f32>) + Send + Sync>,
+	pub on_touch_down: FnWrapper<dyn Fn(&mut State, u32, Vec3F) + Send + Sync>,
 	#[setters(skip)]
-	pub on_touch_move: FnWrapper<dyn Fn(&mut State, u32, Vector3<f32>) + Send + Sync>,
+	pub on_touch_move: FnWrapper<dyn Fn(&mut State, u32, Vec3F) + Send + Sync>,
 	#[setters(skip)]
 	pub on_touch_up: FnWrapper<dyn Fn(&mut State, u32) + Send + Sync>,
 }
@@ -43,7 +45,7 @@ pub struct TouchPlane<State: ValidState> {
 impl<State: ValidState> Default for TouchPlane<State> {
 	fn default() -> Self {
 		Self {
-			transform: Transform::identity(),
+			transform: Transform::IDENTITY,
 			physical_size: [1.0; 2].into(),
 			thickness: 0.0,
 			click_freeze_time: Duration::from_millis(300),
@@ -59,7 +61,7 @@ impl<State: ValidState> Default for TouchPlane<State> {
 impl<State: ValidState> TouchPlane<State> {
 	pub fn on_touch_down(
 		mut self,
-		f: impl Fn(&mut State, u32, Vector3<f32>) + Send + Sync + 'static,
+		f: impl Fn(&mut State, u32, Vec3F) + Send + Sync + 'static,
 	) -> Self {
 		self.on_touch_down = FnWrapper(Box::new(f));
 		self
@@ -67,7 +69,7 @@ impl<State: ValidState> TouchPlane<State> {
 
 	pub fn on_touch_move(
 		mut self,
-		f: impl Fn(&mut State, u32, Vector3<f32>) + Send + Sync + 'static,
+		f: impl Fn(&mut State, u32, Vec3F) + Send + Sync + 'static,
 	) -> Self {
 		self.on_touch_move = FnWrapper(Box::new(f));
 		self
@@ -81,23 +83,30 @@ impl<State: ValidState> TouchPlane<State> {
 
 impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 	type Inner = TouchSurfaceInputInner;
-	type Resource = ();
-	type Error = NodeError;
+	type Error = Error;
 
-	fn create_inner(
+	async fn create_inner(
 		&self,
-		_context: &Context,
+		ctx: &Context,
 		info: CreateInnerInfo,
-		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
-		let field = Field::create(
-			info.parent_space,
-			self.transform,
-			Shape::Box([self.physical_size.x, self.physical_size.y, self.thickness].into()),
-		)?;
+		let (field, _) = Field::create(
+			&ctx.stardust_client,
+			&info.child_space,
+			Shape::Box {
+				size: [self.physical_size.x, self.physical_size.y, self.thickness].into(),
+			},
+		)
+		.await?;
 
-		let input = InputHandler::create(&field, Transform::none(), &field)?.queue()?;
-		let lines = Lines::create(&field, Transform::identity(), &[])?;
+		let input = InputQueue::new(
+			&ctx.stardust_client,
+			info.child_space.clone(),
+			field.clone(),
+			info.child_space.spatial_ref().await?,
+		)
+		.await?;
+		let lines = Lines::create(&ctx.stardust_client, &info.child_space, Vec::new()).await?;
 
 		Ok(TouchSurfaceInputInner {
 			input,
@@ -108,11 +117,14 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 			thickness: self.thickness,
 			lines,
 			debug_line_settings: self.debug_line_settings,
+			spatial: info.child_space,
+			points: HashMap::new(),
+			last_touch: 0,
 		})
 	}
 
-	fn diff(&self, old_self: &Self, inner: &mut Self::Inner, _resource: &mut Self::Resource) {
-		self.apply_transform(old_self, &inner.field);
+	fn diff(&self, old_self: &Self, _ctx: &Context, inner: &mut Self::Inner) {
+		self.apply_transform(old_self, &inner.spatial);
 		if self.debug_line_settings != old_self.debug_line_settings {
 			inner.set_debug(self.debug_line_settings);
 		}
@@ -130,10 +142,6 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 	) {
 		inner.handle_events(state, self, info);
 	}
-
-	fn spatial_aspect(&self, inner: &Self::Inner) -> SpatialRef {
-		inner.field.clone().as_spatial().as_spatial_ref()
-	}
 }
 
 impl<State: ValidState> Transformable for TouchPlane<State> {
@@ -148,8 +156,11 @@ impl<State: ValidState> Transformable for TouchPlane<State> {
 pub struct TouchSurfaceInputInner {
 	input: InputQueue,
 	field: Field,
+	spatial: Spatial,
 	touch: MultiAction,
-	start_tap_times: FxHashMap<u32, f32>,
+	start_tap_times: FxHashMap<u32, Instant>,
+	points: HashMap<InputMethod, u32>,
+	last_touch: u32,
 	physical_size: Vec2,
 	thickness: f32,
 	lines: Lines,
@@ -161,41 +172,43 @@ impl TouchSurfaceInputInner {
 		&mut self,
 		state: &mut State,
 		decl: &TouchPlane<State>,
-		info: &FrameInfo,
+		_info: &FrameInfo,
 	) {
 		if !self.input.handle_events() {
 			return;
 		}
-		self.update_touches(state, decl, info);
+		self.update_touches(state, decl);
 		self.update_signifiers();
 	}
 
 	pub fn resize(&mut self, physical_size: Vec2) {
 		self.physical_size = physical_size;
-		let _ = self.field.set_shape(Shape::Box(
-			[physical_size.x, physical_size.y, self.thickness].into(),
-		));
+		let _ = self.field.set_shape(Shape::Box {
+			size: [physical_size.x, physical_size.y, self.thickness].into(),
+		});
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {
-		let _ = self.input.handler().set_enabled(enabled);
+		let _ = self
+			.spatial
+			.set_local_transform(PartialTransform::from_scale([enabled as u8 as f32; 3]));
 	}
 
-	fn hovering(size: Vector2<f32>, point: Vector3<f32>, front: bool) -> bool {
+	fn hovering(size: Vec2F, point: Vec3F, front: bool) -> bool {
 		point.x.abs() * 2.0 < size.x
 			&& point.y.abs() * 2.0 < size.y
 			&& point.z.is_sign_positive() == front
 	}
 
-	fn hover_point(input: &InputData) -> Vec3 {
-		match &input.input {
-			InputDataType::Hand(h) => Vec3::from(h.index.tip.position),
-			InputDataType::Tip(t) => t.origin.into(),
+	fn hover_point(input: &InputSnapshot) -> Vec3 {
+		match &input.input() {
+			InputDataType::Hand { data: h } => Vec3::from(h.index.tip.pose.position),
+			InputDataType::Tip { data: t } => t.pose.position.into(),
 			_ => Vec3::ZERO,
 		}
 	}
 
-	fn to_local_coords(&self, point: Vec3) -> Vector3<f32> {
+	fn to_local_coords(&self, point: Vec3) -> Vec3F {
 		[
 			point.x + self.physical_size.x / 2.0,
 			-point.y + self.physical_size.y / 2.0,
@@ -208,42 +221,54 @@ impl TouchSurfaceInputInner {
 		&mut self,
 		state: &mut State,
 		decl: &TouchPlane<State>,
-		info: &FrameInfo,
 	) {
 		let physical_size = self.physical_size.into();
 		self.touch.update(
 			&self.input,
-			|input| match &input.input {
-				InputDataType::Pointer(_) => false,
-				InputDataType::Hand(h) => Self::hovering(physical_size, h.index.tip.position, true),
-				InputDataType::Tip(t) => Self::hovering(physical_size, t.origin, true),
-			},
-			|input| match &input.input {
-				InputDataType::Hand(h) => {
-					Self::hovering(physical_size, h.index.tip.position, false)
+			|input| match &input.input() {
+				InputDataType::Pointer { data: _ } => false,
+				InputDataType::Hand { data: h } => {
+					Self::hovering(physical_size, h.index.tip.pose.position, true)
 				}
-				InputDataType::Tip(t) => Self::hovering(physical_size, t.origin, false),
+				InputDataType::Tip { data: t } => {
+					Self::hovering(physical_size, t.pose.position, true)
+				}
+			},
+			|input| match &input.input() {
+				InputDataType::Hand { data: h } => {
+					Self::hovering(physical_size, h.index.tip.pose.position, false)
+				}
+				InputDataType::Tip { data: t } => {
+					Self::hovering(physical_size, t.pose.position, false)
+				}
 				_ => false,
 			},
 		);
 
 		for input_data in self.touch.interact().added().iter() {
 			let position = self.to_local_coords(Self::hover_point(input_data));
-			self.start_tap_times
-				.insert(input_data.id as u32, info.elapsed);
-			(decl.on_touch_down.0)(state, input_data.id as u32, position);
+			self.last_touch += 1;
+			let id = self.last_touch;
+			self.points.insert(input_data.method.clone(), id);
+			// TODO: use proper timestamps for this?
+			self.start_tap_times.insert(id, Instant::now());
+			(decl.on_touch_down.0)(state, id, position);
 		}
 		for input_data in self.touch.interact().current().iter() {
 			let position = self.to_local_coords(Self::hover_point(input_data));
-			if let Some(start_time) = self.start_tap_times.get(&(input_data.id as u32)) {
-				if info.elapsed - start_time > decl.click_freeze_time.as_secs_f32() {
-					(decl.on_touch_move.0)(state, input_data.id as u32, position);
+			// should always exist
+			let id = *self.points.get(&input_data.method).unwrap();
+			if let Some(start_time) = self.start_tap_times.get(&(id)) {
+				if start_time.elapsed().as_secs_f32() > decl.click_freeze_time.as_secs_f32() {
+					(decl.on_touch_move.0)(state, id, position);
 				}
 			}
 		}
 		for input_data in self.touch.interact().removed().iter() {
-			self.start_tap_times.remove(&(input_data.id as u32));
-			(decl.on_touch_up.0)(state, input_data.id as u32);
+			// should always exist
+			let id = self.points.remove(&input_data.method).unwrap();
+			self.start_tap_times.remove(&(id as u32));
+			(decl.on_touch_up.0)(state, id as u32);
 		}
 	}
 
@@ -256,7 +281,7 @@ impl TouchSurfaceInputInner {
 			lines.push(self.line_from_input(input));
 		}
 
-		self.lines.set_lines(&lines).unwrap();
+		self.lines.set_lines(lines).unwrap();
 	}
 
 	fn debug_lines(&self) -> Vec<Line> {
@@ -283,7 +308,7 @@ impl TouchSurfaceInputInner {
 		vec![line_front, line_back]
 	}
 
-	fn line_from_input(&self, input: &InputData) -> Line {
+	fn line_from_input(&self, input: &InputSnapshot) -> Line {
 		self.line_from_point(Self::hover_point(input))
 	}
 

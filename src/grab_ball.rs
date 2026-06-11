@@ -1,22 +1,20 @@
 use glam::Vec3;
 use stardust_xr_fusion::{
-	drawable::{Lines, LinesAspect},
-	fields::{Field, Shape},
-	input::{InputDataType, InputHandler},
-	node::{NodeError, NodeType},
-	spatial::{Spatial, SpatialAspect, Transform},
-	values::{
-		color::{color_space::LinearRgb, rgba_linear, Rgba},
-		Vector3,
-	},
+	Error,
+	client::{Client, ClientHandler},
+	drawable::{Lines, LinesExt as _},
+	fields::{Field, FieldExt as _, Shape},
+	spatial::{Spatial, SpatialRef, Transform},
+	suis::InputDataType,
+	types::{Color, Vec3F, rgba_linear},
 };
 use stardust_xr_molecules::{
-	input_action::{InputQueue, InputQueueable, SingleAction},
-	lines::{line_from_points, LineExt},
+	input_action::{InputQueue, SingleAction},
+	lines::{LineExt, line_from_points},
 };
 
 pub trait GrabBallHead {
-	fn root(&self) -> &impl SpatialAspect;
+	fn root(&self) -> &Spatial;
 	fn set_enabled(&mut self, enabled: bool);
 	fn update(&mut self, grab_action: &SingleAction, pos: Vec3);
 }
@@ -26,7 +24,7 @@ pub struct GrabBallSettings {
 	pub radius: f32,
 	pub padding: f32,
 	pub connector_thickness: f32,
-	pub connector_color: Rgba<f32, LinearRgb>,
+	pub connector_color: Color,
 }
 impl Default for GrabBallSettings {
 	fn default() -> Self {
@@ -41,6 +39,7 @@ impl Default for GrabBallSettings {
 
 pub struct GrabBall<H: GrabBallHead> {
 	connect_root: Spatial,
+	connect_root_ref: SpatialRef,
 	pub head: H,
 	connector: Lines,
 	offset: Vec3,
@@ -51,36 +50,47 @@ pub struct GrabBall<H: GrabBallHead> {
 	pos: Vec3,
 }
 impl<H: GrabBallHead> GrabBall<H> {
-	pub fn create(
+	pub async fn create(
+		client: &Client<impl ClientHandler>,
 		connect_root: Spatial,
-		offset: impl Into<Vector3<f32>>,
+		offset: impl Into<Vec3F>,
 		head: H,
 		settings: GrabBallSettings,
-	) -> Result<Self, NodeError> {
+	) -> Result<Self, Error> {
+		let connect_root_ref = connect_root.spatial_ref().await?;
 		let offset = Vec3::from(offset.into());
-		head.root().set_spatial_parent(&connect_root)?;
+		head.root().set_parent(connect_root_ref.clone())?;
 		head.root()
 			.set_local_transform(Transform::from_translation(offset))?;
 
-		let connector = Lines::create(&connect_root, Transform::none(), &[])?;
-		let _field = Field::create(
+		let connector = Lines::create(client, &connect_root, Vec::new()).await?;
+		let (field, _) = Field::create(
+			client,
 			head.root(),
-			Transform::identity(),
-			Shape::Sphere(settings.radius),
-		)?;
-		let input_handler =
-			InputHandler::create(&connect_root, Transform::none(), &_field)?.queue()?;
+			Shape::Sphere {
+				radius: settings.radius,
+			},
+		)
+		.await?;
+		let input = InputQueue::new(
+			client,
+			connect_root.clone(),
+			field.clone(),
+			connect_root_ref.clone(),
+		)
+		.await?;
 
 		let grab_action = SingleAction::default();
 
 		Ok(GrabBall {
 			connect_root,
+			connect_root_ref,
 			head,
 			connector,
 			offset,
-			_field,
+			_field: field,
 			settings,
-			input: input_handler,
+			input,
 			grab_action,
 			pos: offset,
 		})
@@ -90,31 +100,29 @@ impl<H: GrabBallHead> GrabBall<H> {
 		self.grab_action.update(
 			true,
 			&self.input,
-			|input| match &input.input {
-				InputDataType::Pointer(_) => false,
-				_ => input.distance < (self.settings.radius + self.settings.padding),
+			|input| match &input.input() {
+				InputDataType::Pointer { data: _ } => false,
+				_ => input.distance() < (self.settings.radius + self.settings.padding),
 			},
-			|input| {
-				input.datamap.with_data(|datamap| match &input.input {
-					InputDataType::Hand(_) => datamap.idx("pinch_strength").as_f32() > 0.90,
-					_ => datamap.idx("grab").as_f32() > 0.90,
-				})
+			|input| match &input.input() {
+				InputDataType::Hand { data: _ } => input.datamap_f32("pinch_strength") > 0.90,
+				_ => input.datamap_f32("grab") > 0.90,
 			},
 		);
 
 		if self.grab_action.actor_stopped() {
 			self.pos = self.offset;
 			let _ = self.head.root().set_relative_transform(
-				&self.connect_root,
+				self.connect_root_ref.clone(),
 				Transform::from_translation(self.offset),
 			);
 		}
 		if let Some(grab_point) = self.grab_point() {
 			self.pos = grab_point;
-			let _ = self
-				.head
-				.root()
-				.set_relative_transform(&self.connect_root, Transform::from_translation(self.pos));
+			let _ = self.head.root().set_relative_transform(
+				self.connect_root_ref.clone(),
+				Transform::from_translation(self.pos),
+			);
 		}
 		self.head.update(&self.grab_action, self.pos);
 		self.update_line();
@@ -127,19 +135,20 @@ impl<H: GrabBallHead> GrabBall<H> {
 		if !self.grab_action.actor_acting() {
 			self.pos = self.offset;
 			let _ = self.head.root().set_relative_transform(
-				&self.connect_root,
+				self.connect_root_ref.clone(),
 				Transform::from_translation(self.offset),
 			);
 		}
 	}
 	fn grab_point(&self) -> Option<Vec3> {
 		let grabbing = self.grab_action.actor()?;
-		match &grabbing.input {
-			InputDataType::Pointer(_) => None,
-			InputDataType::Hand(h) => {
-				Some(Vec3::from(h.thumb.tip.position).lerp(Vec3::from(h.index.tip.position), 0.5))
-			}
-			InputDataType::Tip(t) => Some(t.origin.into()),
+		match &grabbing.input() {
+			InputDataType::Pointer { data: _ } => None,
+			InputDataType::Hand { data: h } => Some(
+				Vec3::from(h.thumb.tip.pose.position)
+					.lerp(Vec3::from(h.index.tip.pose.position), 0.5),
+			),
+			InputDataType::Tip { data: t } => Some(t.pose.position.into()),
 		}
 	}
 
@@ -150,12 +159,6 @@ impl<H: GrabBallHead> GrabBall<H> {
 			.color(self.settings.connector_color)
 			.thickness(self.settings.connector_thickness);
 		let _ = self.connector.set_lines(&[line]);
-	}
-
-	pub fn set_enabled(&mut self, enabled: bool) {
-		let _ = self.input.handler().set_enabled(enabled);
-		let _ = self.connector.set_enabled(enabled);
-		self.head.set_enabled(enabled);
 	}
 
 	pub fn connect_root(&self) -> &Spatial {

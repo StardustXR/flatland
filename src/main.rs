@@ -34,9 +34,7 @@ use tracing_subscriber::{EnvFilter, layer::SubscriberExt as _};
 pub mod close_button;
 pub mod grab_ball;
 pub mod initial_panel_placement;
-pub mod initial_positioner;
-pub mod panel_shell_transfer;
-pub mod panel_wrapper;
+// pub mod panel_shell_transfer;
 pub mod pointer_input;
 pub mod resize_handles;
 pub mod touch_input;
@@ -301,16 +299,6 @@ impl Reify for ToplevelState {
 			(None, Some(app_name)) => app_name.to_string(),
 			(None, None) => String::new(),
 		};
-
-		// InitialPositioner(
-		// 	self.panel_item
-		// 		.clone()
-		// 		.as_item()
-		// 		.as_spatial()
-		// 		.as_spatial_ref(),
-		// )
-		// .build()
-		// .child(
 		InitialPanelPlacement
 			.build()
 			.maybe_child(self.panel_shell.as_ref().map(|shell| {
@@ -523,10 +511,10 @@ impl ChildState {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn reify_surface<E: Element<ToplevelState>>(
+fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 	panel_item: &Option<Shell>,
 	surface_id: SurfaceId,
-	parent_size: impl Into<Size2>,
+	parent_size: S,
 	geometry: Geometry,
 	input_areas: &[Rect],
 	z_offset: i32,
@@ -534,7 +522,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 	density: f32,
 	children: FxHashMap<u64, E>,
 	scroll_multiplier: f32,
-) -> impl Element<ToplevelState> {
+) -> impl Element<ToplevelState> + use<S, E> {
 	let parent_size = parent_size.into();
 	let parent_origin_meters = vec2(
 		parent_size.x as f32 / density / 2.0,
@@ -549,7 +537,9 @@ fn reify_surface<E: Element<ToplevelState>>(
 		geometry.size.y as f32 / density,
 	);
 
-	let shape = Shape::Box([size_meters.x, size_meters.y, thickness].into());
+	let shape = Shape::Box {
+		size: [size_meters.x, size_meters.y, thickness].into(),
+	};
 	Spatial::default()
 		.pos(
 			(origin_meters - parent_origin_meters + (size_meters / vec2(2.0, -2.0)))
@@ -608,24 +598,22 @@ fn reify_surface<E: Element<ToplevelState>>(
 				.child(
 					KeyboardHandler::<ToplevelState>::new(shape.clone())
 						.on_key_async({
-							let panel_shell = panel_item.clone();
+							let panel_item = panel_item.as_ref().map(|v| v.item().clone());
 							move |key_event, timestamp| {
-								if let Some(shell) = panel_shell.as_ref() {
-									shell
-										.item()
-										.key(
-											surface_id,
-											key_event.keycode,
-											key_event.pressed,
-											ModifierState {
-												depressed: key_event.modifiers.depressed,
-												latched: key_event.modifiers.latched,
-												locked: key_event.modifiers.locked,
-											},
-											key_event.keymap,
-											timestamp,
-										)
-										.unwrap();
+								if let Some(item) = &panel_item {
+									item.key(
+										surface_id,
+										key_event.keycode,
+										key_event.pressed,
+										ModifierState {
+											depressed: key_event.modifiers.depressed,
+											latched: key_event.modifiers.latched,
+											locked: key_event.modifiers.locked,
+										},
+										key_event.keymap,
+										timestamp,
+									)
+									.unwrap();
 								}
 							}
 						})
@@ -634,12 +622,11 @@ fn reify_surface<E: Element<ToplevelState>>(
 				.child(
 					MouseHandler::<ToplevelState>::new(shape)
 						.on_button_async({
-							let panel_shell = panel_item.clone();
+							let panel_item = panel_item.as_ref().map(|v| v.item().clone());
 							move |button, pressed, timestamp| {
-								if let Some(shell) = panel_shell.as_ref() {
-									let _ = shell
-										.item()
-										.pointer_button(surface_id, button, pressed, timestamp);
+								if let Some(item) = &panel_item {
+									let _ =
+										item.pointer_button(surface_id, button, pressed, timestamp);
 								}
 							}
 						})
@@ -654,62 +641,50 @@ fn reify_surface<E: Element<ToplevelState>>(
 							);
 						})
 						.on_scroll_discrete_async({
-							let panel_shell = panel_item.clone();
+							let panel_item = panel_item.as_ref().map(|v| v.item().clone());
 							move |scroll_discrete, source, timestamp| {
 								use stardust_xr_asteroids::elements::ScrollSource as MoleculesSource;
-								if let Some(shell) = panel_shell.as_ref() {
-									shell
-										.item()
-										.pointer_scroll_discrete(
-											surface_id,
-											[
-												scroll_discrete.x * scroll_multiplier,
-												-scroll_discrete.y * scroll_multiplier,
-											]
-											.into(),
-											match source {
-												MoleculesSource::Wheel => ScrollSource::Wheel,
-												MoleculesSource::Finger => ScrollSource::Touch,
-												MoleculesSource::Continuous => {
-													ScrollSource::Continuous
-												}
-												MoleculesSource::WheelTilt => {
-													ScrollSource::WheelTilt
-												}
-											},
-											timestamp,
-										)
-										.unwrap();
+								if let Some(item) = &panel_item {
+									item.pointer_scroll_discrete(
+										surface_id,
+										[
+											scroll_discrete.x * scroll_multiplier,
+											-scroll_discrete.y * scroll_multiplier,
+										]
+										.into(),
+										match source {
+											MoleculesSource::Wheel => ScrollSource::Wheel,
+											MoleculesSource::Finger => ScrollSource::Touch,
+											MoleculesSource::Continuous => ScrollSource::Continuous,
+											MoleculesSource::WheelTilt => ScrollSource::WheelTilt,
+										},
+										timestamp,
+									)
+									.unwrap();
 								}
 							}
 						})
 						.on_scroll_continuous_async({
-							let panel_shell = panel_item.clone();
+							let panel_item = panel_item.as_ref().map(|v| v.item().clone());
 							move |scroll_continuous, source, timestamp| {
 								use stardust_xr_asteroids::elements::ScrollSource as MoleculesSource;
-								if let Some(shell) = panel_shell.as_ref() {
-									shell
-										.item()
-										.pointer_scroll_pixels(
-											surface_id,
-											[
-												scroll_continuous.x * scroll_multiplier,
-												-scroll_continuous.y * scroll_multiplier,
-											]
-											.into(),
-											match source {
-												MoleculesSource::Wheel => ScrollSource::Wheel,
-												MoleculesSource::Finger => ScrollSource::Touch,
-												MoleculesSource::Continuous => {
-													ScrollSource::Continuous
-												}
-												MoleculesSource::WheelTilt => {
-													ScrollSource::WheelTilt
-												}
-											},
-											timestamp,
-										)
-										.unwrap();
+								if let Some(item) = &panel_item {
+									item.pointer_scroll_pixels(
+										surface_id,
+										[
+											scroll_continuous.x * scroll_multiplier,
+											-scroll_continuous.y * scroll_multiplier,
+										]
+										.into(),
+										match source {
+											MoleculesSource::Wheel => ScrollSource::Wheel,
+											MoleculesSource::Finger => ScrollSource::Touch,
+											MoleculesSource::Continuous => ScrollSource::Continuous,
+											MoleculesSource::WheelTilt => ScrollSource::WheelTilt,
+										},
+										timestamp,
+									)
+									.unwrap();
 								}
 							}
 						})

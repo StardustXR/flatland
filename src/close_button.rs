@@ -5,17 +5,17 @@ use stardust_xr_asteroids::{
 	ClientState, Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
 };
 use stardust_xr_fusion::{
-	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
-	fields::{Field, FieldAspect, Shape},
-	input::{InputDataType::Pointer, InputHandler},
-	node::{NodeError, NodeType},
-	root::FrameInfo,
-	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
-	values::{color::rgba_linear, ResourceID},
+	Error,
+	client::{Client, ClientHandler, FrameInfo},
+	drawable::{MaterialParameter, Model, ModelExt as _, ModelPart},
+	fields::{Field, FieldExt as _, Shape},
+	spatial::{PartialTransform, Spatial, SpatialExt as _, Transform},
+	suis::InputDataType,
+	types::{Resource, ResourceLoadError, rgba_linear},
 };
 use stardust_xr_molecules::{
-	input_action::{InputQueue, InputQueueable, SimpleAction},
 	Exposure,
+	input_action::{InputQueue, SimpleAction},
 };
 
 use crate::ToplevelState;
@@ -31,30 +31,27 @@ pub struct ExposureButton<State: ValidState> {
 }
 impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 	type Inner = ExposureButtonInner;
-	type Resource = ();
-	type Error = NodeError;
+	type Error = Error;
 
-	fn create_inner(
+	async fn create_inner(
 		&self,
-		_context: &Context,
+		ctx: &Context,
 		info: CreateInnerInfo,
-		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
-		ExposureButtonInner::new(info.parent_space, self.transform, self.thickness)
+		info.child_space.set_local_transform(self.transform.clone());
+		ExposureButtonInner::new(&ctx.stardust_client, info.child_space, self.thickness).await
 	}
 
-	fn diff(&self, old: &Self, inner: &mut Self::Inner, _resource: &mut Self::Resource) {
+	fn diff(&self, old: &Self, _context: &Context, inner: &mut Self::Inner) {
 		self.apply_transform(old, &inner.root);
 
 		if self.thickness != old.thickness {
+			let _ = inner.field.set_shape(Shape::Box {
+				size: [1.5 * 0.025, 0.025, self.thickness].into(),
+			});
 			let _ = inner
-				.field
-				.set_shape(Shape::Box([1.5 * 0.025, 0.025, self.thickness].into()));
-			let _ = inner.model.set_local_transform(Transform::from_scale([
-				0.025,
-				0.025,
-				self.thickness,
-			]));
+				.model_spatial
+				.set_local_transform(PartialTransform::from_scale([0.025, 0.025, self.thickness]));
 		}
 	}
 
@@ -70,10 +67,6 @@ impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 			(self.on_click.0)(state);
 		}
 	}
-
-	fn spatial_aspect(&self, inner: &Self::Inner) -> SpatialRef {
-		inner.model.clone().as_spatial().as_spatial_ref()
-	}
 }
 impl<State: ValidState> Transformable for ExposureButton<State> {
 	fn transform(&self) -> &Transform {
@@ -87,6 +80,7 @@ impl<State: ValidState> Transformable for ExposureButton<State> {
 pub struct ExposureButtonInner {
 	root: Spatial,
 	model: Model,
+	model_spatial: Spatial,
 	shell: ModelPart,
 	exposure: Exposure,
 	field: Field,
@@ -94,40 +88,65 @@ pub struct ExposureButtonInner {
 	distance_action: SimpleAction,
 }
 impl ExposureButtonInner {
-	pub fn new(
-		parent: &impl SpatialRefAspect,
-		transform: Transform,
+	pub async fn new(
+		client: &Client<impl ClientHandler>,
+		root: Spatial,
 		thickness: f32,
-	) -> Result<Self, NodeError> {
-		let root = Spatial::create(parent, transform)?;
-		let model = Model::create(
-			&root,
+	) -> Result<Self, Error> {
+		let root_ref = root.spatial_ref().await?;
+		let (model_spatial, _) = Spatial::create(
+			client,
+			&root_ref,
 			Transform::from_scale([0.025, 0.025, thickness]),
-			&ResourceID::new_namespaced(ToplevelState::APP_ID, "close_button"),
-		)?;
-		let shell = model.part("Shell")?;
+		)
+		.await?;
+		let model = Model::create(
+			&client,
+			&model_spatial,
+			Resource::Namespaced {
+				namespace: ToplevelState::APP_ID.into(),
+				path: "close_button".into(),
+			},
+		)
+		.await?;
+		let shell = model
+			.get_part("Shell")
+			.await?
+			.ok_or(ResourceLoadError::NotFound)?;
+		let shell_spatial = shell.get_spatial().await?;
+		let shell_spatial_ref = shell_spatial.spatial_ref().await?;
 		let exposure = Exposure {
 			exposure: 0.0,
 			cooling: 5.0,
 			max: 1.0,
 		};
-
+		let (field_spatial, _) = Spatial::create(client, &root_ref, Transform::IDENTITY).await?;
 		// compensate for the server not being able to handle scaled fields
-		let field = Field::create(
+		let (field, _) = Field::create(
+			client,
 			&root,
-			Transform::none(),
-			Shape::Box([1.5 * 0.025, 0.025, thickness].into()),
-		)?;
-		field.set_relative_transform(
-			&shell,
+			Shape::Box {
+				size: [1.5 * 0.025, 0.025, thickness].into(),
+			},
+		)
+		.await?;
+		field_spatial.set_relative_transform(
+			shell_spatial_ref.clone(),
 			Transform::from_translation_rotation([-0.75, -0.5, -0.5], Quat::IDENTITY),
 		)?;
 
-		let input = InputHandler::create(&shell, Transform::none(), &field)?.queue()?;
+		let input = InputQueue::new(
+			client,
+			shell_spatial.clone(),
+			field.clone(),
+			shell_spatial_ref,
+		)
+		.await?;
 
 		Ok(ExposureButtonInner {
 			root,
 			model,
+			model_spatial,
 			shell,
 			exposure,
 			field,
@@ -139,9 +158,9 @@ impl ExposureButtonInner {
 	pub fn frame(&mut self, frame_info: &FrameInfo, gain: f32) -> bool {
 		self.input.handle_events();
 		self.distance_action.update(&self.input, &|data| {
-			data.distance < 0.0
-				&& match &data.input {
-					Pointer(_) => data.datamap.with_data(|d| d.idx("select").as_f32() > 0.5),
+			data.distance() < 0.0
+				&& match &data.input() {
+					InputDataType::Pointer { data: _ } => data.datamap_f32("select") > 0.5,
 					_ => true,
 				}
 		});
@@ -149,7 +168,7 @@ impl ExposureButtonInner {
 			.distance_action
 			.currently_acting()
 			.iter()
-			.map(|d| d.distance.abs().powf(1.0 / 2.2))
+			.map(|d| d.distance().abs().powf(1.0 / 2.2))
 			.sum();
 		self.exposure.update(frame_info.delta);
 		self.exposure.expose(exposure * gain, frame_info.delta);
@@ -161,21 +180,18 @@ impl ExposureButtonInner {
 			let color = colorgrad::magma().at(self.exposure.exposure.into());
 			let _ = self.shell.set_material_parameter(
 				"emission_factor",
-				MaterialParameter::Color(rgba_linear!(
-					color.r as f32,
-					color.g as f32,
-					color.b as f32,
-					color.a as f32
-				)),
+				MaterialParameter::Color {
+					value: rgba_linear!(
+						color.r as f32,
+						color.g as f32,
+						color.b as f32,
+						color.a as f32
+					),
+				},
 			);
 			false
 		} else {
 			false
 		}
-	}
-
-	pub fn set_enabled(&mut self, enabled: bool) {
-		self.model.set_enabled(enabled).unwrap();
-		self.input.handler().set_enabled(enabled).unwrap();
 	}
 }

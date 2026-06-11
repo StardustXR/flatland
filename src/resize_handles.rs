@@ -1,82 +1,113 @@
-use crate::{grab_ball::GrabBallSettings, ToplevelState};
+use crate::{ToplevelState, grab_ball::GrabBallSettings};
 use derive_setters::Setters;
-use glam::{vec2, vec3, Mat4, Quat, Vec3, Vec3Swizzles};
+use glam::{Mat4, Quat, Vec3, Vec3Swizzles, vec2, vec3};
 use stardust_xr_asteroids::{
 	ClientState, Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState,
 };
 use stardust_xr_fusion::{
-	drawable::{MaterialParameter, Model, ModelPart, ModelPartAspect},
-	fields::{Field, FieldAspect, Shape},
-	input::{InputDataType, InputHandler},
-	node::{NodeError, NodeResult, NodeType},
-	objects::hmd,
-	objects::zbus::Connection,
-	root::FrameInfo,
-	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
-	values::ResourceID,
-	values::{color::rgba_linear, Color, Vector2},
+	Error,
+	client::{Client, ClientHandler, FrameInfo},
+	drawable::{MaterialParameter, Model, ModelExt as _, ModelPart},
+	fields::{Field, FieldExt as _, Shape},
+	spatial::{PartialTransform, Spatial, SpatialExt as _, SpatialRef, Transform},
+	suis::InputDataType,
+	tracked::{Tracked, TrackedExt},
+	types::{Color, Resource, ResourceLoadError, Vec2F, rgba_linear},
 };
 use stardust_xr_molecules::{
-	dbus::AbortOnDrop,
-	input_action::{InputQueue, InputQueueable, SingleAction},
-	reparentable::Reparentable,
 	UIElement,
+	input_action::{InputQueue, SingleAction},
+	reparentable::Reparentable,
 };
 use std::{
 	f32::consts::FRAC_PI_2,
 	path::{Path, PathBuf},
+	sync::Arc,
 };
-use tokio::sync::watch;
+use tokio::{sync::watch, task::AbortHandle};
 
 const RESIZE_HANDLE_FLOATING: f32 = 0.025;
 
-async fn pos(transform: &impl SpatialRefAspect, relative_to: &impl SpatialRefAspect) -> Vec3 {
-	transform
-		.get_transform(relative_to)
+async fn pos(
+	client: &Client<impl ClientHandler>,
+	transform: &SpatialRef,
+	relative_to: &SpatialRef,
+) -> Vec3 {
+	client
+		.spatial_interface()
+		.get_relative_transform(relative_to.clone(), transform.clone())
 		.await
 		.unwrap()
+		.unwrap()
 		.translation
-		.map(Into::into)
-		.unwrap_or_default()
+		.into()
 }
 
 pub struct ResizeHandle {
 	settings: GrabBallSettings,
 	model: Model,
 	sphere: ModelPart,
+	model_spatial: Spatial,
+	model_spatial_ref: SpatialRef,
 	_field: Field,
+	_input_spatial: Spatial,
+	input_spatial_ref: SpatialRef,
 	input: InputQueue,
 	grab_action: SingleAction,
 	pointer_distance: f32,
 	old_interact_point: Vec3,
 }
 impl ResizeHandle {
-	pub fn create(
-		initial_parent: &impl SpatialRefAspect,
+	pub async fn create(
+		client: &Client<impl ClientHandler>,
+		initial_parent: &SpatialRef,
 		settings: GrabBallSettings,
-	) -> NodeResult<Self> {
+	) -> stardust_xr_fusion::Result<Self> {
+		let (model_spatial, model_spatial_ref) =
+			Spatial::create(client, initial_parent, Transform::IDENTITY).await?;
 		let model = Model::create(
-			initial_parent,
-			Transform::identity(),
-			&ResourceID::new_namespaced(ToplevelState::APP_ID, "resize_handle"),
-		)?;
-		let sphere = model.part("sphere")?;
-		sphere.set_material_parameter(
-			"color",
-			MaterialParameter::Color(rgba_linear!(0.75, 0.75, 0.75, 1.0)),
-		)?;
-
-		let field = Field::create(&model, Transform::identity(), Shape::Sphere(0.005))?;
-		let client = initial_parent.client().clone();
-		let root = client.get_root();
-		let input = InputHandler::create(root, Transform::identity(), &field)?.queue()?;
+			client,
+			&model_spatial,
+			Resource::Namespaced {
+				namespace: ToplevelState::APP_ID.into(),
+				path: "resize_handle".into(),
+			},
+		)
+		.await?;
+		let sphere = model
+			.get_part("sphere")
+			.await?
+			.ok_or(ResourceLoadError::NotFound)?;
+		sphere
+			.set_material_parameter(
+				"color",
+				MaterialParameter::Color {
+					value: rgba_linear!(0.75, 0.75, 0.75, 1.0),
+				},
+			)
+			.await?;
+		let (input_spatial, input_spatial_ref) =
+			Spatial::create(client, client.root(), Transform::IDENTITY).await?;
+		let (field, _) =
+			Field::create(client, &model_spatial, Shape::Sphere { radius: 0.005 }).await?;
+		let input = InputQueue::new(
+			client,
+			model_spatial.clone(),
+			field.clone(),
+			input_spatial_ref.clone(),
+		)
+		.await?;
 
 		Ok(ResizeHandle {
 			settings,
 
 			model,
 			sphere,
+			model_spatial,
+			model_spatial_ref,
 			_field: field,
+			_input_spatial: input_spatial,
+			input_spatial_ref,
 			input,
 			grab_action: Default::default(),
 			pointer_distance: 0.0,
@@ -92,16 +123,14 @@ impl UIElement for ResizeHandle {
 		self.grab_action.update(
 			true,
 			&self.input,
-			|input| match &input.input {
-				InputDataType::Pointer(_) => true,
-				_ => input.distance < (self.settings.radius + self.settings.padding),
+			|input| match &input.input() {
+				InputDataType::Pointer { data: _ } => true,
+				_ => input.distance() < (self.settings.radius + self.settings.padding),
 			},
-			|input| {
-				input.datamap.with_data(|datamap| match &input.input {
-					InputDataType::Hand(_) => datamap.idx("pinch_strength").as_f32() > 0.90,
-					InputDataType::Pointer(_) => datamap.idx("grab").as_f32() > 0.90,
-					_ => datamap.idx("grab").as_f32() > 0.90,
-				})
+			|input| match &input.input() {
+				InputDataType::Hand { data: _ } => input.datamap_f32("pinch_strength") > 0.90,
+				InputDataType::Pointer { data: _ } => input.datamap_f32("grab") > 0.90,
+				_ => input.datamap_f32("grab") > 0.90,
 			},
 		);
 
@@ -112,7 +141,9 @@ impl UIElement for ResizeHandle {
 		{
 			let _ = self.sphere.set_material_parameter(
 				"color",
-				MaterialParameter::Color(rgba_linear!(1.0, 1.0, 1.0, 1.0)),
+				MaterialParameter::Color {
+					value: rgba_linear!(1.0, 1.0, 1.0, 1.0),
+				},
 			);
 		}
 
@@ -121,23 +152,29 @@ impl UIElement for ResizeHandle {
 		{
 			let _ = self.sphere.set_material_parameter(
 				"color",
-				MaterialParameter::Color(rgba_linear!(0.5, 0.5, 0.5, 1.0)),
+				MaterialParameter::Color {
+					value: rgba_linear!(0.5, 0.5, 0.5, 1.0),
+				},
 			);
 		}
 
 		if self.grab_action.actor_started() {
 			let _ = self.sphere.set_material_parameter(
 				"color",
-				MaterialParameter::Color(self.settings.connector_color),
+				MaterialParameter::Color {
+					value: self.settings.connector_color,
+				},
 			);
 		}
 		if let Some(grab_point) = self.grab_point() {
-			self.set_pos(self.input.handler(), grab_point);
+			self.set_pos(&self.input_spatial_ref, grab_point);
 		}
 		if self.grab_action.actor_stopped() {
 			let _ = self.sphere.set_material_parameter(
 				"color",
-				MaterialParameter::Color(rgba_linear!(0.5, 0.5, 0.5, 1.0)),
+				MaterialParameter::Color {
+					value: rgba_linear!(0.5, 0.5, 0.5, 1.0),
+				},
 			);
 		}
 		true
@@ -146,76 +183,75 @@ impl UIElement for ResizeHandle {
 impl ResizeHandle {
 	fn grab_point(&mut self) -> Option<Vec3> {
 		let grabbing = self.grab_action.actor()?;
-		match &grabbing.input {
-			InputDataType::Pointer(p) => {
+		match &grabbing.input() {
+			InputDataType::Pointer { data: p } => {
 				if self.grab_action.actor_started() {
 					// Set initial pointer distance based on deepest point
-					self.pointer_distance =
-						Vec3::from(p.origin).distance(Vec3::from(p.deepest_point));
-					self.old_interact_point = Vec3::from(p.origin)
+					self.pointer_distance = p.deepest_point;
+					self.old_interact_point = Vec3::from(p.pose.position)
 						+ Vec3::from(p.direction()).normalize() * self.pointer_distance;
 				}
 
 				// Adjust pointer_distance based on scroll input
-				let scroll_continuous = grabbing
-					.datamap
-					.with_data(|d| d.idx("scroll_continuous").as_vector().idx(1).as_f32());
-				let scroll_discrete = grabbing
-					.datamap
-					.with_data(|d| d.idx("scroll_discrete").as_vector().idx(1).as_f32());
+				let scroll_continuous = grabbing.datamap_vec2("scroll_continuous").y;
+				let scroll_discrete = grabbing.datamap_vec2("scroll_discrete").y;
 				self.pointer_distance += (scroll_continuous * 0.01) + (scroll_discrete * 0.05);
 
 				// Calculate position at current distance along pointer ray
-				let origin = Vec3::from(p.origin);
+				let origin = Vec3::from(p.pose.position);
 				let direction = Vec3::from(p.direction()).normalize();
 				Some(origin + (direction * self.pointer_distance))
 			}
-			InputDataType::Hand(h) => {
-				Some(Vec3::from(h.thumb.tip.position).lerp(Vec3::from(h.index.tip.position), 0.5))
-			}
-			InputDataType::Tip(t) => Some(t.origin.into()),
+			InputDataType::Hand { data: h } => Some(
+				Vec3::from(h.thumb.tip.pose.position)
+					.lerp(Vec3::from(h.index.tip.pose.position), 0.5),
+			),
+			InputDataType::Tip { data: t } => Some(t.pose.position.into()),
 		}
 	}
-	pub fn set_pos(&self, relative_to: &impl SpatialRefAspect, pos: Vec3) {
+	pub fn set_pos(&self, relative_to: &SpatialRef, pos: Vec3) {
 		let _ = self
-			.model
-			.set_relative_transform(relative_to, Transform::from_translation(pos));
+			.model_spatial
+			.set_relative_transform(relative_to.clone(), PartialTransform::from_translation(pos));
 	}
 	fn set_enabled(&mut self, enabled: bool) {
-		let _ = self.model.set_enabled(enabled);
+		let _ = self
+			.model_spatial
+			.set_local_transform(PartialTransform::from_scale([enabled as u8 as f32; 3]));
 	}
 }
 
 pub struct ResizeHandlesInner {
+	client_root: SpatialRef,
 	content_parent: Spatial,
+	content_parent_ref: SpatialRef,
 	bottom: ResizeHandle,
 	top: ResizeHandle,
-	reparentable: Option<Reparentable>,
+	reparentable: watch::Sender<Option<Reparentable>>,
 	reparentable_field: Field,
-	_field_update_task: AbortOnDrop,
+	_field_update_task: AbortHandle,
 	path: PathBuf,
-	connection: Connection,
 	parent: SpatialRef,
 
-	hmd: watch::Receiver<Option<SpatialRef>>,
+	hmd: SpatialRef,
 	is_reparentable: bool,
-	size_tx: watch::Sender<Vector2<f32>>,
-	size: watch::Receiver<Vector2<f32>>,
-	pub min_size: Option<Vector2<f32>>,
-	pub max_size: Option<Vector2<f32>>,
+	size_tx: watch::Sender<Vec2F>,
+	size: watch::Receiver<Vec2F>,
+	pub min_size: Option<Vec2F>,
+	pub max_size: Option<Vec2F>,
 }
 impl ResizeHandlesInner {
 	#[allow(clippy::too_many_arguments)]
-	pub fn create(
+	pub async fn create(
+		client: &Arc<Client<impl ClientHandler>>,
 		parent: SpatialRef,
-		connection: Connection,
 		path: impl AsRef<Path>,
-		zoneable: bool,
+		reparentable: bool,
 		accent_color: Color,
-		initial_size: Vector2<f32>,
-		min_size: Option<Vector2<f32>>,
-		max_size: Option<Vector2<f32>>,
-	) -> NodeResult<Self> {
+		initial_size: Vec2F,
+		min_size: Option<Vec2F>,
+		max_size: Option<Vec2F>,
+	) -> stardust_xr_fusion::Result<Self> {
 		let settings = GrabBallSettings {
 			radius: 0.005,
 			padding: 0.02,
@@ -223,74 +259,73 @@ impl ResizeHandlesInner {
 			connector_color: accent_color,
 		};
 
-		let content_parent = Spatial::create(&parent, Transform::identity())?;
-		let bottom = ResizeHandle::create(&content_parent, settings.clone())?;
-		let top = ResizeHandle::create(&content_parent, settings.clone())?;
+		let (content_parent, content_parent_ref) =
+			Spatial::create(client, &parent, Transform::IDENTITY).await?;
+		let bottom = ResizeHandle::create(client, &content_parent_ref, settings.clone()).await?;
+		let top = ResizeHandle::create(client, &content_parent_ref, settings.clone()).await?;
 
 		let (size_tx, size) = watch::channel(initial_size);
-		let (hmd_tx, hmd_rx) = watch::channel(None);
-		tokio::task::spawn({
-			let client = content_parent.client().clone();
+		let hmd = Tracked::hmd_spatial(client).await?;
+		let (reparentable_field, _) = Field::create(
+			client,
+			&content_parent,
+			Shape::Box {
+				size: [initial_size.x, initial_size.y, 0.01].into(),
+			},
+		)
+		.await?;
+		let _field_update_task = tokio::task::spawn({
+			let mut size = size.clone();
+			let field = reparentable_field.clone();
 			async move {
-				if let Some(hmd) = hmd(&client).await {
-					let _ = hmd_tx.send(Some(hmd));
+				while size.changed().await.is_ok() {
+					let size = size.borrow();
+					_ = field.set_shape(Shape::Box {
+						size: [size.x, size.y, 0.01].into(),
+					});
 				}
 			}
-		});
-		let reparentable_field = Field::create(
-			&content_parent,
-			Transform::none(),
-			Shape::Box([initial_size.x, initial_size.y, 0.01].into()),
-		)?;
-		let _field_update_task = AbortOnDrop(
-			tokio::task::spawn({
-				let mut size = size.clone();
-				let field = reparentable_field.clone();
-				async move {
-					while size.changed().await.is_ok() {
-						let size = size.borrow();
-						_ = field.set_shape(Shape::Box([size.x, size.y, 0.01].into()));
-					}
-				}
-			})
-			.abort_handle(),
-		);
+		})
+		.abort_handle();
+
 		let mut resize_handles = ResizeHandlesInner {
+			client_root: client.root().clone(),
 			content_parent,
+			content_parent_ref,
 			bottom,
 			top,
-			parent,
-			reparentable: None,
+			reparentable: watch::channel(None).0,
 			reparentable_field,
 			_field_update_task,
 			path: path.as_ref().to_path_buf(),
-			connection,
 
-			hmd: hmd_rx,
-			is_reparentable: zoneable,
+			parent,
+			hmd,
+			is_reparentable: reparentable,
 			size_tx,
 			size,
 			min_size,
 			max_size,
 		};
 		resize_handles.set_handle_positions(initial_size);
-		resize_handles.make_reparentable();
+		resize_handles.make_reparentable(client);
 		Ok(resize_handles)
 	}
-	pub fn handle_events(&mut self) {
-		let client = self.content_parent.client().clone();
-		let root = client.get_root();
+	pub fn handle_events(&mut self, client: &Arc<Client<impl ClientHandler>>) {
+		let root = &self.client_root;
 		self.bottom.handle_events();
 		self.top.handle_events();
 		if (self.top.grab_action.actor_started() && !self.bottom.grab_action.actor_acting())
 			|| (self.bottom.grab_action.actor_started() && !self.top.grab_action.actor_acting())
 		{
-			let _ = self.top.model.set_spatial_parent_in_place(root);
-			let _ = self.bottom.model.set_spatial_parent_in_place(root);
-			let _ = self.reparentable.take();
+			let _ = self.top.model_spatial.set_parent_in_place(root.clone());
+			let _ = self.bottom.model_spatial.set_parent_in_place(root.clone());
+			let _ = self.reparentable.send_modify(|v| {
+				v.take();
+			});
 		}
 		if self.top.grab_action.actor_acting() || self.bottom.grab_action.actor_acting() {
-			self.update_content_transform();
+			self.update_content_transform(client);
 		}
 
 		if (self.top.grab_action.actor_stopped() && !self.bottom.grab_action.actor_acting())
@@ -298,49 +333,53 @@ impl ResizeHandlesInner {
 		{
 			let _ = self
 				.top
-				.model
-				.set_spatial_parent_in_place(&self.content_parent);
+				.model_spatial
+				.set_parent_in_place(self.content_parent_ref.clone());
 			let _ = self
 				.bottom
-				.model
-				.set_spatial_parent_in_place(&self.content_parent);
-			self.make_reparentable();
+				.model_spatial
+				.set_parent_in_place(self.content_parent_ref.clone());
+			self.make_reparentable(client);
 		}
 	}
-	fn make_reparentable(&mut self) {
-		self.reparentable = self
-			.is_reparentable
-			.then(|| {
-				Reparentable::create(
-					self.connection.clone(),
-					&self.path,
-					self.parent.clone(),
-					self.content_parent.clone(),
-					Some(self.reparentable_field.clone()),
-				)
-				.ok()
-			})
-			.flatten();
+	fn make_reparentable(&mut self, client: &Arc<Client<impl ClientHandler>>) {
+		if self.is_reparentable {
+			let content_parent = self.content_parent.clone();
+			let parent = self.parent.clone();
+			let field = self.reparentable_field.clone();
+			let client = client.clone();
+			let watch = self.reparentable.clone();
+			tokio::spawn(async move {
+				let v = Reparentable::new(&client, content_parent, parent, field)
+					.await
+					.ok();
+				watch.send(v);
+			});
+		} else {
+			let _ = self.reparentable.send_modify(|v| {
+				v.take();
+			});
+		}
 	}
-	fn update_content_transform(&self) {
-		let client = self.content_parent.client().clone();
+	fn update_content_transform(&self, client: &Arc<Client<impl ClientHandler>>) {
 		let content_parent = self.content_parent.clone();
-		let corner1 = self.bottom.model.clone();
-		let corner2 = self.top.model.clone();
+		let corner1 = self.bottom.model_spatial_ref.clone();
+		let corner2 = self.top.model_spatial_ref.clone();
 
 		let size_tx = self.size_tx.clone();
 		let min_size = self.min_size.unwrap_or([0.0; 2].into());
 		let max_size = self.max_size.unwrap_or([4096.0; 2].into());
 
 		let hmd = self.hmd.clone();
+		let client = client.clone();
 
 		tokio::task::spawn(async move {
-			let Some(hmd) = hmd.borrow().clone() else {
-				return;
-			};
-			let root = client.get_root();
-			let (hmd_pos, mut corner1, mut corner2) =
-				tokio::join!(pos(&hmd, root), pos(&corner1, root), pos(&corner2, root));
+			let root = client.root();
+			let (hmd_pos, mut corner1, mut corner2) = tokio::join!(
+				pos(&client, &hmd, root),
+				pos(&client, &corner1, root),
+				pos(&client, &corner2, root)
+			);
 			let center_point = (corner1 + corner2) * 0.5;
 
 			let center_hmd_relative = center_point - hmd_pos;
@@ -366,21 +405,21 @@ impl ResizeHandlesInner {
 			size.y = size.y.max(min_size.y).min(max_size.y);
 
 			let _ = content_parent.set_relative_transform(
-				root,
-				Transform::from_translation_rotation(center_point, y_rotation * x_rotation),
+				root.clone(),
+				PartialTransform::from_translation_rotation(center_point, y_rotation * x_rotation),
 			);
 			let _ = size_tx.send(size.into());
 		});
 	}
-	pub fn set_handle_positions(&mut self, panel_size: Vector2<f32>) {
+	pub fn set_handle_positions(&mut self, panel_size: Vec2F) {
 		let offset = vec3(
 			panel_size.x + RESIZE_HANDLE_FLOATING,
 			panel_size.y + RESIZE_HANDLE_FLOATING,
 			0.0,
 		) * 0.5;
 		if !self.top.grab_action.actor_acting() && !self.bottom.grab_action.actor_acting() {
-			self.top.set_pos(&self.content_parent, offset);
-			self.bottom.set_pos(&self.content_parent, -offset);
+			self.top.set_pos(&self.content_parent_ref, offset);
+			self.bottom.set_pos(&self.content_parent_ref, -offset);
 		}
 	}
 	pub fn set_enabled(&mut self, enabled: bool) {
@@ -395,35 +434,37 @@ impl ResizeHandlesInner {
 #[allow(clippy::type_complexity)]
 pub struct ResizeHandles<State: ValidState> {
 	pub reparentable: bool,
-	pub current_size: Vector2<f32>,
-	pub min_size: Option<Vector2<f32>>,
-	pub max_size: Option<Vector2<f32>>,
-	pub on_size_changed: FnWrapper<dyn Fn(&mut State, Vector2<f32>) + Send + Sync>,
+	pub current_size: Vec2F,
+	pub min_size: Option<Vec2F>,
+	pub max_size: Option<Vec2F>,
+	pub on_size_changed: FnWrapper<dyn Fn(&mut State, Vec2F) + Send + Sync>,
 }
 impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 	type Inner = ResizeHandlesInner;
-	type Resource = ();
-	type Error = NodeError;
+	type Error = Error;
 
-	fn create_inner(
+	async fn create_inner(
 		&self,
-		context: &Context,
+		ctx: &Context,
 		info: CreateInnerInfo,
-		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
-		ResizeHandlesInner::create(
+		let v = ResizeHandlesInner::create(
+			&ctx.stardust_client,
 			info.parent_space.clone(),
-			context.dbus_connection.clone(),
 			info.element_path,
 			self.reparentable,
-			context.accent_color.color(),
+			ctx.accent_color.color(),
 			self.current_size,
 			self.min_size,
 			self.max_size,
 		)
+		.await?;
+		info.child_space.set_parent(v.content_parent_ref.clone());
+
+		Ok(v)
 	}
 
-	fn diff(&self, old: &Self, inner: &mut Self::Inner, _resource: &mut Self::Resource) {
+	fn diff(&self, old: &Self, _ctx: &Context, inner: &mut Self::Inner) {
 		inner.min_size = self.min_size;
 		inner.max_size = self.max_size;
 		if self.current_size != old.current_size {
@@ -431,35 +472,25 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 		}
 	}
 
-	fn frame(
-		&self,
-		_context: &Context,
-		_info: &FrameInfo,
-		state: &mut State,
-		inner: &mut Self::Inner,
-	) {
-		inner.handle_events();
+	fn frame(&self, ctx: &Context, _info: &FrameInfo, state: &mut State, inner: &mut Self::Inner) {
+		inner.handle_events(&ctx.stardust_client);
 
 		if inner.size.has_changed().is_ok_and(|t| t) {
 			(self.on_size_changed.0)(state, *inner.size.borrow_and_update());
 		}
-	}
-
-	fn spatial_aspect(&self, inner: &Self::Inner) -> SpatialRef {
-		inner.content_parent.clone().as_spatial_ref()
 	}
 }
 
 #[tokio::test]
 async fn test_resize_handles() {
 	use serde::{Deserialize, Serialize};
-	use stardust_xr_asteroids::{client, ClientState, Migrate, Reify, Transformable};
+	use stardust_xr_asteroids::{ClientState, Migrate, Reify, Transformable, client};
 
 	// Simple test state
 	#[derive(Debug, Serialize, Deserialize)]
 	struct State {
 		time: f32,
-		size: Vector2<f32>,
+		size: Vec2F,
 	}
 	impl Default for State {
 		fn default() -> Self {
@@ -476,7 +507,11 @@ async fn test_resize_handles() {
 		const APP_ID: &'static str = "org.stardustxr.flatland.ResizeHandles";
 	}
 	impl Reify for State {
-		fn reify(&self) -> impl stardust_xr_asteroids::Element<Self> {
+		fn reify(
+			&self,
+			_context: &Context,
+			_tasks: impl stardust_xr_asteroids::Tasker<Self>,
+		) -> impl stardust_xr_asteroids::Element<Self> {
 			stardust_xr_asteroids::elements::Spatial::default()
 				.rot(Quat::from_rotation_y(self.time / 10.0))
 				.build()

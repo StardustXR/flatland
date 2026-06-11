@@ -1,11 +1,14 @@
-use glam::{vec3, Quat, Vec3};
+use glam::{Quat, Vec3, vec3};
 use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, ValidState};
 use stardust_xr_fusion::{
-	node::{NodeError, NodeResult, NodeType},
-	objects::hmd,
-	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
+	Error,
+	client::{Client, ClientHandler},
+	spatial::{Spatial, SpatialRefOpError, Transform},
+	tracked::{Tracked, TrackedExt},
+	types::CreateError,
 };
-use std::f32::consts::PI;
+use tracing::info;
+use std::{env, f32::consts::PI};
 
 fn look_direction(direction: Vec3) -> Quat {
 	let pitch = direction.y.asin();
@@ -13,43 +16,45 @@ fn look_direction(direction: Vec3) -> Quat {
 	Quat::from_rotation_y(-yaw - PI / 2.0) * Quat::from_rotation_x(pitch)
 }
 
-async fn initial_placement(spatial_root: Spatial) -> NodeResult<()> {
-	let client = spatial_root.client();
-	let Some(hmd) = hmd(client).await else {
-		return Err(NodeError::NotAliased);
-	};
-	let root = client.get_root();
+async fn initial_placement(
+	client: &Client<impl ClientHandler>,
+	spatial_root: Spatial,
+) -> stardust_xr_fusion::Result<()> {
+	client.pion_device();
+	let hmd = Tracked::hmd_spatial(client).await?;
+	let root = client.root();
 
-	let (
-		Ok(Transform {
-			translation: item_translation,
-			..
-		}),
-		Ok(Transform {
-			translation: hmd_translation,
-			..
-		}),
-	) = tokio::join!(spatial_root.get_transform(root), hmd.get_transform(root))
-	else {
-		return Err(NodeError::NotAliased);
-	};
+	let Transform {
+		translation: item_translation,
+		..
+	} = spatial_root.get_relative_transform(root.clone()).await??;
+	let Transform {
+		translation: hmd_translation,
+		..
+	} = client
+		.spatial_interface()
+		.get_relative_transform(root.clone(), hmd.clone())
+		.await?
+		.map_err(|err| match err {
+			SpatialRefOpError::RelativeToInvalid => CreateError::InvalidRef,
+			SpatialRefOpError::SpatialRefInvalid => CreateError::InvalidRef,
+		})?;
 
 	// if the distance between the panel item and the client origin is basically nothing, it must be unpositioned
-	if Vec3::from(item_translation.unwrap()).length_squared() < 0.001 {
-		println!("launched without a sense of space");
+	if env::var_os("STARDUST_STARTUP_TOKEN").is_none_or(|v| v.is_empty()) {
+		info!("launched without a sense of space");
 		// so we want to position it in front of the user
 		let _ = spatial_root.set_relative_transform(
-			&hmd,
+			hmd,
 			Transform::from_translation_rotation(vec3(0.0, 0.0, -0.25), Quat::IDENTITY),
 		);
 		return Ok(());
 	}
 
 	// otherwise make the panel look at the user
-	let look_rotation = look_direction(
-		(Vec3::from(item_translation.unwrap()) - Vec3::from(hmd_translation.unwrap())).normalize(),
-	);
-	let _ = spatial_root.set_relative_transform(root, Transform::from_rotation(look_rotation));
+	let look_rotation =
+		look_direction((Vec3::from(item_translation) - Vec3::from(hmd_translation)).normalize());
+	let _ = spatial_root.set_relative_transform(root.clone(), Transform::from_rotation(look_rotation));
 
 	Ok(())
 }
@@ -57,24 +62,17 @@ async fn initial_placement(spatial_root: Spatial) -> NodeResult<()> {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct InitialPanelPlacement;
 impl<State: ValidState> CustomElement<State> for InitialPanelPlacement {
-	type Inner = Spatial;
-	type Resource = ();
-	type Error = NodeError;
+	type Inner = ();
+	type Error = Error;
 
-	fn create_inner(
+	async fn create_inner(
 		&self,
-		_context: &Context,
+		ctx: &Context,
 		info: CreateInnerInfo,
-		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
-		let spatial = Spatial::create(info.parent_space, Transform::identity())?;
-		tokio::task::spawn(initial_placement(spatial.clone()));
-		Ok(spatial)
+		initial_placement(&ctx.stardust_client, info.child_space).await;
+		Ok(())
 	}
 
-	fn diff(&self, _old_self: &Self, _inner: &mut Self::Inner, _resource: &mut Self::Resource) {}
-
-	fn spatial_aspect(&self, inner: &Self::Inner) -> SpatialRef {
-		inner.clone().as_spatial_ref()
-	}
+	fn diff(&self, _old_self: &Self, _ctx: &Context, _inner: &mut Self::Inner) {}
 }
