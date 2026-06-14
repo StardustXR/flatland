@@ -7,8 +7,8 @@ use stardust_xr_fusion::{
 	tracked::{Tracked, TrackedExt},
 	types::CreateError,
 };
-use tracing::info;
 use std::{env, f32::consts::PI};
+use tracing::info;
 
 fn look_direction(direction: Vec3) -> Quat {
 	let pitch = direction.y.asin();
@@ -54,7 +54,8 @@ async fn initial_placement(
 	// otherwise make the panel look at the user
 	let look_rotation =
 		look_direction((Vec3::from(item_translation) - Vec3::from(hmd_translation)).normalize());
-	let _ = spatial_root.set_relative_transform(root.clone(), Transform::from_rotation(look_rotation));
+	let _ =
+		spatial_root.set_relative_transform(root.clone(), Transform::from_rotation(look_rotation));
 
 	Ok(())
 }
@@ -70,8 +71,7 @@ impl<State: ValidState> CustomElement<State> for InitialPanelPlacement {
 		ctx: &Context,
 		info: CreateInnerInfo,
 	) -> Result<Self::Inner, Self::Error> {
-		initial_placement(&ctx.stardust_client, info.child_space).await;
-		Ok(())
+		initial_placement(&ctx.stardust_client, info.child_space).await
 	}
 
 	fn diff(&self, _old_self: &Self, _ctx: &Context, _inner: &mut Self::Inner) {}

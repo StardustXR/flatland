@@ -255,7 +255,7 @@ impl ToplevelState {
 	}
 	fn resize(&mut self, new_size: impl Into<Size2>) {
 		let old_size = self.info.size;
-		self.info.size = new_size.into().into();
+		self.info.size = new_size.into();
 		fn clamp(v: &mut u32, min: u32, max: u32) {
 			*v = (*v).clamp(min, max);
 		}
@@ -309,14 +309,14 @@ impl Reify for ToplevelState {
 					}
 				})
 				.on_toplevel_resolution_changed(|state: &mut Self, _item, size| {
-					state.info.size = size.into();
+					state.info.size = size;
 				})
 				.on_toplevel_max_size_changed(|state: &mut Self, _item, size| {
-					state.info.max_size = size.map(Into::into);
+					state.info.max_size = size;
 					// state.resize(state.info.size);
 				})
 				.on_toplevel_min_size_changed(|state: &mut Self, _item, size| {
-					state.info.min_size = size.map(Into::into);
+					state.info.min_size = size;
 					// state.resize(state.info.size);
 				})
 				.on_toplevel_app_id_changed(|state: &mut Self, _, app_id| {
@@ -405,7 +405,7 @@ impl Reify for ToplevelState {
 					self.info.size,
 					Geometry {
 						origin: [0; 2].into(),
-						size: self.info.size.into(),
+						size: self.info.size,
 					},
 					&[Rect {
 						origin: [0.0; 2].into(),
@@ -420,7 +420,7 @@ impl Reify for ToplevelState {
 							(
 								child.info.id,
 								child.reify(
-									self.info.size.into(),
+									self.info.size,
 									&self.panel_shell,
 									panel_thickness,
 									self.density,
@@ -495,7 +495,7 @@ impl ChildState {
 					(
 						child.info.id,
 						child.reify(
-							self.info.geometry.size.into(),
+							self.info.geometry.size,
 							panel_item,
 							panel_thickness,
 							density,

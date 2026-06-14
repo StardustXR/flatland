@@ -38,7 +38,7 @@ impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 		ctx: &Context,
 		info: CreateInnerInfo,
 	) -> Result<Self::Inner, Self::Error> {
-		info.child_space.set_local_transform(self.transform.clone())?;
+		info.child_space.set_local_transform(self.transform)?;
 		ExposureButtonInner::new(&ctx.stardust_client, info.child_space, self.thickness).await
 	}
 
@@ -101,7 +101,7 @@ impl ExposureButtonInner {
 		)
 		.await?;
 		let model = Model::create(
-			&client,
+			client,
 			&model_spatial,
 			Resource::Namespaced {
 				namespace: ToplevelState::APP_ID.into(),

@@ -258,17 +258,17 @@ impl TouchSurfaceInputInner {
 			let position = self.to_local_coords(Self::hover_point(input_data));
 			// should always exist
 			let id = *self.points.get(&input_data.method).unwrap();
-			if let Some(start_time) = self.start_tap_times.get(&(id)) {
-				if start_time.elapsed().as_secs_f32() > decl.click_freeze_time.as_secs_f32() {
-					(decl.on_touch_move.0)(state, id, position);
-				}
+			if let Some(start_time) = self.start_tap_times.get(&(id))
+				&& start_time.elapsed().as_secs_f32() > decl.click_freeze_time.as_secs_f32()
+			{
+				(decl.on_touch_move.0)(state, id, position);
 			}
 		}
 		for input_data in self.touch.interact().removed().iter() {
 			// should always exist
 			let id = self.points.remove(&input_data.method).unwrap();
-			self.start_tap_times.remove(&(id as u32));
-			(decl.on_touch_up.0)(state, id as u32);
+			self.start_tap_times.remove(&id);
+			(decl.on_touch_up.0)(state, id);
 		}
 	}
 

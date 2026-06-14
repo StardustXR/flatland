@@ -333,7 +333,7 @@ impl ResizeHandlesInner {
 		{
 			let _ = self.top.model_spatial.set_parent_in_place(root.clone());
 			let _ = self.bottom.model_spatial.set_parent_in_place(root.clone());
-			let _ = self.reparentable.send_modify(|v| {
+			self.reparentable.send_modify(|v| {
 				v.take();
 			});
 		}
@@ -369,7 +369,7 @@ impl ResizeHandlesInner {
 				_ = watch.send(v);
 			});
 		} else {
-			let _ = self.reparentable.send_modify(|v| {
+			self.reparentable.send_modify(|v| {
 				v.take();
 			});
 		}
