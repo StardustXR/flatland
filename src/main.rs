@@ -310,6 +310,8 @@ impl Reify for ToplevelState {
 					if state.exit_on_disconnect {
 						process::exit(0);
 					}
+                    state.info.max_size = None;
+                    state.info.min_size = None;
 				})
 				.on_toplevel_resolution_changed(|state: &mut Self, _item, size| {
 					state.info.size = size;
