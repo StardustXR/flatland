@@ -191,7 +191,7 @@ pub struct ChildState {
 	children: Vec<ChildState>,
 }
 
-fn default_toplevel_info() -> ToplevelInfo {
+const fn default_toplevel_info() -> ToplevelInfo {
 	ToplevelInfo {
 		parent: None,
 		title: None,
@@ -310,8 +310,11 @@ impl Reify for ToplevelState {
 					if state.exit_on_disconnect {
 						process::exit(0);
 					}
-                    state.info.max_size = None;
-                    state.info.min_size = None;
+                    // TODO: move size onto main state
+                    let size = state.info.size;
+                    // reset panel item specific state
+                    state.info = default_toplevel_info();
+                    state.info.size = size;
 				})
 				.on_toplevel_resolution_changed(|state: &mut Self, _item, size| {
 					state.info.size = size;
