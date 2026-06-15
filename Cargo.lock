@@ -1777,7 +1777,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids?branch=binder#7ab37dc0e0bf4633b885be473d0c049d804becfb"
+source = "git+https://github.com/StardustXR/asteroids?branch=binder#fdf90edc54f0e02088fd024f3bde41da4bcf5861"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -1806,7 +1806,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core?branch=binder#4744a8390eff98ffe58be0b5c29167fe4fafd09e"
+source = "git+https://github.com/StardustXR/core?branch=binder#7f0147719c754fa6620fcdc4d1e8dfb9539e0691"
 dependencies = [
  "glam 0.30.10",
  "gluon",
@@ -1822,7 +1822,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/molecules?branch=binder#750c932e96f1b7f45887628cced2ae6351d9ac4d"
+source = "git+https://github.com/StardustXR/molecules?branch=binder#df021b63840902622f6a35cd36b8a2485e6cfc96"
 dependencies = [
  "futures",
  "glam 0.29.3",
@@ -1843,7 +1843,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules-protocols"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/molecules?branch=binder#750c932e96f1b7f45887628cced2ae6351d9ac4d"
+source = "git+https://github.com/StardustXR/molecules?branch=binder#df021b63840902622f6a35cd36b8a2485e6cfc96"
 dependencies = [
  "gluon",
  "gluon-codegen",
@@ -1854,7 +1854,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#be058f7b38a135450e1143aeaf9f42b5b81af50e"
+source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#747d019274069ebeab6d85221aae27a4897346be"
 dependencies = [
  "binderbinder",
  "gluon",
@@ -1872,7 +1872,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item-asteroids"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#be058f7b38a135450e1143aeaf9f42b5b81af50e"
+source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#747d019274069ebeab6d85221aae27a4897346be"
 dependencies = [
  "binderbinder",
  "derive-where",
@@ -1891,7 +1891,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-protocol"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core?branch=binder#4744a8390eff98ffe58be0b5c29167fe4fafd09e"
+source = "git+https://github.com/StardustXR/core?branch=binder#7f0147719c754fa6620fcdc4d1e8dfb9539e0691"
 dependencies = [
  "fnv",
  "glam 0.29.3",

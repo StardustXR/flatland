@@ -55,15 +55,15 @@ pub struct ResizeHandle {
 	pub last_pos: Vec3,
 }
 impl ResizeHandle {
-	pub async fn create(
+	pub async fn new(
 		client: &Client<impl ClientHandler>,
 		initial_parent: &SpatialRef,
 		input_reference: &SpatialRef,
 		settings: GrabBallSettings,
 	) -> stardust_xr_fusion::Result<Self> {
 		let (model_spatial, model_spatial_ref) =
-			Spatial::create(client, initial_parent, Transform::IDENTITY).await?;
-		let model = Model::create(
+			Spatial::new(client, initial_parent, Transform::IDENTITY).await?;
+		let model = Model::new(
 			client,
 			&model_spatial,
 			Resource::Namespaced {
@@ -85,9 +85,9 @@ impl ResizeHandle {
 			)
 			.await?;
 		let (input_spatial, input_spatial_ref) =
-			Spatial::create(client, input_reference, Transform::IDENTITY).await?;
+			Spatial::new(client, input_reference, Transform::IDENTITY).await?;
 		let (field, _) =
-			Field::create(client, &model_spatial, Shape::Sphere { radius: 0.005 }).await?;
+			Field::new(client, &model_spatial, Shape::Sphere { radius: 0.005 }).await?;
 		let input = InputQueue::new(
 			client,
 			model_spatial.clone(),
@@ -258,7 +258,7 @@ pub struct ResizeHandlesInner {
 }
 impl ResizeHandlesInner {
 	#[allow(clippy::too_many_arguments)]
-	pub async fn create(
+	pub async fn new(
 		client: &Arc<Client<impl ClientHandler>>,
 		parent: SpatialRef,
 		reparentable: bool,
@@ -276,11 +276,11 @@ impl ResizeHandlesInner {
 		};
 
 		let (content_parent, content_parent_ref) =
-			Spatial::create(client, &parent, Transform::IDENTITY).await?;
+			Spatial::new(client, &parent, Transform::IDENTITY).await?;
 		let bottom =
-			ResizeHandle::create(client, &content_parent_ref, &parent, settings.clone()).await?;
+			ResizeHandle::new(client, &content_parent_ref, &parent, settings.clone()).await?;
 		let top =
-			ResizeHandle::create(client, &content_parent_ref, &parent, settings.clone()).await?;
+			ResizeHandle::new(client, &content_parent_ref, &parent, settings.clone()).await?;
 
 		let (change_tx, change) = watch::channel((initial_pose, initial_size));
 		let hmd = Tracked::hmd_spatial(client).await?;
@@ -295,7 +295,7 @@ impl ResizeHandlesInner {
 			})
 			.abort_handle()
 		};
-		let (reparentable_field, _) = Field::create(
+		let (reparentable_field, _) = Field::new(
 			client,
 			&content_parent,
 			Shape::Box {
@@ -466,7 +466,7 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 		ctx: &Context,
 		info: CreateInnerInfo,
 	) -> Result<Self::Inner, Self::Error> {
-		let v = ResizeHandlesInner::create(
+		let v = ResizeHandlesInner::new(
 			&ctx.stardust_client,
 			info.parent_space.clone(),
 			self.reparentable,

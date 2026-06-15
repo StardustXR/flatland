@@ -94,13 +94,13 @@ impl ExposureButtonInner {
 		thickness: f32,
 	) -> Result<Self, Error> {
 		let root_ref = root.spatial_ref().await?;
-		let (model_spatial, _) = Spatial::create(
+		let (model_spatial, _) = Spatial::new(
 			client,
 			&root_ref,
 			Transform::from_scale([0.025, 0.025, thickness]),
 		)
 		.await?;
-		let model = Model::create(
+		let model = Model::new(
 			client,
 			&model_spatial,
 			Resource::Namespaced {
@@ -120,9 +120,9 @@ impl ExposureButtonInner {
 			cooling: 5.0,
 			max: 1.0,
 		};
-		let (field_spatial, _) = Spatial::create(client, &root_ref, Transform::IDENTITY).await?;
+		let (field_spatial, _) = Spatial::new(client, &root_ref, Transform::IDENTITY).await?;
 		// compensate for the server not being able to handle scaled fields
-		let (field, _) = Field::create(
+		let (field, _) = Field::new(
 			client,
 			&field_spatial,
 			Shape::Box {

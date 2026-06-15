@@ -97,7 +97,7 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 		ctx: &Context,
 		info: CreateInnerInfo,
 	) -> Result<Self::Inner, Self::Error> {
-		let (field, _) = Field::create(
+		let (field, _) = Field::new(
 			&ctx.stardust_client,
 			&info.child_space,
 			Shape::Box {
@@ -115,7 +115,7 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 		)
 		.await?;
 		let hover = SimpleAction::default();
-		let lines = Lines::create(&ctx.stardust_client, &info.child_space, Vec::new()).await?;
+		let lines = Lines::new(&ctx.stardust_client, &info.child_space, Vec::new()).await?;
 
 		Ok(PointerSurfaceInputInner {
 			input,
