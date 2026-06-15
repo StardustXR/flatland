@@ -12,7 +12,7 @@ use stardust_xr_fusion::{
 	spatial::{PartialTransform, Spatial, SpatialExt as _, SpatialRef, Transform},
 	suis::InputDataType,
 	tracked::{Tracked, TrackedExt},
-	types::{Color, Resource, ResourceLoadError, Vec2F, rgba_linear},
+	types::{Color, Posef, Resource, ResourceLoadError, Vec2F, rgba_linear},
 };
 use stardust_xr_molecules::{
 	UIElement,
@@ -52,11 +52,13 @@ pub struct ResizeHandle {
 	grab_action: SingleAction,
 	pointer_distance: f32,
 	old_interact_point: Vec3,
+	pub last_pos: Vec3,
 }
 impl ResizeHandle {
 	pub async fn create(
 		client: &Client<impl ClientHandler>,
 		initial_parent: &SpatialRef,
+		input_reference: &SpatialRef,
 		settings: GrabBallSettings,
 	) -> stardust_xr_fusion::Result<Self> {
 		let (model_spatial, model_spatial_ref) =
@@ -83,7 +85,7 @@ impl ResizeHandle {
 			)
 			.await?;
 		let (input_spatial, input_spatial_ref) =
-			Spatial::create(client, client.root(), Transform::IDENTITY).await?;
+			Spatial::create(client, input_reference, Transform::IDENTITY).await?;
 		let (field, _) =
 			Field::create(client, &model_spatial, Shape::Sphere { radius: 0.005 }).await?;
 		let input = InputQueue::new(
@@ -108,6 +110,7 @@ impl ResizeHandle {
 			grab_action: Default::default(),
 			pointer_distance: 0.0,
 			old_interact_point: Vec3::ZERO,
+			last_pos: Vec3::ZERO,
 		})
 	}
 }
@@ -119,10 +122,7 @@ impl UIElement for ResizeHandle {
 		self.grab_action.update(
 			true,
 			&self.input,
-			|input| match &input.input() {
-				InputDataType::Pointer { data: _ } => true,
-				_ => input.distance() < (self.settings.radius + self.settings.padding),
-			},
+			|input| input.distance() < (self.settings.radius + self.settings.padding),
 			|input| match &input.input() {
 				InputDataType::Hand { data: _ } => input.datamap_f32("pinch_strength") > 0.90,
 				InputDataType::Pointer { data: _ } => input.datamap_f32("grab") > 0.90,
@@ -177,6 +177,7 @@ impl UIElement for ResizeHandle {
 			});
 		}
 		if let Some(grab_point) = self.grab_point() {
+			self.last_pos = grab_point;
 			self.set_pos(&self.input_spatial_ref, grab_point);
 		}
 		if self.grab_action.actor_stopped() {
@@ -245,13 +246,13 @@ pub struct ResizeHandlesInner {
 	top: ResizeHandle,
 	reparentable: watch::Sender<Option<Reparentable>>,
 	reparentable_field: Field,
-	_field_update_task: AbortHandle,
 	parent: SpatialRef,
 
-	hmd: SpatialRef,
+	hmd_pos: watch::Receiver<Vec3>,
+	_hmd_task: AbortHandle,
 	is_reparentable: bool,
-	size_tx: watch::Sender<Vec2F>,
-	size: watch::Receiver<Vec2F>,
+	change_tx: watch::Sender<(Posef, Vec2F)>,
+	change: watch::Receiver<(Posef, Vec2F)>,
 	pub min_size: Option<Vec2F>,
 	pub max_size: Option<Vec2F>,
 }
@@ -262,6 +263,7 @@ impl ResizeHandlesInner {
 		parent: SpatialRef,
 		reparentable: bool,
 		accent_color: Color,
+		initial_pose: Posef,
 		initial_size: Vec2F,
 		min_size: Option<Vec2F>,
 		max_size: Option<Vec2F>,
@@ -275,11 +277,24 @@ impl ResizeHandlesInner {
 
 		let (content_parent, content_parent_ref) =
 			Spatial::create(client, &parent, Transform::IDENTITY).await?;
-		let bottom = ResizeHandle::create(client, &content_parent_ref, settings.clone()).await?;
-		let top = ResizeHandle::create(client, &content_parent_ref, settings.clone()).await?;
+		let bottom =
+			ResizeHandle::create(client, &content_parent_ref, &parent, settings.clone()).await?;
+		let top =
+			ResizeHandle::create(client, &content_parent_ref, &parent, settings.clone()).await?;
 
-		let (size_tx, size) = watch::channel(initial_size);
+		let (change_tx, change) = watch::channel((initial_pose, initial_size));
 		let hmd = Tracked::hmd_spatial(client).await?;
+		let (hmd_tx, hmd_pos) = watch::channel(Vec3::ZERO);
+		let _hmd_task = {
+			let client = client.clone();
+			let hmd_parent = parent.clone();
+			tokio::spawn(async move {
+				loop {
+					let _ = hmd_tx.send(pos(&client, &hmd, &hmd_parent).await);
+				}
+			})
+			.abort_handle()
+		};
 		let (reparentable_field, _) = Field::create(
 			client,
 			&content_parent,
@@ -288,19 +303,11 @@ impl ResizeHandlesInner {
 			},
 		)
 		.await?;
-		let _field_update_task = tokio::task::spawn({
-			let mut size = size.clone();
-			let field = reparentable_field.clone();
-			async move {
-				while size.changed().await.is_ok() {
-					let size = size.borrow();
-					_ = field.set_shape(Shape::Box {
-						size: [size.x, size.y, 0.01].into(),
-					});
-				}
-			}
-		})
-		.abort_handle();
+		let _ = content_parent.set_local_transform(Transform {
+			translation: initial_pose.position,
+			rotation: initial_pose.orientation,
+			scale: [1.0; 3].into(),
+		});
 
 		let mut resize_handles = ResizeHandlesInner {
 			client_root: client.root().clone(),
@@ -310,17 +317,17 @@ impl ResizeHandlesInner {
 			top,
 			reparentable: watch::channel(None).0,
 			reparentable_field,
-			_field_update_task,
 
 			parent,
-			hmd,
+			hmd_pos,
+			_hmd_task,
 			is_reparentable: reparentable,
-			size_tx,
-			size,
+			change_tx,
+			change,
 			min_size,
 			max_size,
 		};
-		resize_handles.set_handle_positions(initial_size);
+		resize_handles.set_handle_positions(initial_size, initial_pose);
 		resize_handles.make_reparentable(client);
 		Ok(resize_handles)
 	}
@@ -338,7 +345,7 @@ impl ResizeHandlesInner {
 			});
 		}
 		if self.top.grab_action.actor_acting() || self.bottom.grab_action.actor_acting() {
-			self.update_content_transform(client);
+			self.update_content_transform();
 		}
 
 		if (self.top.grab_action.actor_stopped() && !self.bottom.grab_action.actor_acting())
@@ -374,65 +381,61 @@ impl ResizeHandlesInner {
 			});
 		}
 	}
-	fn update_content_transform(&self, client: &Arc<Client<impl ClientHandler>>) {
-		let content_parent = self.content_parent.clone();
-		let corner1 = self.bottom.model_spatial_ref.clone();
-		let corner2 = self.top.model_spatial_ref.clone();
+	fn update_content_transform(&mut self) {
+		let hmd_pos = *self.hmd_pos.borrow();
+		let mut corner1 = self.bottom.last_pos;
+		let mut corner2 = self.top.last_pos;
 
-		let size_tx = self.size_tx.clone();
+		let center_point = (corner1 + corner2) * 0.5;
+
+		let center_hmd_relative = center_point - hmd_pos;
+		let y_angle = center_hmd_relative.xz().to_angle() + FRAC_PI_2;
+		let y_rotation = Quat::from_rotation_y(y_angle).inverse();
+
+		let y_aligner = Mat4::from_translation(hmd_pos).inverse()
+			* Mat4::from_rotation_y(y_angle)
+			* Mat4::from_translation(hmd_pos);
+		corner1 = y_aligner.transform_point3(corner1);
+		corner2 = y_aligner.transform_point3(corner2);
+
+		let corner1_2d = corner1.zy();
+		let corner2_2d = corner2.zy();
+		let x_angle = (corner1_2d - corner2_2d).to_angle() + FRAC_PI_2;
+		let x_rotation = Quat::from_rotation_x(x_angle).inverse();
+
 		let min_size = self.min_size.unwrap_or([0.0; 2].into());
 		let max_size = self.max_size.unwrap_or([4096.0; 2].into());
+		let mut size = vec2(
+			(corner1.x - corner2.x).abs() - (RESIZE_HANDLE_FLOATING * 2.0),
+			corner1_2d.distance(corner2_2d) - (RESIZE_HANDLE_FLOATING * 2.0),
+		);
+		size.x = size.x.max(min_size.x).min(max_size.x);
+		size.y = size.y.max(min_size.y).min(max_size.y);
 
-		let hmd = self.hmd.clone();
-		let client = client.clone();
-
-		tokio::task::spawn(async move {
-			let root = client.root();
-			let (hmd_pos, mut corner1, mut corner2) = tokio::join!(
-				pos(&client, &hmd, root),
-				pos(&client, &corner1, root),
-				pos(&client, &corner2, root)
-			);
-			let center_point = (corner1 + corner2) * 0.5;
-
-			let center_hmd_relative = center_point - hmd_pos;
-			let y_angle = center_hmd_relative.xz().to_angle() + FRAC_PI_2;
-			let y_rotation = Quat::from_rotation_y(y_angle).inverse();
-
-			let y_aligner = Mat4::from_translation(hmd_pos).inverse()
-				* Mat4::from_rotation_y(y_angle)
-				* Mat4::from_translation(hmd_pos);
-			corner1 = y_aligner.transform_point3(corner1);
-			corner2 = y_aligner.transform_point3(corner2);
-
-			let corner1_2d = corner1.zy();
-			let corner2_2d = corner2.zy();
-			let x_angle = (corner1_2d - corner2_2d).to_angle() + FRAC_PI_2;
-			let x_rotation = Quat::from_rotation_x(x_angle).inverse();
-
-			let mut size = vec2(
-				(corner1.x - corner2.x).abs() - (RESIZE_HANDLE_FLOATING * 2.0),
-				corner1_2d.distance(corner2_2d) - (RESIZE_HANDLE_FLOATING * 2.0),
-			);
-			size.x = size.x.max(min_size.x).min(max_size.x);
-			size.y = size.y.max(min_size.y).min(max_size.y);
-
-			let _ = content_parent.set_relative_transform(
-				root.clone(),
-				PartialTransform::from_translation_rotation(center_point, y_rotation * x_rotation),
-			);
-			let _ = size_tx.send(size.into());
-		});
+		let pose = Posef {
+			position: center_point.into(),
+			orientation: (y_rotation * x_rotation).into(),
+		};
+		let _ = self.change_tx.send((pose, size.into()));
 	}
-	pub fn set_handle_positions(&mut self, panel_size: Vec2F) {
+	pub fn set_handle_positions(&mut self, panel_size: Vec2F, pose: Posef) {
 		let offset = vec3(
-			panel_size.x + RESIZE_HANDLE_FLOATING,
-			panel_size.y + RESIZE_HANDLE_FLOATING,
+			panel_size.x * 0.5 + RESIZE_HANDLE_FLOATING,
+			panel_size.y * 0.5 + RESIZE_HANDLE_FLOATING,
 			0.0,
-		) * 0.5;
+		);
 		if !self.top.grab_action.actor_acting() && !self.bottom.grab_action.actor_acting() {
 			self.top.set_pos(&self.content_parent_ref, offset);
 			self.bottom.set_pos(&self.content_parent_ref, -offset);
+			let center: Vec3 = pose.position.into();
+			let q = Quat::from_xyzw(
+				pose.orientation.v.x,
+				pose.orientation.v.y,
+				pose.orientation.v.z,
+				pose.orientation.s,
+			);
+			self.top.last_pos = center + q * offset;
+			self.bottom.last_pos = center + q * (-offset);
 		}
 	}
 	pub fn set_enabled(&mut self, enabled: bool) {
@@ -447,10 +450,11 @@ impl ResizeHandlesInner {
 #[allow(clippy::type_complexity)]
 pub struct ResizeHandles<State: ValidState> {
 	pub reparentable: bool,
-	pub current_size: Vec2F,
+	pub pose: Posef,
+	pub size: Vec2F,
 	pub min_size: Option<Vec2F>,
 	pub max_size: Option<Vec2F>,
-	pub on_size_changed: FnWrapper<dyn Fn(&mut State, Vec2F) + Send + Sync>,
+	pub on_change: FnWrapper<dyn Fn(&mut State, Posef, Vec2F) + Send + Sync>,
 }
 impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 	type Inner = ResizeHandlesInner;
@@ -466,7 +470,8 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 			info.parent_space.clone(),
 			self.reparentable,
 			ctx.accent_color.color(),
-			self.current_size,
+			self.pose,
+			self.size,
 			self.min_size,
 			self.max_size,
 		)
@@ -481,16 +486,30 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 		inner.max_size = self.max_size;
 		inner.bottom.settings.connector_color = ctx.accent_color.color();
 		inner.top.settings.connector_color = ctx.accent_color.color();
-		if self.current_size != old.current_size {
-			inner.set_handle_positions(self.current_size);
+		if self.pose != old.pose {
+			let _ = inner.content_parent.set_local_transform(Transform {
+				translation: self.pose.position,
+				rotation: self.pose.orientation,
+				scale: [1.0; 3].into(),
+			});
+		}
+		inner.set_handle_positions(self.size, self.pose);
+		if self.size != old.size {
+			_ = inner.reparentable_field.set_shape(Shape::Box {
+				size: [self.size.x, self.size.y, 0.01].into(),
+			});
 		}
 	}
 
 	fn frame(&self, ctx: &Context, _info: &FrameInfo, state: &mut State, inner: &mut Self::Inner) {
 		inner.handle_events(&ctx.stardust_client);
 
-		if inner.size.has_changed().is_ok_and(|t| t) {
-			(self.on_size_changed.0)(state, *inner.size.borrow_and_update());
+		if inner.change.has_changed().is_ok_and(|t| t) {
+			let (pose, size) = *inner.change.borrow_and_update();
+			(self.on_change.0)(state, pose, size);
+			_ = inner.reparentable_field.set_shape(Shape::Box {
+				size: [size.x, size.y, 0.01].into(),
+			});
 		}
 	}
 }
@@ -498,18 +517,31 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 #[tokio::test]
 async fn test_resize_handles() {
 	use serde::{Deserialize, Serialize};
-	use stardust_xr_asteroids::{ClientState, Migrate, Reify, Transformable, client};
+	use stardust_xr_asteroids::{
+		ClientState, Migrate, Reify, Transformable, client, elements::Lines,
+	};
+	use stardust_xr_fusion::{spatial::BoundingBox, types::QuatF};
+	use stardust_xr_molecules::lines::bounding_box;
 
 	// Simple test state
 	#[derive(Debug, Serialize, Deserialize)]
 	struct State {
 		time: f32,
+		#[serde(skip)]
+		pose: Posef,
 		size: Vec2F,
 	}
 	impl Default for State {
 		fn default() -> Self {
 			Self {
 				time: 0.0,
+				pose: Posef {
+					position: [0.0; 3].into(),
+					orientation: QuatF {
+						v: [0.0; 3].into(),
+						s: 1.0,
+					},
+				},
 				size: [0.3, 0.3].into(),
 			}
 		}
@@ -532,22 +564,28 @@ async fn test_resize_handles() {
 				.child(
 					ResizeHandles::<Self> {
 						reparentable: true,
-						current_size: self.size,
+						pose: self.pose,
+						size: self.size,
 						min_size: None,
 						max_size: None,
-						on_size_changed: FnWrapper(Box::new(|state, new_size| {
-							state.size = new_size;
+						on_change: FnWrapper(Box::new(|state, pose, size| {
+							state.pose = pose;
+							state.size = size;
 						})),
 					}
 					.build()
 					.child(
-						stardust_xr_asteroids::elements::Text::new("uwu")
-							.character_height(0.05)
-							.build(),
+						Lines::new(bounding_box(BoundingBox {
+							center: [0.0; 3].into(),
+							extents: [self.size.x, self.size.y, 0.0].into(),
+						}))
+						.build(),
 					),
 				)
 		}
 	}
 
-	client::run::<State>(&[]).await.unwrap();
+	client::run::<State>(&[&stardust_xr_asteroids::project_local_resources!("data")])
+		.await
+		.unwrap();
 }

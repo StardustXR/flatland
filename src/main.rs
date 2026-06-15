@@ -16,7 +16,7 @@ use stardust_xr_fusion::{
 	fields::Shape,
 	project_local_resources,
 	spatial::Transform,
-	types::{Resource, Size2, Timestamp, Vec2F},
+	types::{Posef, Resource, Size2, Timestamp, Vec2F},
 };
 use stardust_xr_panel_item::panel_item::{
 	ChildState as ChildInfo, Geometry, ModifierState, Rect, ScrollSource, SurfaceId,
@@ -130,6 +130,7 @@ impl Default for ToplevelState {
 			density: 3000.0,
 			mouse_scroll_multiplier: 1.0,
 			exit_on_disconnect: false,
+			pose: Posef::default(),
 		}
 	}
 }
@@ -218,6 +219,8 @@ pub struct ToplevelState {
 	mouse_scroll_multiplier: f32,
 	#[serde(skip)]
 	exit_on_disconnect: bool,
+	#[serde(skip)]
+	pose: Posef,
 }
 impl ToplevelState {
 	#[inline]
@@ -342,7 +345,8 @@ impl Reify for ToplevelState {
 			.child(
 				ResizeHandles::<ToplevelState> {
 					reparentable: true,
-					current_size: self.size_meters(),
+					pose: self.pose,
+					size: self.size_meters(),
 					min_size: self
 						.info
 						.min_size
@@ -351,7 +355,8 @@ impl Reify for ToplevelState {
 						.info
 						.max_size
 						.map(|s| [s.x as f32 / self.density, s.y as f32 / self.density].into()),
-					on_size_changed: FnWrapper(Box::new(|state, size_meters| {
+					on_change: FnWrapper(Box::new(|state, pose, size_meters| {
+						state.pose = pose;
 						let size = [
 							(size_meters.x * state.density) as u32,
 							(size_meters.y * state.density) as u32,
