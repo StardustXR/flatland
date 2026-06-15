@@ -308,9 +308,10 @@ impl ResizeHandlesInner {
 			rotation: initial_pose.orientation,
 			scale: [1.0; 3].into(),
 		});
+		let stage = Tracked::stage_spatial(client).await?;
 
 		let mut resize_handles = ResizeHandlesInner {
-			client_root: client.root().clone(),
+			client_root: stage,
 			content_parent,
 			content_parent_ref,
 			bottom,
