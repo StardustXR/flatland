@@ -30,7 +30,6 @@ use stardust_xr_panel_item_asteroids::{
 };
 use std::{f32::consts::FRAC_PI_2, process};
 use touch_input::TouchPlane;
-use tracing::info;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt as _};
 
 pub mod close_button;
@@ -239,13 +238,20 @@ impl ToplevelState {
 		]
 		.into()
 	}
-	fn set_pointer(&mut self, surface_id: SurfaceId, new_pos: impl Into<Vector2<f32>>) {
+	fn set_pointer(
+		&mut self,
+		surface_id: SurfaceId,
+		motion: Option<Vector2<f32>>,
+		new_pos: impl Into<Vector2<f32>>,
+	) {
 		self.cursor_pos = new_pos.into();
 		self.clamp_pointer();
 		if let Some(shell) = self.panel_shell.as_ref() {
-			let _ = shell
-				.item()
-				.absolute_pointer_motion(surface_id, self.cursor_pos);
+			let _ = shell.item().pointer_motion(
+				surface_id,
+				motion.map(|v| v.into()),
+				self.cursor_pos,
+			);
 		}
 	}
 	fn clamp_pointer(&mut self) {
@@ -636,15 +642,9 @@ fn reify_surface<E: Element<ToplevelState>>(
 							}
 						},
 						move |state, motion| {
-							if let Some(shell) = state.panel_shell.as_ref() {
-								let _ = shell.item().relative_pointer_motion(
-									surface_id,
-									Vector2::from([motion.x, -motion.y]),
-								);
-							}
 							let new_pos =
 								[state.cursor_pos.x + motion.x, state.cursor_pos.y - motion.y];
-							state.set_pointer(surface_id, new_pos);
+							state.set_pointer(surface_id, Some([motion.x, -motion.y].into()), new_pos);
 						},
 						move |state, scroll_discrete| {
 							if let Some(shell) = state.panel_shell.as_ref() {
@@ -692,7 +692,7 @@ fn reify_surface<E: Element<ToplevelState>>(
 						})
 						.on_pointer_motion(move |state, pos| {
 							let pixel_pos = [pos.x * state.density, pos.y * state.density];
-							state.set_pointer(surface_id, pixel_pos);
+							state.set_pointer(surface_id, None, pixel_pos);
 						})
 						.on_scroll(move |state, scroll| {
 							if let Some(scroll_continuous) = scroll.scroll_continuous
