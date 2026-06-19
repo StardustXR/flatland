@@ -1853,7 +1853,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#37c0a6e8f662f329e4ced35c7b0ea50fc0a85b61"
+source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#3c4487b45a30a470eefb248a374bd11da66fa355"
 dependencies = [
  "binderbinder",
  "gluon",
@@ -1871,7 +1871,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item-asteroids"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#37c0a6e8f662f329e4ced35c7b0ea50fc0a85b61"
+source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#3c4487b45a30a470eefb248a374bd11da66fa355"
 dependencies = [
  "binderbinder",
  "derive-where",
