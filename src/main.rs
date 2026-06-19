@@ -7,9 +7,10 @@ use resize_handles::ResizeHandles;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use stardust_xr_asteroids::{
-	Context, CustomElement, Element, FnWrapper, Migrate, Reify, Tasker, Transformable as _,
+	Context, CustomElement, Element, Entity, FnWrapper, Migrate, Reify, Tasker, Transformable as _,
 	client::{ClientState, run},
-	elements::{Derezzable, KeyboardHandler, Model, MouseHandler, Spatial, Text},
+	components::{Derezzable, KeyboardHandler, MouseHandler},
+	elements::{Model, Spatial, Text},
 };
 use stardust_xr_fusion::{
 	drawable::{TextBounds, TextFit, XAlign, YAlign},
@@ -310,11 +311,11 @@ impl Reify for ToplevelState {
 					if state.exit_on_disconnect {
 						process::exit(0);
 					}
-                    // TODO: move size onto main state
-                    let size = state.info.size;
-                    // reset panel item specific state
-                    state.info = default_toplevel_info();
-                    state.info.size = size;
+					// TODO: move size onto main state
+					let size = state.info.size;
+					// reset panel item specific state
+					state.info = default_toplevel_info();
+					state.info.size = size;
 				})
 				.on_toplevel_resolution_changed(|state: &mut Self, _item, size| {
 					state.info.size = size;
@@ -547,257 +548,242 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 		geometry.size.y as f32 / density,
 	);
 
-	let shape = Shape::Box {
+	Entity::new(Shape::Box {
 		size: [size_meters.x, size_meters.y, thickness].into(),
-	};
-	Spatial::default()
-		.pos(
-			(origin_meters - parent_origin_meters + (size_meters / vec2(2.0, -2.0)))
-				.extend(thickness * (z_offset as f32)),
-		)
-		.build()
-		.child(
-			Derezzable::<ToplevelState>::new(
-				|state| {
-					state.exit_on_disconnect = true;
-					if let Some(shell) = state.panel_shell.as_ref() {
-						_ = shell.item().close_toplevel();
+	})
+	.pos(
+		(origin_meters - parent_origin_meters + (size_meters / vec2(2.0, -2.0)))
+			.extend(thickness * (z_offset as f32)),
+	)
+	.component(Derezzable::<ToplevelState>::new(|state| {
+		state.exit_on_disconnect = true;
+		if let Some(shell) = state.panel_shell.as_ref() {
+			_ = shell.item().close_toplevel();
+		}
+	}))
+	.component(PanelItemAcceptor::<ToplevelState>::new(|state, shell| {
+		_ = shell.item().request_toplevel_resize(state.info.size);
+		state.panel_shell.replace(shell);
+	}))
+	.component((!input_areas.is_empty()).then(|| {
+		KeyboardHandler::<ToplevelState>::new().on_key_async({
+			let panel_item = panel_item.as_ref().map(|v| v.item().clone());
+			move |key_event, timestamp| {
+				if let Some(item) = &panel_item {
+					item.key(
+						surface_id,
+						key_event.keycode,
+						key_event.pressed,
+						ModifierState {
+							depressed: key_event.modifiers.depressed,
+							latched: key_event.modifiers.latched,
+							locked: key_event.modifiers.locked,
+						},
+						key_event.keymap,
+						timestamp,
+					)
+					.unwrap();
+				}
+			}
+		})
+	}))
+	.component((!input_areas.is_empty()).then(|| {
+		MouseHandler::<ToplevelState>::new()
+			.on_button_async({
+				let panel_item = panel_item.as_ref().map(|v| v.item().clone());
+				move |button, pressed, timestamp| {
+					if let Some(item) = &panel_item {
+						let _ = item.pointer_button(surface_id, button, pressed, timestamp);
 					}
-				},
-				shape.clone(),
-			)
-			.build(),
+				}
+			})
+			.on_motion(move |state, motion, timestamp| {
+				let new_pos = [state.cursor_pos.x + motion.x, state.cursor_pos.y - motion.y];
+				state.set_pointer(
+					surface_id,
+					Some([motion.x, -motion.y].into()),
+					new_pos,
+					timestamp,
+				);
+			})
+			.on_scroll_discrete_async({
+				let panel_item = panel_item.as_ref().map(|v| v.item().clone());
+				move |scroll_discrete, source, timestamp| {
+					use stardust_xr_asteroids::components::ScrollSource as MoleculesSource;
+					if let Some(item) = &panel_item {
+						item.pointer_scroll_discrete(
+							surface_id,
+							[
+								scroll_discrete.x * scroll_multiplier,
+								-scroll_discrete.y * scroll_multiplier,
+							]
+							.into(),
+							match source {
+								MoleculesSource::Wheel => ScrollSource::Wheel,
+								MoleculesSource::Finger => ScrollSource::Touch,
+								MoleculesSource::Continuous => ScrollSource::Continuous,
+								MoleculesSource::WheelTilt => ScrollSource::WheelTilt,
+							},
+							timestamp,
+						)
+						.unwrap();
+					}
+				}
+			})
+			.on_scroll_continuous_async({
+				let panel_item = panel_item.as_ref().map(|v| v.item().clone());
+				move |scroll_continuous, source, timestamp| {
+					use stardust_xr_asteroids::components::ScrollSource as MoleculesSource;
+					if let Some(item) = &panel_item {
+						item.pointer_scroll_pixels(
+							surface_id,
+							[
+								scroll_continuous.x * scroll_multiplier,
+								-scroll_continuous.y * scroll_multiplier,
+							]
+							.into(),
+							match source {
+								MoleculesSource::Wheel => ScrollSource::Wheel,
+								MoleculesSource::Finger => ScrollSource::Touch,
+								MoleculesSource::Continuous => ScrollSource::Continuous,
+								MoleculesSource::WheelTilt => ScrollSource::WheelTilt,
+							},
+							timestamp,
+						)
+						.unwrap();
+					}
+				}
+			})
+	}))
+	.build()
+	.maybe_child(panel_item.as_ref().map(|item| {
+		SurfaceModel::new(
+			item,
+			surface_id,
+			Resource::Namespaced {
+				namespace: ToplevelState::APP_ID.into(),
+				path: "panel".into(),
+			},
+			"Panel",
 		)
-		.maybe_child(panel_item.as_ref().map(|item| {
-			SurfaceModel::new(
-				item,
-				surface_id,
-				Resource::Namespaced {
-					namespace: ToplevelState::APP_ID.into(),
-					path: "panel".into(),
-				},
-				"Panel",
-			)
+		.scl([
+			geometry.size.x as f32 / density,
+			geometry.size.y as f32 / density,
+			thickness,
+		])
+		.build()
+	}))
+	.maybe_child(panel_item.is_none().then(|| {
+		Model::namespaced(ToplevelState::APP_ID, "panel")
 			.scl([
 				geometry.size.x as f32 / density,
 				geometry.size.y as f32 / density,
 				thickness,
 			])
 			.build()
-		}))
-		.maybe_child(panel_item.is_none().then(|| {
-			Model::namespaced(ToplevelState::APP_ID, "panel")
-				.scl([
-					geometry.size.x as f32 / density,
-					geometry.size.y as f32 / density,
-					thickness,
-				])
-				.build()
-		}))
-		.maybe_child(panel_item.is_none().then(|| {
-			PanelItemAcceptor::<ToplevelState>::new(shape.clone(), |state, shell| {
-				_ = shell.item().request_toplevel_resize(state.info.size);
-				state.panel_shell.replace(shell);
-			})
+	}))
+	// inputs
+	.maybe_child((!input_areas.is_empty()).then(move || {
+		Spatial::default()
 			.build()
-		}))
-		// inputs
-		.maybe_child((!input_areas.is_empty()).then(move || {
-			Spatial::default()
-				.build()
-				.child(
-					KeyboardHandler::<ToplevelState>::new(shape.clone())
-						.on_key_async({
-							let panel_item = panel_item.as_ref().map(|v| v.item().clone());
-							move |key_event, timestamp| {
-								if let Some(item) = &panel_item {
-									item.key(
-										surface_id,
-										key_event.keycode,
-										key_event.pressed,
-										ModifierState {
-											depressed: key_event.modifiers.depressed,
-											latched: key_event.modifiers.latched,
-											locked: key_event.modifiers.locked,
-										},
-										key_event.keymap,
-										timestamp,
-									)
-									.unwrap();
-								}
-							}
-						})
-						.build(),
-				)
-				.child(
-					MouseHandler::<ToplevelState>::new(shape)
-						.on_button_async({
-							let panel_item = panel_item.as_ref().map(|v| v.item().clone());
-							move |button, pressed, timestamp| {
-								if let Some(item) = &panel_item {
-									let _ =
-										item.pointer_button(surface_id, button, pressed, timestamp);
-								}
-							}
-						})
-						.on_motion(move |state, motion, timestamp| {
-							let new_pos =
-								[state.cursor_pos.x + motion.x, state.cursor_pos.y - motion.y];
-							state.set_pointer(
-								surface_id,
-								Some([motion.x, -motion.y].into()),
-								new_pos,
-								timestamp,
-							);
-						})
-						.on_scroll_discrete_async({
-							let panel_item = panel_item.as_ref().map(|v| v.item().clone());
-							move |scroll_discrete, source, timestamp| {
-								use stardust_xr_asteroids::elements::ScrollSource as MoleculesSource;
-								if let Some(item) = &panel_item {
-									item.pointer_scroll_discrete(
-										surface_id,
-										[
-											scroll_discrete.x * scroll_multiplier,
-											-scroll_discrete.y * scroll_multiplier,
-										]
-										.into(),
-										match source {
-											MoleculesSource::Wheel => ScrollSource::Wheel,
-											MoleculesSource::Finger => ScrollSource::Touch,
-											MoleculesSource::Continuous => ScrollSource::Continuous,
-											MoleculesSource::WheelTilt => ScrollSource::WheelTilt,
-										},
-										timestamp,
-									)
-									.unwrap();
-								}
-							}
-						})
-						.on_scroll_continuous_async({
-							let panel_item = panel_item.as_ref().map(|v| v.item().clone());
-							move |scroll_continuous, source, timestamp| {
-								use stardust_xr_asteroids::elements::ScrollSource as MoleculesSource;
-								if let Some(item) = &panel_item {
-									item.pointer_scroll_pixels(
-										surface_id,
-										[
-											scroll_continuous.x * scroll_multiplier,
-											-scroll_continuous.y * scroll_multiplier,
-										]
-										.into(),
-										match source {
-											MoleculesSource::Wheel => ScrollSource::Wheel,
-											MoleculesSource::Finger => ScrollSource::Touch,
-											MoleculesSource::Continuous => ScrollSource::Continuous,
-											MoleculesSource::WheelTilt => ScrollSource::WheelTilt,
-										},
-										timestamp,
-									)
-									.unwrap();
-								}
-							}
-						})
-						.build(),
-				)
-				.child(
-					PointerPlane::<ToplevelState>::default()
-						.physical_size([size_meters.x, size_meters.y])
-						.thickness(thickness)
-						.on_mouse_button(move |state, button, pressed| {
-							if let Some(shell) = state.panel_shell.as_ref() {
-								// TODO: somehow get a timestamp for this?
-								let _ = shell
-									.item()
-									.pointer_button(surface_id, button, pressed, None);
-							}
-						})
-						.on_pointer_motion(move |state, pos| {
-							let pixel_pos = [pos.x * state.density, pos.y * state.density];
-							state.set_pointer(surface_id, None, pixel_pos, None);
-						})
-						.on_scroll(move |state, scroll| {
-							if let Some(scroll_continuous) = scroll.scroll_continuous
-								&& let Some(shell) = state.panel_shell.as_ref()
-							{
-								shell
-									.item()
-									.pointer_scroll_pixels(
-										surface_id,
-										[
-											scroll_continuous.x * state.mouse_scroll_multiplier,
-											-scroll_continuous.y * state.mouse_scroll_multiplier,
-										]
-										.into(),
-										ScrollSource::Continuous,
-										// TODO: somehow get a timestamp for this?
-										None,
-									)
-									.unwrap();
-							}
-							if let Some(scroll_discrete) = scroll.scroll_discrete
-								&& let Some(shell) = state.panel_shell.as_ref()
-							{
-								shell
-									.item()
-									.pointer_scroll_pixels(
-										surface_id,
-										[
-											scroll_discrete.x * state.mouse_scroll_multiplier,
-											-scroll_discrete.y * state.mouse_scroll_multiplier,
-										]
-										.into(),
-										ScrollSource::Continuous,
-										// TODO: somehow get a timestamp for this?
-										None,
-									)
-									.unwrap();
-							}
-							// TODO: figure out how to send this only when scroll actually stops,
-							// instead of every frame without scroll
-							if scroll.scroll_continuous.is_none()
-								&& scroll.scroll_discrete.is_none()
-								&& let Some(shell) = state.panel_shell.as_ref()
-							{
-								// TODO: somehow get a timestamp for this?
-								shell.item().pointer_scroll_stop(surface_id, None).unwrap();
-							}
-						})
-						.build(),
-				)
-				.child(
-					TouchPlane::<ToplevelState>::default()
-						.physical_size([size_meters.x, size_meters.y])
-						.thickness(thickness)
-						.on_touch_down(move |state, id, position| {
-							if let Some(shell) = state.panel_shell.as_ref() {
-								let _ = shell.item().touch_down(
+			.child(
+				PointerPlane::<ToplevelState>::default()
+					.physical_size([size_meters.x, size_meters.y])
+					.thickness(thickness)
+					.on_mouse_button(move |state, button, pressed| {
+						if let Some(shell) = state.panel_shell.as_ref() {
+							// TODO: somehow get a timestamp for this?
+							let _ = shell
+								.item()
+								.pointer_button(surface_id, button, pressed, None);
+						}
+					})
+					.on_pointer_motion(move |state, pos| {
+						let pixel_pos = [pos.x * state.density, pos.y * state.density];
+						state.set_pointer(surface_id, None, pixel_pos, None);
+					})
+					.on_scroll(move |state, scroll| {
+						if let Some(scroll_continuous) = scroll.scroll_continuous
+							&& let Some(shell) = state.panel_shell.as_ref()
+						{
+							shell
+								.item()
+								.pointer_scroll_pixels(
 									surface_id,
-									id,
-									[position.x * state.density, position.y * state.density].into(),
+									[
+										scroll_continuous.x * state.mouse_scroll_multiplier,
+										-scroll_continuous.y * state.mouse_scroll_multiplier,
+									]
+									.into(),
+									ScrollSource::Continuous,
 									// TODO: somehow get a timestamp for this?
 									None,
-								);
-							}
-						})
-						.on_touch_move(|state, id, position| {
-							if let Some(shell) = state.panel_shell.as_ref() {
-								let _ = shell.item().touch_move(
-									id,
-									[position.x * state.density, position.y * state.density].into(),
+								)
+								.unwrap();
+						}
+						if let Some(scroll_discrete) = scroll.scroll_discrete
+							&& let Some(shell) = state.panel_shell.as_ref()
+						{
+							shell
+								.item()
+								.pointer_scroll_pixels(
+									surface_id,
+									[
+										scroll_discrete.x * state.mouse_scroll_multiplier,
+										-scroll_discrete.y * state.mouse_scroll_multiplier,
+									]
+									.into(),
+									ScrollSource::Continuous,
 									// TODO: somehow get a timestamp for this?
 									None,
-								);
-							}
-						})
-						.on_touch_up(|state, id| {
-							if let Some(shell) = state.panel_shell.as_ref() {
+								)
+								.unwrap();
+						}
+						// TODO: figure out how to send this only when scroll actually stops,
+						// instead of every frame without scroll
+						if scroll.scroll_continuous.is_none()
+							&& scroll.scroll_discrete.is_none()
+							&& let Some(shell) = state.panel_shell.as_ref()
+						{
+							// TODO: somehow get a timestamp for this?
+							shell.item().pointer_scroll_stop(surface_id, None).unwrap();
+						}
+					})
+					.build(),
+			)
+			.child(
+				TouchPlane::<ToplevelState>::default()
+					.physical_size([size_meters.x, size_meters.y])
+					.thickness(thickness)
+					.on_touch_down(move |state, id, position| {
+						if let Some(shell) = state.panel_shell.as_ref() {
+							let _ = shell.item().touch_down(
+								surface_id,
+								id,
+								[position.x * state.density, position.y * state.density].into(),
 								// TODO: somehow get a timestamp for this?
-								let _ = shell.item().touch_up(id, None);
-							}
-						})
-						.build(),
-				)
-		}))
-		.stable_children(children)
+								None,
+							);
+						}
+					})
+					.on_touch_move(|state, id, position| {
+						if let Some(shell) = state.panel_shell.as_ref() {
+							let _ = shell.item().touch_move(
+								id,
+								[position.x * state.density, position.y * state.density].into(),
+								// TODO: somehow get a timestamp for this?
+								None,
+							);
+						}
+					})
+					.on_touch_up(|state, id| {
+						if let Some(shell) = state.panel_shell.as_ref() {
+							// TODO: somehow get a timestamp for this?
+							let _ = shell.item().touch_up(id, None);
+						}
+					})
+					.build(),
+			)
+	}))
+	.stable_children(children)
 }
