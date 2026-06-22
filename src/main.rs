@@ -578,6 +578,7 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 							depressed: key_event.modifiers.depressed,
 							latched: key_event.modifiers.latched,
 							locked: key_event.modifiers.locked,
+							layout_group: key_event.modifiers.layout_group,
 						},
 						key_event.keymap,
 						timestamp,
