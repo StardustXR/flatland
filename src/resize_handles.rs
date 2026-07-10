@@ -1,4 +1,4 @@
-use crate::{ToplevelState, grab_ball::GrabBallSettings};
+use crate::{Flatland, grab_ball::GrabBallSettings};
 use derive_setters::Setters;
 use glam::{Mat4, Quat, Vec3, Vec3Swizzles, vec2, vec3};
 use stardust_xr_asteroids::{
@@ -67,7 +67,7 @@ impl ResizeHandle {
 			client,
 			&model_spatial,
 			Resource::Namespaced {
-				namespace: ToplevelState::APP_ID.into(),
+				namespace: Flatland::APP_ID.into(),
 				path: "resize_handle".into(),
 			},
 		)
@@ -279,8 +279,7 @@ impl ResizeHandlesInner {
 			Spatial::new(client, &parent, Transform::IDENTITY).await?;
 		let bottom =
 			ResizeHandle::new(client, &content_parent_ref, &parent, settings.clone()).await?;
-		let top =
-			ResizeHandle::new(client, &content_parent_ref, &parent, settings.clone()).await?;
+		let top = ResizeHandle::new(client, &content_parent_ref, &parent, settings.clone()).await?;
 
 		let (change_tx, change) = watch::channel((initial_pose, initial_size));
 		let hmd = Tracked::hmd_spatial(client).await?;

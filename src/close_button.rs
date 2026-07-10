@@ -18,7 +18,7 @@ use stardust_xr_molecules::{
 	input_action::{InputQueue, SimpleAction},
 };
 
-use crate::ToplevelState;
+use crate::Flatland;
 
 #[derive_where::derive_where(Debug, PartialEq)]
 #[derive(Setters)]
@@ -104,7 +104,7 @@ impl ExposureButtonInner {
 			client,
 			&model_spatial,
 			Resource::Namespaced {
-				namespace: ToplevelState::APP_ID.into(),
+				namespace: Flatland::APP_ID.into(),
 				path: "close_button".into(),
 			},
 		)

@@ -21,14 +21,14 @@ use stardust_xr_fusion::{
 };
 use stardust_xr_panel_item::panel_item::{
 	ChildState as ChildInfo, Geometry, ModifierState, Rect, ScrollSource, SurfaceId,
-	SurfaceUpdateTarget, ToplevelState as ToplevelInfo,
+	SurfaceUpdateTarget,
 };
 use stardust_xr_panel_item_asteroids::{
 	panel_item_acceptor::PanelItemAcceptor,
 	panel_shell::{PanelShell, PanelShellHandler},
 	surface_model::SurfaceModel,
 };
-use std::{f32::consts::FRAC_PI_2, process};
+use std::f32::consts::FRAC_PI_2;
 use touch_input::TouchPlane;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt as _};
 
@@ -53,7 +53,7 @@ async fn main() {
 	)
 	.unwrap();
 
-	run::<ToplevelState>(&[&project_local_resources!("data")])
+	run::<Flatland>(&[&project_local_resources!("data")])
 		.await
 		.unwrap()
 }
@@ -114,77 +114,25 @@ pub fn process_initial_children(children: Vec<ChildInfo>) -> Vec<ChildState> {
 	child_states
 }
 
-impl Migrate for ToplevelState {
+impl Migrate for Flatland {
 	type Old = Self;
 }
-impl ClientState for ToplevelState {
+impl ClientState for Flatland {
 	const APP_ID: &'static str = "org.stardustxr.Flatland";
 }
-impl Default for ToplevelState {
+impl Default for Flatland {
 	fn default() -> Self {
 		Self {
-			panel_shell: Default::default(),
-			info: default_toplevel_info(),
-			cursor_pos: [0.0; 2].into(),
-			cursor: Default::default(),
-			children: Default::default(),
+			pose: Posef::default(),
+			size: [0.21, 0.16].into(),
+
+			panel_item: None,
 			density: 3000.0,
 			mouse_scroll_multiplier: 1.0,
 			exit_on_disconnect: false,
-			pose: Posef::default(),
 		}
 	}
 }
-// impl Reify for ToplevelState {
-// 	fn reify(&self) -> impl stardust_xr_asteroids::Element<Self> {
-// 		PanelUI::<State> {
-// 			on_create_item: FnWrapper(Box::new(|state, item, data| {
-// 				state.toplevels.insert(
-// 					item.id(),
-// 					ToplevelState {
-// 						enabled: true,
-// 						panel_item: item,
-// 						info: data.toplevel,
-// 						cursor_pos: [0.0; 2].into(),
-// 						cursor: None,
-// 						children: process_initial_children(data.children),
-// 						density: 3000.0,
-// 						mouse_scroll_multiplier: state.mouse_scroll_multiplier,
-// 					},
-// 				);
-// 			})),
-// 			on_create_acceptor: FnWrapper(Box::new(|_, _, _| {})),
-// 			on_capture_item: FnWrapper(Box::new(|state, panel_id, _| {
-// 				let Some(toplevel) = state.toplevels.get_mut(&panel_id) else {
-// 					return;
-// 				};
-// 				toplevel.enabled = false;
-// 			})),
-// 			on_release_item: FnWrapper(Box::new(|state, panel_id, _| {
-// 				let Some(toplevel) = state.toplevels.get_mut(&panel_id) else {
-// 					return;
-// 				};
-// 				toplevel.enabled = true;
-// 			})),
-// 			on_destroy_item: FnWrapper(Box::new(|state, id| {
-// 				state.toplevels.remove(&id);
-// 			})),
-// 			on_destroy_acceptor: FnWrapper(Box::new(|_, _| {})),
-// 		}
-// 		.build()
-// 		.stable_children(self.toplevels.iter().filter_map(|(uid, t)| {
-// 			let uid = *uid;
-// 			// self.toplevels.get_mut(&uid)?;
-// 			if !t.enabled {
-// 				return None;
-// 			}
-// 			Some((
-// 				uid,
-// 				t.reify_substate(move |s: &mut Self| s.toplevels.get_mut(&uid)),
-// 			))
-// 		}))
-// 	}
-// }
 
 #[derive(Debug, Clone)]
 pub struct ChildState {
@@ -192,45 +140,71 @@ pub struct ChildState {
 	children: Vec<ChildState>,
 }
 
-const fn default_toplevel_info() -> ToplevelInfo {
-	ToplevelInfo {
-		parent: None,
-		title: None,
-		app_id: None,
-		size: Size2 { x: 600, y: 800 },
-		min_size: None,
-		max_size: None,
-	}
+#[derive(Debug)]
+struct PanelItem {
+	pub shell: Shell,
+	pub item: stardust_xr_panel_item::panel_item::PanelItem,
+
+	pub parent: Option<u64>,
+	pub title: Option<String>,
+	pub app_id: Option<String>,
+	pub min_size: Option<Size2>,
+	pub max_size: Option<Size2>,
+
+	/// in px
+	cursor_pos: Vec2F,
+	cursor: Option<Geometry>,
+
+	children: Vec<ChildState>,
 }
 
 type Shell = BinderObject<PanelShellHandler>;
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ToplevelState {
-	#[serde(skip)]
-	panel_shell: Option<Shell>,
-	#[serde(skip, default = "default_toplevel_info")]
-	info: ToplevelInfo,
-	/// in px
-	cursor_pos: Vec2F,
-	#[serde(skip)]
-	cursor: Option<Geometry>,
-	#[serde(skip)]
-	children: Vec<ChildState>,
-	density: f32, //pixels per meter
-	mouse_scroll_multiplier: f32,
+pub struct Flatland {
+	/// meters
+	size: Vec2F,
+	pose: Posef,
 	#[serde(skip)]
 	exit_on_disconnect: bool,
+
 	#[serde(skip)]
-	pose: Posef,
+	panel_item: Option<PanelItem>,
+
+	/// pixels per meter
+	density: f32,
+	mouse_scroll_multiplier: f32,
 }
-impl ToplevelState {
-	#[inline]
-	pub fn size_meters(&self) -> Vec2F {
-		[
-			self.info.size.x as f32 / self.density,
-			self.info.size.y as f32 / self.density,
-		]
-		.into()
+impl Flatland {
+	fn size_px(&self) -> Size2 {
+		Size2 {
+			x: (self.size.x * self.density) as u32,
+			y: (self.size.y * self.density) as u32,
+		}
+	}
+	fn set_size_px(&mut self, size: impl Into<Size2>) {
+		let size = size.into();
+		self.size.x = (size.x as f32) / self.density;
+		self.size.y = (size.y as f32) / self.density;
+		self.clamp_pointer();
+	}
+
+	fn move_pointer(
+		&mut self,
+		surface_id: SurfaceId,
+		delta: impl Into<Vec2F>,
+		timestamp: Option<Timestamp>,
+	) {
+		let Some(cursor_pos) = self.panel_item.as_ref().map(|i| i.cursor_pos) else {
+			return;
+		};
+
+		let delta = delta.into();
+		self.set_pointer(
+			surface_id,
+			Some(delta),
+			[cursor_pos.x + delta.x, cursor_pos.y + delta.y],
+			timestamp,
+		);
 	}
 	fn set_pointer(
 		&mut self,
@@ -239,59 +213,65 @@ impl ToplevelState {
 		new_pos: impl Into<Vec2F>,
 		timestamp: Option<Timestamp>,
 	) {
-		self.cursor_pos = new_pos.into();
-		self.clamp_pointer();
-		if let Some(shell) = self.panel_shell.as_ref() {
+		if let Some(shell) = self.panel_item.as_mut() {
+			shell.cursor_pos = new_pos.into();
 			let _ = shell
-				.item()
-				.pointer_motion(surface_id, motion, self.cursor_pos, timestamp);
+				.item
+				.pointer_motion(surface_id, motion, shell.cursor_pos, timestamp);
 		}
+		self.clamp_pointer();
 	}
 	fn clamp_pointer(&mut self) {
-		self.cursor_pos.x = self
+		let size_px = self.size_px();
+		let Some(shell) = self.panel_item.as_mut() else {
+			return;
+		};
+
+		shell.cursor_pos.x = shell
 			.cursor_pos
 			.x
-			.clamp(0.0, self.info.size.x.saturating_sub(1) as f32);
-		self.cursor_pos.y = self
+			.clamp(0.0, size_px.x.saturating_sub(1) as f32);
+		shell.cursor_pos.y = shell
 			.cursor_pos
 			.y
-			.clamp(0.0, self.info.size.y.saturating_sub(1) as f32);
+			.clamp(0.0, size_px.y.saturating_sub(1) as f32);
 	}
-	fn resize(&mut self, new_size: impl Into<Size2>) {
-		let old_size = self.info.size;
-		self.info.size = new_size.into();
-		fn clamp(v: &mut u32, min: u32, max: u32) {
-			*v = (*v).clamp(min, max);
+	fn resize(&mut self, new_size: impl Into<Vec2F>) {
+		let old_size_px = self.size_px();
+		self.size = new_size.into();
+		let Some(shell) = self.panel_item.as_ref() else {
+			return;
+		};
+		let mut size_px = self.size_px();
+		let min_size = shell.min_size.unwrap_or([0; 2].into());
+		let max_size = shell.max_size.unwrap_or([u32::MAX; 2].into());
+		size_px.x = size_px.x.clamp(min_size.x, max_size.x);
+		size_px.y = size_px.y.clamp(min_size.y, max_size.y);
+
+		if old_size_px.x != size_px.x || old_size_px.y != size_px.y {
+			shell.item.request_toplevel_resize(size_px).unwrap();
 		}
-		let min_size = self.info.min_size.unwrap_or([0; 2].into());
-		let max_size = self.info.max_size.unwrap_or([u32::MAX; 2].into());
-		clamp(&mut self.info.size.x, min_size.x, max_size.x);
-		clamp(&mut self.info.size.y, min_size.y, max_size.y);
-		tracing::info!(?min_size,?max_size,?self.info.size,"clamping size");
-		if (old_size.x != self.info.size.x || old_size.y != self.info.size.y)
-			&& let Some(shell) = self.panel_shell.as_ref()
-		{
-			shell
-				.item()
-				.request_toplevel_resize(self.info.size)
-				.unwrap();
-		}
+
+		self.set_size_px(size_px);
 	}
 }
-impl Reify for ToplevelState {
+impl Reify for Flatland {
 	fn reify(
 		&self,
-		_context: &Context,
+		context: &Context,
 		_tasks: impl Tasker<Self>,
 	) -> impl stardust_xr_asteroids::Element<Self> {
 		let panel_thickness = 0.01;
 
 		let app_name = self
-			.info
-			.app_id
+			.panel_item
 			.as_ref()
+			.and_then(|i| i.app_id.as_ref())
 			.map(|id| id.split('.').next_back().unwrap_or_default());
-		let title_text = match (&self.info.title, app_name) {
+		let title_text = match (
+			self.panel_item.as_ref().and_then(|i| i.title.as_ref()),
+			app_name,
+		) {
 			(Some(title), Some(app_name)) => {
 				if title == app_name {
 					title.to_string()
@@ -305,69 +285,88 @@ impl Reify for ToplevelState {
 		};
 		InitialPanelPlacement
 			.build()
-			.maybe_child(self.panel_shell.as_ref().map(|shell| {
-				PanelShell::new(shell, |state: &mut Self| {
-					_ = state.panel_shell.take();
+			.maybe_child(self.panel_item.as_ref().map(|item| {
+				let context = context.clone();
+				PanelShell::new(&item.shell, move |state: &mut Self| {
+					_ = state.panel_item.take();
 					if state.exit_on_disconnect {
-						process::exit(0);
+						context.stop();
 					}
-					// TODO: move size onto main state
-					let size = state.info.size;
-					// reset panel item specific state
-					state.info = default_toplevel_info();
-					state.info.size = size;
 				})
 				.on_toplevel_resolution_changed(|state: &mut Self, _item, size| {
-					state.info.size = size;
+					state.set_size_px(size);
 				})
 				.on_toplevel_max_size_changed(|state: &mut Self, _item, size| {
-					state.info.max_size = size;
-					// state.resize(state.info.size);
+					let Some(item) = &mut state.panel_item else {
+						return;
+					};
+
+					item.max_size = size;
+					state.resize(state.size);
 				})
 				.on_toplevel_min_size_changed(|state: &mut Self, _item, size| {
-					state.info.min_size = size;
-					// state.resize(state.info.size);
+					let Some(item) = &mut state.panel_item else {
+						return;
+					};
+					item.min_size = size;
+					state.resize(state.size);
 				})
 				.on_toplevel_app_id_changed(|state: &mut Self, _, app_id| {
-					state.info.app_id.replace(app_id);
+					let Some(item) = &mut state.panel_item else {
+						return;
+					};
+					item.app_id.replace(app_id);
 				})
 				.on_toplevel_title_changed(|state: &mut Self, _, title| {
-					state.info.title.replace(title);
+					let Some(item) = &mut state.panel_item else {
+						return;
+					};
+					item.title.replace(title);
 				})
 				.cursor_visuals_changed(|state: &mut Self, _, geometry| {
-					state.cursor = geometry;
+					let Some(item) = &mut state.panel_item else {
+						return;
+					};
+					item.cursor = geometry;
 				})
 				.new_child(|state: &mut Self, _, child_state| {
-					add_child(&mut state.children, child_state);
+					let Some(item) = &mut state.panel_item else {
+						return;
+					};
+					add_child(&mut item.children, child_state);
 				})
 				.child_moved(|state: &mut Self, _, id, geometry| {
-					update_child_geometry(&mut state.children, id, geometry);
+					let Some(item) = &mut state.panel_item else {
+						return;
+					};
+					update_child_geometry(&mut item.children, id, geometry);
 				})
 				.child_removed(|state: &mut Self, _, id| {
-					remove_child(&mut state.children, id);
+					let Some(item) = &mut state.panel_item else {
+						return;
+					};
+					remove_child(&mut item.children, id);
 				})
 				.build()
 			}))
 			.child(
-				ResizeHandles::<ToplevelState> {
+				ResizeHandles::<Flatland> {
 					reparentable: true,
 					pose: self.pose,
-					size: self.size_meters(),
+					size: self.size,
 					min_size: self
-						.info
-						.min_size
+						.panel_item
+						.as_ref()
+						.and_then(|s| s.min_size)
 						.map(|s| [s.x as f32 / self.density, s.y as f32 / self.density].into()),
 					max_size: self
-						.info
-						.max_size
+						.panel_item
+						.as_ref()
+						.and_then(|s| s.max_size)
 						.map(|s| [s.x as f32 / self.density, s.y as f32 / self.density].into()),
 					on_change: FnWrapper(Box::new(|state, pose, size_meters| {
 						state.pose = pose;
-						let size = [
-							(size_meters.x * state.density) as u32,
-							(size_meters.y * state.density) as u32,
-						];
-						state.resize(size);
+						state.resize(size_meters);
 						state.clamp_pointer();
 					})),
 				}
@@ -376,15 +375,20 @@ impl Reify for ToplevelState {
 					// Close button
 					ExposureButton::<Self> {
 						transform: Transform::from_translation([
-							self.size_meters().x / 2.0,
-							self.size_meters().y / -2.0,
+							self.size.x / 2.0,
+							self.size.y / -2.0,
 							panel_thickness / 2.0,
 						]),
 						thickness: panel_thickness,
 						gain: 2.0,
-						on_click: FnWrapper(Box::new(|state: &mut Self| {
-							if let Some(shell) = state.panel_shell.as_ref() {
-								shell.item().close_toplevel().unwrap();
+						on_click: FnWrapper(Box::new({
+							let context = context.clone();
+							move |state: &mut Self| {
+								if let Some(item) = state.panel_item.as_ref() {
+									item.item.close_toplevel().unwrap();
+								} else {
+									context.stop();
+								}
 							}
 						})),
 					}
@@ -397,26 +401,26 @@ impl Reify for ToplevelState {
 						.align_x(XAlign::Left)
 						.align_y(YAlign::Center)
 						.bounds(TextBounds {
-							bounds: [self.size_meters().y, panel_thickness].into(),
+							bounds: [self.size.y, panel_thickness].into(),
 							fit: TextFit::Squeeze,
 							anchor_align_x: XAlign::Left,
 							anchor_align_y: YAlign::Bottom,
 						})
 						.pos([
-							self.size_meters().x / 2.0 + 0.0005,
-							self.size_meters().y / 2.0 - 0.001,
+							self.size.x / 2.0 + 0.0005,
+							self.size.y / 2.0 - 0.001,
 							panel_thickness / 2.0,
 						])
 						.rot(Quat::from_rotation_z(-FRAC_PI_2) * Quat::from_rotation_x(-FRAC_PI_2))
 						.build(),
 				)
 				.child(reify_surface(
-					&self.panel_shell,
+					self.panel_item.as_ref().map(|i| &i.shell),
 					SurfaceId::Toplevel,
-					self.info.size,
+					self.size_px(),
 					Geometry {
 						origin: [0; 2].into(),
-						size: self.info.size,
+						size: self.size_px(),
 					},
 					&[Rect {
 						origin: [0.0; 2].into(),
@@ -425,58 +429,63 @@ impl Reify for ToplevelState {
 					0,
 					panel_thickness,
 					self.density,
-					self.children
+					self.panel_item
 						.iter()
-						.map(|child| {
-							(
-								child.info.id,
-								child.reify(
-									self.info.size,
-									&self.panel_shell,
-									panel_thickness,
-									self.density,
-									self.mouse_scroll_multiplier,
-								),
-							)
+						.flat_map(|item| {
+							item.children.iter().map(|child| {
+								(
+									child.info.id,
+									child.reify(
+										self.size_px(),
+										Some(&item.shell),
+										panel_thickness,
+										self.density,
+										self.mouse_scroll_multiplier,
+									),
+								)
+							})
 						})
 						.collect(),
 					self.mouse_scroll_multiplier,
 				))
 				.maybe_child(
 					// cursor
-					self.cursor
-						.as_ref()
-						.and_then(|v| Some((v, self.panel_shell.as_ref()?)))
-						.map(|(geometry, shell)| {
-							let cursor_pos = vec2(self.cursor_pos.x, self.cursor_pos.y);
-							let geometry_origin =
-								vec2(geometry.origin.x as f32, geometry.origin.y as f32);
-							let geometry_size_half =
-								vec2(geometry.size.x as f32, geometry.size.y as f32) / 2.0;
-							let panel_size_px_half =
-								vec2(self.info.size.x as f32, self.info.size.y as f32) / 2.0;
+					self.panel_item.as_ref().and_then(|item| {
+						let cursor_geometry = item.cursor?;
+						let cursor_pos = vec2(item.cursor_pos.x, item.cursor_pos.y);
+						let geometry_origin = vec2(
+							cursor_geometry.origin.x as f32,
+							cursor_geometry.origin.y as f32,
+						);
+						let geometry_size_half =
+							vec2(cursor_geometry.size.x as f32, cursor_geometry.size.y as f32)
+								/ 2.0;
+						let panel_size_px_half =
+							vec2(self.size_px().x as f32, self.size_px().y as f32) / 2.0;
 
-							let pos_px = cursor_pos - panel_size_px_half + geometry_size_half
-								- geometry_origin;
-							let pos_m = pos_px * vec2(1.0, -1.0) / self.density;
+						let pos_px =
+							cursor_pos - panel_size_px_half + geometry_size_half - geometry_origin;
+						let pos_m = pos_px * vec2(1.0, -1.0) / self.density;
 
+						Some(
 							SurfaceModel::new(
-								shell,
+								&item.shell,
 								SurfaceUpdateTarget::Cursor,
 								Resource::Namespaced {
-									namespace: ToplevelState::APP_ID.into(),
+									namespace: Flatland::APP_ID.into(),
 									path: "panel".into(),
 								},
 								"Panel",
 							)
 							.pos([pos_m.x, pos_m.y, 0.001])
 							.scl([
-								geometry.size.x as f32 / self.density,
-								geometry.size.y as f32 / self.density,
+								cursor_geometry.size.x as f32 / self.density,
+								cursor_geometry.size.y as f32 / self.density,
 								panel_thickness,
 							])
-							.build()
-						}),
+							.build(),
+						)
+					}),
 				),
 			)
 		// )
@@ -486,13 +495,13 @@ impl ChildState {
 	fn reify(
 		&self,
 		parent_size: Size2,
-		panel_item: &Option<Shell>,
+		panel_shell: Option<&Shell>,
 		panel_thickness: f32,
 		density: f32,
 		scroll_multiplier: f32,
-	) -> impl Element<ToplevelState> {
+	) -> impl Element<Flatland> {
 		reify_surface(
-			panel_item,
+			panel_shell,
 			SurfaceId::Child { id: self.info.id },
 			parent_size,
 			self.info.geometry,
@@ -507,7 +516,7 @@ impl ChildState {
 						child.info.id,
 						child.reify(
 							self.info.geometry.size,
-							panel_item,
+							panel_shell,
 							panel_thickness,
 							density,
 							scroll_multiplier,
@@ -522,8 +531,8 @@ impl ChildState {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
-	panel_item: &Option<Shell>,
+fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
+	panel_shell: Option<&Shell>,
 	surface_id: SurfaceId,
 	parent_size: S,
 	geometry: Geometry,
@@ -533,7 +542,7 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 	density: f32,
 	children: FxHashMap<u64, E>,
 	scroll_multiplier: f32,
-) -> impl Element<ToplevelState> + use<S, E> {
+) -> impl Element<Flatland> + use<S, E> {
 	let parent_size = parent_size.into();
 	let parent_origin_meters = vec2(
 		parent_size.x as f32 / density / 2.0,
@@ -555,19 +564,30 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 		(origin_meters - parent_origin_meters + (size_meters / vec2(2.0, -2.0)))
 			.extend(thickness * (z_offset as f32)),
 	)
-	.component(Derezzable::<ToplevelState>::new(|state| {
+	.component(Derezzable::<Flatland>::new(|state| {
 		state.exit_on_disconnect = true;
-		if let Some(shell) = state.panel_shell.as_ref() {
-			_ = shell.item().close_toplevel();
+		if let Some(item) = &state.panel_item {
+			_ = item.item.close_toplevel();
 		}
 	}))
-	.component(PanelItemAcceptor::<ToplevelState>::new(|state, shell| {
-		_ = shell.item().request_toplevel_resize(state.info.size);
-		state.panel_shell.replace(shell);
+	.component(PanelItemAcceptor::<Flatland>::new(|state, shell| {
+		_ = shell.item().request_toplevel_resize(state.size_px());
+		state.panel_item.replace(PanelItem {
+			item: shell.item().clone(),
+			shell,
+			parent: None,
+			title: None,
+			app_id: None,
+			min_size: None,
+			max_size: None,
+			cursor_pos: [0.0; 2].into(),
+			cursor: None,
+			children: vec![],
+		});
 	}))
 	.component((!input_areas.is_empty()).then(|| {
-		KeyboardHandler::<ToplevelState>::new().on_key_async({
-			let panel_item = panel_item.as_ref().map(|v| v.item().clone());
+		KeyboardHandler::<Flatland>::new().on_key_async({
+			let panel_item = panel_shell.as_ref().map(|v| v.item().clone());
 			move |key_event, timestamp| {
 				if let Some(item) = &panel_item {
 					item.key(
@@ -589,9 +609,9 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 		})
 	}))
 	.component((!input_areas.is_empty()).then(|| {
-		MouseHandler::<ToplevelState>::new()
+		MouseHandler::<Flatland>::new()
 			.on_button_async({
-				let panel_item = panel_item.as_ref().map(|v| v.item().clone());
+				let panel_item = panel_shell.as_ref().map(|v| v.item().clone());
 				move |button, pressed, timestamp| {
 					if let Some(item) = &panel_item {
 						let _ = item.pointer_button(surface_id, button, pressed, timestamp);
@@ -599,16 +619,10 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 				}
 			})
 			.on_motion(move |state, motion, timestamp| {
-				let new_pos = [state.cursor_pos.x + motion.x, state.cursor_pos.y - motion.y];
-				state.set_pointer(
-					surface_id,
-					Some([motion.x, -motion.y].into()),
-					new_pos,
-					timestamp,
-				);
+				state.move_pointer(surface_id, motion, timestamp);
 			})
 			.on_scroll_discrete_async({
-				let panel_item = panel_item.as_ref().map(|v| v.item().clone());
+				let panel_item = panel_shell.as_ref().map(|v| v.item().clone());
 				move |scroll_discrete, source, timestamp| {
 					use stardust_xr_asteroids::components::ScrollSource as MoleculesSource;
 					if let Some(item) = &panel_item {
@@ -632,7 +646,7 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 				}
 			})
 			.on_scroll_continuous_async({
-				let panel_item = panel_item.as_ref().map(|v| v.item().clone());
+				let panel_item = panel_shell.as_ref().map(|v| v.item().clone());
 				move |scroll_continuous, source, timestamp| {
 					use stardust_xr_asteroids::components::ScrollSource as MoleculesSource;
 					if let Some(item) = &panel_item {
@@ -657,12 +671,12 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 			})
 	}))
 	.build()
-	.maybe_child(panel_item.as_ref().map(|item| {
+	.maybe_child(panel_shell.as_ref().map(|item| {
 		SurfaceModel::new(
 			item,
 			surface_id,
 			Resource::Namespaced {
-				namespace: ToplevelState::APP_ID.into(),
+				namespace: Flatland::APP_ID.into(),
 				path: "panel".into(),
 			},
 			"Panel",
@@ -674,8 +688,8 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 		])
 		.build()
 	}))
-	.maybe_child(panel_item.is_none().then(|| {
-		Model::namespaced(ToplevelState::APP_ID, "panel")
+	.maybe_child(panel_shell.is_none().then(|| {
+		Model::namespaced(Flatland::APP_ID, "panel")
 			.scl([
 				geometry.size.x as f32 / density,
 				geometry.size.y as f32 / density,
@@ -688,15 +702,13 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 		Spatial::default()
 			.build()
 			.child(
-				PointerPlane::<ToplevelState>::default()
+				PointerPlane::<Flatland>::default()
 					.physical_size([size_meters.x, size_meters.y])
 					.thickness(thickness)
 					.on_mouse_button(move |state, button, pressed| {
-						if let Some(shell) = state.panel_shell.as_ref() {
+						if let Some(item) = &state.panel_item {
 							// TODO: somehow get a timestamp for this?
-							let _ = shell
-								.item()
-								.pointer_button(surface_id, button, pressed, None);
+							let _ = item.item.pointer_button(surface_id, button, pressed, None);
 						}
 					})
 					.on_pointer_motion(move |state, pos| {
@@ -705,10 +717,9 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 					})
 					.on_scroll(move |state, scroll| {
 						if let Some(scroll_continuous) = scroll.scroll_continuous
-							&& let Some(shell) = state.panel_shell.as_ref()
+							&& let Some(item) = &state.panel_item
 						{
-							shell
-								.item()
+							item.item
 								.pointer_scroll_pixels(
 									surface_id,
 									[
@@ -723,10 +734,9 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 								.unwrap();
 						}
 						if let Some(scroll_discrete) = scroll.scroll_discrete
-							&& let Some(shell) = state.panel_shell.as_ref()
+							&& let Some(item) = &state.panel_item
 						{
-							shell
-								.item()
+							item.item
 								.pointer_scroll_pixels(
 									surface_id,
 									[
@@ -744,21 +754,21 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 						// instead of every frame without scroll
 						if scroll.scroll_continuous.is_none()
 							&& scroll.scroll_discrete.is_none()
-							&& let Some(shell) = state.panel_shell.as_ref()
+							&& let Some(item) = &state.panel_item
 						{
 							// TODO: somehow get a timestamp for this?
-							shell.item().pointer_scroll_stop(surface_id, None).unwrap();
+							item.item.pointer_scroll_stop(surface_id, None).unwrap();
 						}
 					})
 					.build(),
 			)
 			.child(
-				TouchPlane::<ToplevelState>::default()
+				TouchPlane::<Flatland>::default()
 					.physical_size([size_meters.x, size_meters.y])
 					.thickness(thickness)
 					.on_touch_down(move |state, id, position| {
-						if let Some(shell) = state.panel_shell.as_ref() {
-							let _ = shell.item().touch_down(
+						if let Some(item) = &state.panel_item {
+							let _ = item.item.touch_down(
 								surface_id,
 								id,
 								[position.x * state.density, position.y * state.density].into(),
@@ -768,8 +778,8 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 						}
 					})
 					.on_touch_move(|state, id, position| {
-						if let Some(shell) = state.panel_shell.as_ref() {
-							let _ = shell.item().touch_move(
+						if let Some(item) = &state.panel_item {
+							let _ = item.item.touch_move(
 								id,
 								[position.x * state.density, position.y * state.density].into(),
 								// TODO: somehow get a timestamp for this?
@@ -778,9 +788,9 @@ fn reify_surface<S: Into<Size2>, E: Element<ToplevelState>>(
 						}
 					})
 					.on_touch_up(|state, id| {
-						if let Some(shell) = state.panel_shell.as_ref() {
+						if let Some(item) = &state.panel_item {
 							// TODO: somehow get a timestamp for this?
-							let _ = shell.item().touch_up(id, None);
+							let _ = item.item.touch_up(id, None);
 						}
 					})
 					.build(),

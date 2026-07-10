@@ -1777,7 +1777,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids?branch=binder#97818eb8eb3eb4c7f2e47721a3c6e9c0435eb9b9"
+source = "git+https://github.com/StardustXR/asteroids?branch=binder#20511d6cfbca44b2143299ba71ba911e0a345a6f"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -1805,12 +1805,13 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core?branch=binder#bdf8ce105f5f1c0404ab375f93fd9c720a078ea7"
+source = "git+https://github.com/StardustXR/core?branch=binder#7fa65ccdeeea7c901d36947ab0ef94f373a57373"
 dependencies = [
  "glam 0.30.10",
  "gluon",
  "parking_lot",
  "pion-binder",
+ "rustix",
  "stardust-xr-protocol",
  "thiserror",
  "tokio",
@@ -1821,7 +1822,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/molecules?branch=binder#eef2a644362ba471207dc25f36b9d417df6aff99"
+source = "git+https://github.com/StardustXR/molecules?branch=binder#29c94bf97f47a8dd43f5d39ede297623b962281e"
 dependencies = [
  "futures",
  "glam 0.29.3",
@@ -1842,7 +1843,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules-protocols"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/molecules?branch=binder#eef2a644362ba471207dc25f36b9d417df6aff99"
+source = "git+https://github.com/StardustXR/molecules?branch=binder#29c94bf97f47a8dd43f5d39ede297623b962281e"
 dependencies = [
  "gluon",
  "gluon-codegen",
@@ -1853,7 +1854,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#b30aaddf08f354985642a291a2a4d92a1d24823a"
+source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#d9290ca51646ddd2ab4059354aaab7ac6af84c5c"
 dependencies = [
  "binderbinder",
  "gluon",
@@ -1871,7 +1872,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item-asteroids"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#b30aaddf08f354985642a291a2a4d92a1d24823a"
+source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#d9290ca51646ddd2ab4059354aaab7ac6af84c5c"
 dependencies = [
  "binderbinder",
  "derive-where",
@@ -1890,7 +1891,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-protocol"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core?branch=binder#bdf8ce105f5f1c0404ab375f93fd9c720a078ea7"
+source = "git+https://github.com/StardustXR/core?branch=binder#7fa65ccdeeea7c901d36947ab0ef94f373a57373"
 dependencies = [
  "fnv",
  "glam 0.29.3",
