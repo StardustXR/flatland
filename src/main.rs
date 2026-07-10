@@ -249,7 +249,7 @@ impl Flatland {
 		size_px.y = size_px.y.clamp(min_size.y, max_size.y);
 
 		if old_size_px.x != size_px.x || old_size_px.y != size_px.y {
-			shell.item.request_toplevel_resize(size_px).unwrap();
+			_ = shell.item.request_toplevel_resize(size_px);
 		}
 
 		self.set_size_px(size_px);
@@ -385,7 +385,7 @@ impl Reify for Flatland {
 							let context = context.clone();
 							move |state: &mut Self| {
 								if let Some(item) = state.panel_item.as_ref() {
-									item.item.close_toplevel().unwrap();
+									_ = item.item.close_toplevel();
 								} else {
 									context.stop();
 								}
@@ -590,7 +590,7 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 			let panel_item = panel_shell.as_ref().map(|v| v.item().clone());
 			move |key_event, timestamp| {
 				if let Some(item) = &panel_item {
-					item.key(
+					_ = item.key(
 						surface_id,
 						key_event.keycode,
 						key_event.pressed,
@@ -602,8 +602,7 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 						},
 						key_event.keymap,
 						timestamp,
-					)
-					.unwrap();
+					);
 				}
 			}
 		})
@@ -626,7 +625,7 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 				move |scroll_discrete, source, timestamp| {
 					use stardust_xr_asteroids::components::ScrollSource as MoleculesSource;
 					if let Some(item) = &panel_item {
-						item.pointer_scroll_discrete(
+						_ = item.pointer_scroll_discrete(
 							surface_id,
 							[
 								scroll_discrete.x * scroll_multiplier,
@@ -640,8 +639,7 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 								MoleculesSource::WheelTilt => ScrollSource::WheelTilt,
 							},
 							timestamp,
-						)
-						.unwrap();
+						);
 					}
 				}
 			})
@@ -650,7 +648,7 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 				move |scroll_continuous, source, timestamp| {
 					use stardust_xr_asteroids::components::ScrollSource as MoleculesSource;
 					if let Some(item) = &panel_item {
-						item.pointer_scroll_pixels(
+						_ = item.pointer_scroll_pixels(
 							surface_id,
 							[
 								scroll_continuous.x * scroll_multiplier,
@@ -664,8 +662,7 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 								MoleculesSource::WheelTilt => ScrollSource::WheelTilt,
 							},
 							timestamp,
-						)
-						.unwrap();
+						);
 					}
 				}
 			})
@@ -719,36 +716,32 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 						if let Some(scroll_continuous) = scroll.scroll_continuous
 							&& let Some(item) = &state.panel_item
 						{
-							item.item
-								.pointer_scroll_pixels(
-									surface_id,
-									[
-										scroll_continuous.x * state.mouse_scroll_multiplier,
-										-scroll_continuous.y * state.mouse_scroll_multiplier,
-									]
-									.into(),
-									ScrollSource::Continuous,
-									// TODO: somehow get a timestamp for this?
-									None,
-								)
-								.unwrap();
+							_ = item.item.pointer_scroll_pixels(
+								surface_id,
+								[
+									scroll_continuous.x * state.mouse_scroll_multiplier,
+									-scroll_continuous.y * state.mouse_scroll_multiplier,
+								]
+								.into(),
+								ScrollSource::Continuous,
+								// TODO: somehow get a timestamp for this?
+								None,
+							);
 						}
 						if let Some(scroll_discrete) = scroll.scroll_discrete
 							&& let Some(item) = &state.panel_item
 						{
-							item.item
-								.pointer_scroll_pixels(
-									surface_id,
-									[
-										scroll_discrete.x * state.mouse_scroll_multiplier,
-										-scroll_discrete.y * state.mouse_scroll_multiplier,
-									]
-									.into(),
-									ScrollSource::Continuous,
-									// TODO: somehow get a timestamp for this?
-									None,
-								)
-								.unwrap();
+							_ = item.item.pointer_scroll_pixels(
+								surface_id,
+								[
+									scroll_discrete.x * state.mouse_scroll_multiplier,
+									-scroll_discrete.y * state.mouse_scroll_multiplier,
+								]
+								.into(),
+								ScrollSource::Continuous,
+								// TODO: somehow get a timestamp for this?
+								None,
+							);
 						}
 						// TODO: figure out how to send this only when scroll actually stops,
 						// instead of every frame without scroll
@@ -757,7 +750,7 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 							&& let Some(item) = &state.panel_item
 						{
 							// TODO: somehow get a timestamp for this?
-							item.item.pointer_scroll_stop(surface_id, None).unwrap();
+							_ = item.item.pointer_scroll_stop(surface_id, None);
 						}
 					})
 					.build(),
