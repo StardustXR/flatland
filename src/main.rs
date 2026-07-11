@@ -67,44 +67,72 @@ pub fn add_child(children: &mut Vec<ChildState>, child_info: ChildInfo) {
 			});
 		}
 		SurfaceId::Child { id: parent_id } => {
-			add_to_parent(
+			let parent_id = *parent_id;
+			let child_id = child_info.id;
+			if !add_to_parent(
 				children,
-				*parent_id,
+				parent_id,
 				ChildState {
 					info: child_info,
 					children: Vec::new(),
 				},
-			);
+			) {
+				tracing::warn!(
+					child_id,
+					parent_id,
+					"add_child: parent surface not found, dropping child"
+				);
+			}
 		}
 	}
 }
 
-fn add_to_parent(children: &mut [ChildState], parent_id: u64, new_child: ChildState) {
+/// Returns whether `parent_id` was found and `new_child` was inserted.
+fn add_to_parent(children: &mut [ChildState], parent_id: u64, new_child: ChildState) -> bool {
 	for child in children.iter_mut() {
 		if child.info.id == parent_id {
 			child.children.push(new_child);
-			return;
+			return true;
 		}
-		add_to_parent(&mut child.children, parent_id, new_child.clone());
+		if add_to_parent(&mut child.children, parent_id, new_child.clone()) {
+			return true;
+		}
 	}
+	false
 }
 pub fn update_child_geometry(children: &mut [ChildState], id: u64, geometry: Geometry) {
+	if !update_child_geometry_inner(children, id, geometry) {
+		tracing::warn!(id, "update_child_geometry: surface not found");
+	}
+}
+fn update_child_geometry_inner(children: &mut [ChildState], id: u64, geometry: Geometry) -> bool {
 	for child in children.iter_mut() {
 		if child.info.id == id {
 			child.info.geometry = geometry;
-			return;
+			return true;
 		}
-		update_child_geometry(&mut child.children, id, geometry);
+		if update_child_geometry_inner(&mut child.children, id, geometry) {
+			return true;
+		}
 	}
+	false
 }
 pub fn remove_child(children: &mut Vec<ChildState>, id: u64) {
+	if !remove_child_inner(children, id) {
+		tracing::warn!(id, "remove_child: surface not found");
+	}
+}
+fn remove_child_inner(children: &mut Vec<ChildState>, id: u64) -> bool {
+	let mut found = false;
 	children.retain_mut(|child| {
 		if child.info.id == id {
+			found = true;
 			return false;
 		}
-		remove_child(&mut child.children, id);
+		found |= remove_child_inner(&mut child.children, id);
 		true
 	});
+	found
 }
 pub fn process_initial_children(children: Vec<ChildInfo>) -> Vec<ChildState> {
 	let mut child_states = Vec::new();
