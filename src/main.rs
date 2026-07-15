@@ -311,7 +311,27 @@ impl Reify for Flatland {
 			(None, Some(app_name)) => app_name.to_string(),
 			(None, None) => String::new(),
 		};
-		InitialPanelPlacement
+		InitialPanelPlacement.build().child(
+			ResizeHandles::<Flatland> {
+				reparentable: true,
+				pose: self.pose,
+				size: self.size,
+				min_size: self
+					.panel_item
+					.as_ref()
+					.and_then(|s| s.min_size)
+					.map(|s| [s.x as f32 / self.density, s.y as f32 / self.density].into()),
+				max_size: self
+					.panel_item
+					.as_ref()
+					.and_then(|s| s.max_size)
+					.map(|s| [s.x as f32 / self.density, s.y as f32 / self.density].into()),
+				on_change: FnWrapper(Box::new(|state, pose, size_meters| {
+					state.pose = pose;
+					state.resize(size_meters);
+					state.clamp_pointer();
+				})),
+			}
 			.build()
 			.maybe_child(self.panel_item.as_ref().map(|item| {
 				let context = context.clone();
@@ -375,147 +395,125 @@ impl Reify for Flatland {
 					};
 					remove_child(&mut item.children, id);
 				})
+				.pos([0.0, -self.size.y / 2.0 - 0.02, 0.0])
 				.build()
 			}))
 			.child(
-				ResizeHandles::<Flatland> {
-					reparentable: true,
-					pose: self.pose,
-					size: self.size,
-					min_size: self
-						.panel_item
-						.as_ref()
-						.and_then(|s| s.min_size)
-						.map(|s| [s.x as f32 / self.density, s.y as f32 / self.density].into()),
-					max_size: self
-						.panel_item
-						.as_ref()
-						.and_then(|s| s.max_size)
-						.map(|s| [s.x as f32 / self.density, s.y as f32 / self.density].into()),
-					on_change: FnWrapper(Box::new(|state, pose, size_meters| {
-						state.pose = pose;
-						state.resize(size_meters);
-						state.clamp_pointer();
+				// Close button
+				ExposureButton::<Self> {
+					transform: Transform::from_translation([
+						self.size.x / 2.0,
+						self.size.y / -2.0,
+						panel_thickness / 2.0,
+					]),
+					thickness: panel_thickness,
+					gain: 2.0,
+					on_click: FnWrapper(Box::new({
+						let context = context.clone();
+						move |state: &mut Self| {
+							if let Some(item) = state.panel_item.as_ref() {
+								_ = item.item.close_toplevel();
+							} else {
+								context.stop();
+							}
+						}
 					})),
 				}
-				.build()
-				.child(
-					// Close button
-					ExposureButton::<Self> {
-						transform: Transform::from_translation([
-							self.size.x / 2.0,
-							self.size.y / -2.0,
-							panel_thickness / 2.0,
-						]),
-						thickness: panel_thickness,
-						gain: 2.0,
-						on_click: FnWrapper(Box::new({
-							let context = context.clone();
-							move |state: &mut Self| {
-								if let Some(item) = state.panel_item.as_ref() {
-									_ = item.item.close_toplevel();
-								} else {
-									context.stop();
-								}
-							}
-						})),
-					}
-					.build(),
-				)
-				.child(
-					// Side text
-					Text::new(title_text)
-						.character_height(panel_thickness * 0.75)
-						.align_x(XAlign::Left)
-						.align_y(YAlign::Center)
-						.bounds(TextBounds {
-							bounds: [self.size.y, panel_thickness].into(),
-							fit: TextFit::Squeeze,
-							anchor_align_x: XAlign::Left,
-							anchor_align_y: YAlign::Bottom,
-						})
-						.pos([
-							self.size.x / 2.0 + 0.0005,
-							self.size.y / 2.0 - 0.001,
-							panel_thickness / 2.0,
-						])
-						.rot(Quat::from_rotation_z(-FRAC_PI_2) * Quat::from_rotation_x(-FRAC_PI_2))
-						.build(),
-				)
-				.child(reify_surface(
-					self.panel_item.as_ref().map(|i| &i.shell),
-					SurfaceId::Toplevel,
-					self.size_px(),
-					Geometry {
-						origin: [0; 2].into(),
-						size: self.size_px(),
-					},
-					&[Rect {
-						origin: [0.0; 2].into(),
-						size: [1.0; 2].into(),
-					}],
-					0,
-					panel_thickness,
-					self.density,
-					self.panel_item
-						.iter()
-						.flat_map(|item| {
-							item.children.iter().map(|child| {
-								(
-									child.info.id,
-									child.reify(
-										self.size_px(),
-										Some(&item.shell),
-										panel_thickness,
-										self.density,
-										self.mouse_scroll_multiplier,
-									),
-								)
-							})
-						})
-						.collect(),
-					self.mouse_scroll_multiplier,
-				))
-				.maybe_child(
-					// cursor
-					self.panel_item.as_ref().and_then(|item| {
-						let cursor_geometry = item.cursor?;
-						let cursor_pos = vec2(item.cursor_pos.x, item.cursor_pos.y);
-						let geometry_origin = vec2(
-							cursor_geometry.origin.x as f32,
-							cursor_geometry.origin.y as f32,
-						);
-						let geometry_size_half =
-							vec2(cursor_geometry.size.x as f32, cursor_geometry.size.y as f32)
-								/ 2.0;
-						let panel_size_px_half =
-							vec2(self.size_px().x as f32, self.size_px().y as f32) / 2.0;
-
-						let pos_px =
-							cursor_pos - panel_size_px_half + geometry_size_half - geometry_origin;
-						let pos_m = pos_px * vec2(1.0, -1.0) / self.density;
-
-						Some(
-							SurfaceModel::new(
-								&item.shell,
-								SurfaceUpdateTarget::Cursor,
-								Resource::Namespaced {
-									namespace: Flatland::APP_ID.into(),
-									path: "panel".into(),
-								},
-								"Panel",
-							)
-							.pos([pos_m.x, pos_m.y, 0.001])
-							.scl([
-								cursor_geometry.size.x as f32 / self.density,
-								cursor_geometry.size.y as f32 / self.density,
-								panel_thickness,
-							])
-							.build(),
-						)
-					}),
-				),
+				.build(),
 			)
+			.child(
+				// Side text
+				Text::new(title_text)
+					.character_height(panel_thickness * 0.75)
+					.align_x(XAlign::Left)
+					.align_y(YAlign::Center)
+					.bounds(TextBounds {
+						bounds: [self.size.y, panel_thickness].into(),
+						fit: TextFit::Squeeze,
+						anchor_align_x: XAlign::Left,
+						anchor_align_y: YAlign::Bottom,
+					})
+					.pos([
+						self.size.x / 2.0 + 0.0005,
+						self.size.y / 2.0 - 0.001,
+						panel_thickness / 2.0,
+					])
+					.rot(Quat::from_rotation_z(-FRAC_PI_2) * Quat::from_rotation_x(-FRAC_PI_2))
+					.build(),
+			)
+			.child(reify_surface(
+				self.panel_item.as_ref().map(|i| &i.shell),
+				SurfaceId::Toplevel,
+				self.size_px(),
+				Geometry {
+					origin: [0; 2].into(),
+					size: self.size_px(),
+				},
+				&[Rect {
+					origin: [0.0; 2].into(),
+					size: [1.0; 2].into(),
+				}],
+				0,
+				panel_thickness,
+				self.density,
+				self.panel_item
+					.iter()
+					.flat_map(|item| {
+						item.children.iter().map(|child| {
+							(
+								child.info.id,
+								child.reify(
+									self.size_px(),
+									Some(&item.shell),
+									panel_thickness,
+									self.density,
+									self.mouse_scroll_multiplier,
+								),
+							)
+						})
+					})
+					.collect(),
+				self.mouse_scroll_multiplier,
+			))
+			.maybe_child(
+				// cursor
+				self.panel_item.as_ref().and_then(|item| {
+					let cursor_geometry = item.cursor?;
+					let cursor_pos = vec2(item.cursor_pos.x, item.cursor_pos.y);
+					let geometry_origin = vec2(
+						cursor_geometry.origin.x as f32,
+						cursor_geometry.origin.y as f32,
+					);
+					let geometry_size_half =
+						vec2(cursor_geometry.size.x as f32, cursor_geometry.size.y as f32) / 2.0;
+					let panel_size_px_half =
+						vec2(self.size_px().x as f32, self.size_px().y as f32) / 2.0;
+
+					let pos_px =
+						cursor_pos - panel_size_px_half + geometry_size_half - geometry_origin;
+					let pos_m = pos_px * vec2(1.0, -1.0) / self.density;
+
+					Some(
+						SurfaceModel::new(
+							&item.shell,
+							SurfaceUpdateTarget::Cursor,
+							Resource::Namespaced {
+								namespace: Flatland::APP_ID.into(),
+								path: "panel".into(),
+							},
+							"Panel",
+						)
+						.pos([pos_m.x, pos_m.y, 0.001])
+						.scl([
+							cursor_geometry.size.x as f32 / self.density,
+							cursor_geometry.size.y as f32 / self.density,
+							panel_thickness,
+						])
+						.build(),
+					)
+				}),
+			),
+		)
 		// )
 	}
 }
