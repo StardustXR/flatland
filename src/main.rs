@@ -344,6 +344,7 @@ impl Reify for Flatland {
 				.on_release(|state: &mut Self, _pos| {
 					state.panel_item.take();
 				})
+				.head_offset([0.0, -0.02, 0.0])
 				.build()
 			}))
 			.maybe_child(self.panel_item.as_ref().map(|item| {
