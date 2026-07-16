@@ -1,6 +1,6 @@
 use binderbinder::binder_object::BinderObject;
 use close_button::ExposureButton;
-use glam::{Quat, vec2};
+use glam::{Quat, Vec3, vec2, vec3};
 use initial_panel_placement::InitialPanelPlacement;
 use pointer_input::PointerPlane;
 use resize_handles::ResizeHandles;
@@ -10,14 +10,14 @@ use stardust_xr_asteroids::{
 	Context, CustomElement, Element, Entity, FnWrapper, Migrate, Reify, Tasker, Transformable as _,
 	client::{ClientState, run},
 	components::{Derezzable, KeyboardHandler, MouseHandler},
-	elements::{Model, Spatial, Text},
+	elements::{Handle, Model, Spatial, Text},
 };
 use stardust_xr_fusion::{
 	drawable::{TextBounds, TextFit, XAlign, YAlign},
 	fields::Shape,
 	project_local_resources,
 	spatial::Transform,
-	types::{Posef, Resource, Size2, Timestamp, Vec2F},
+	types::{Posef, Resource, Size2, Timestamp, Vec2F, Vec3F},
 };
 use stardust_xr_panel_item::panel_item::{
 	ChildState as ChildInfo, Geometry, ModifierState, Rect, ScrollSource, SurfaceId,
@@ -172,6 +172,7 @@ pub struct ChildState {
 struct PanelItem {
 	pub shell: Shell,
 	pub item: stardust_xr_panel_item::panel_item::PanelItem,
+	release_pos_offset: Vec3,
 
 	pub parent: Option<u64>,
 	pub title: Option<String>,
@@ -333,6 +334,18 @@ impl Reify for Flatland {
 				})),
 			}
 			.build()
+			.maybe_child(self.panel_item.is_some().then(|| {
+				Handle::new([0.0, -self.size.y / 2.0, 0.0], |state: &mut Self, pos| {
+					let Some(item) = &mut state.panel_item else {
+						return;
+					};
+					item.release_pos_offset = Vec3::from(pos) - vec3(0.0, -state.size.y / 2.0, 0.0);
+				})
+				.on_release(|state: &mut Self, _pos| {
+					state.panel_item.take();
+				})
+				.build()
+			}))
 			.maybe_child(self.panel_item.as_ref().map(|item| {
 				let context = context.clone();
 				PanelShell::new(&item.shell, move |state: &mut Self| {
@@ -395,7 +408,7 @@ impl Reify for Flatland {
 					};
 					remove_child(&mut item.children, id);
 				})
-				.pos([0.0, -self.size.y / 2.0 - 0.02, 0.0])
+				.pos(vec3(0.0, -self.size.y / 2.0, 0.0) + Vec3::from(item.release_pos_offset))
 				.build()
 			}))
 			.child(
@@ -601,6 +614,7 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 		state.panel_item.replace(PanelItem {
 			item: shell.item().clone(),
 			shell,
+			release_pos_offset: [0.0, -0.02, 0.0].into(),
 			parent: None,
 			title: None,
 			app_id: None,
