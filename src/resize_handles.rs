@@ -443,14 +443,24 @@ impl ResizeHandlesInner {
 
 		let min_size = self.min_size.unwrap_or([0.0; 2].into());
 		let max_size = self.max_size.unwrap_or([4096.0; 2].into());
+		let (stage_to_parent_scale, stage_to_parent_rot, _) =
+			stage_to_parent.to_scale_rotation_translation();
 		let mut size = vec2(
-			(corner1.x - corner2.x).abs() - (RESIZE_HANDLE_FLOATING * 2.0),
-			corner1_2d.distance(corner2_2d) - (RESIZE_HANDLE_FLOATING * 2.0),
+			// for some reason this doesn't work with transforming the corners back into
+			// parent space?
+			((corner1.x - corner2.x) * stage_to_parent_scale.x).abs()
+				- (RESIZE_HANDLE_FLOATING * 2.0),
+			stage_to_parent
+				.transform_point3(corner1_2d.extend(0.0))
+				.zy()
+				.distance(
+					stage_to_parent
+						.transform_point3(corner2_2d.extend(0.0))
+						.zy(),
+				) - (RESIZE_HANDLE_FLOATING * 2.0),
 		);
 		size.x = size.x.max(min_size.x).min(max_size.x);
 		size.y = size.y.max(min_size.y).min(max_size.y);
-
-		let (_, stage_to_parent_rot, _) = stage_to_parent.to_scale_rotation_translation();
 
 		let pose = Posef {
 			position: stage_to_parent.transform_point3(center_point).into(),
