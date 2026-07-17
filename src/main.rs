@@ -17,7 +17,7 @@ use stardust_xr_fusion::{
 	fields::Shape,
 	project_local_resources,
 	spatial::Transform,
-	types::{Posef, Resource, Size2, Timestamp, Vec2F, Vec3F},
+	types::{Posef, Resource, Size2, Timestamp, Vec2F},
 };
 use stardust_xr_panel_item::panel_item::{
 	ChildState as ChildInfo, Geometry, ModifierState, Rect, ScrollSource, SurfaceId,
@@ -659,7 +659,7 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 				}
 			})
 			.on_motion(move |state, motion, timestamp| {
-				state.move_pointer(surface_id, motion, timestamp);
+				state.move_pointer(surface_id, [motion.x, -motion.y], timestamp);
 			})
 			.on_scroll_discrete_async({
 				let panel_item = panel_shell.as_ref().map(|v| v.item().clone());
