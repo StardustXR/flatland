@@ -38,6 +38,23 @@ async fn pos(
 		.translation
 		.into()
 }
+async fn mat(
+	client: &Client<impl ClientHandler>,
+	transform: &SpatialRef,
+	relative_to: &SpatialRef,
+) -> Mat4 {
+	let transform = client
+		.spatial_interface()
+		.get_relative_transform(relative_to.clone(), transform.clone())
+		.await
+		.unwrap()
+		.unwrap();
+	Mat4::from_scale_rotation_translation(
+		transform.scale.into(),
+		transform.rotation.into(),
+		transform.translation.into(),
+	)
+}
 
 pub struct ResizeHandle {
 	settings: GrabBallSettings,
@@ -249,7 +266,9 @@ pub struct ResizeHandlesInner {
 	parent: SpatialRef,
 
 	hmd_pos: watch::Receiver<Vec3>,
+	stage_transform: watch::Receiver<Mat4>,
 	_hmd_task: AbortHandle,
+	_stage_task: AbortHandle,
 	is_reparentable: bool,
 	change_tx: watch::Sender<(Posef, Vec2F)>,
 	change: watch::Receiver<(Posef, Vec2F)>,
@@ -283,13 +302,28 @@ impl ResizeHandlesInner {
 
 		let (change_tx, change) = watch::channel((initial_pose, initial_size));
 		let hmd = Tracked::hmd_spatial(client).await?;
+		let stage = Tracked::stage_spatial(client).await?;
 		let (hmd_tx, hmd_pos) = watch::channel(Vec3::ZERO);
 		let _hmd_task = {
 			let client = client.clone();
 			let hmd_parent = parent.clone();
 			tokio::spawn(async move {
+				// TODO: this is spamming the server with requests
 				loop {
 					let _ = hmd_tx.send(pos(&client, &hmd, &hmd_parent).await);
+				}
+			})
+			.abort_handle()
+		};
+		let (stage_tx, stage_transform) = watch::channel(Mat4::IDENTITY);
+		let _stage_task = {
+			let client = client.clone();
+			let parent = parent.clone();
+			tokio::spawn(async move {
+				// TODO: this is spamming the server with requests, and this probably never even
+				// changes
+				loop {
+					let _ = stage_tx.send(mat(&client, &stage, &parent).await);
 				}
 			})
 			.abort_handle()
@@ -326,6 +360,8 @@ impl ResizeHandlesInner {
 			change,
 			min_size,
 			max_size,
+			stage_transform,
+			_stage_task,
 		};
 		resize_handles.set_handle_positions(initial_size, initial_pose);
 		resize_handles.make_reparentable(client);
@@ -382,9 +418,11 @@ impl ResizeHandlesInner {
 		}
 	}
 	fn update_content_transform(&mut self) {
-		let hmd_pos = *self.hmd_pos.borrow();
-		let mut corner1 = self.bottom.last_pos;
-		let mut corner2 = self.top.last_pos;
+		let stage_to_parent = *self.stage_transform.borrow();
+		let parent_to_stage = stage_to_parent.inverse();
+		let hmd_pos = parent_to_stage.transform_point3(*self.hmd_pos.borrow());
+		let mut corner1 = parent_to_stage.transform_point3(self.bottom.last_pos);
+		let mut corner2 = parent_to_stage.transform_point3(self.top.last_pos);
 
 		let center_point = (corner1 + corner2) * 0.5;
 
@@ -412,9 +450,11 @@ impl ResizeHandlesInner {
 		size.x = size.x.max(min_size.x).min(max_size.x);
 		size.y = size.y.max(min_size.y).min(max_size.y);
 
+		let (_, stage_to_parent_rot, _) = stage_to_parent.to_scale_rotation_translation();
+
 		let pose = Posef {
-			position: center_point.into(),
-			orientation: (y_rotation * x_rotation).into(),
+			position: stage_to_parent.transform_point3(center_point).into(),
+			orientation: (stage_to_parent_rot * (y_rotation * x_rotation)).into(),
 		};
 		let _ = self.change_tx.send((pose, size.into()));
 	}
@@ -588,4 +628,10 @@ async fn test_resize_handles() {
 	client::run::<State>(&[&stardust_xr_asteroids::project_local_resources!("data")])
 		.await
 		.unwrap();
+}
+impl Drop for ResizeHandlesInner {
+	fn drop(&mut self) {
+		self._hmd_task.abort();
+		self._stage_task.abort();
+	}
 }
