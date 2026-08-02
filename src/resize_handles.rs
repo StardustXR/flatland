@@ -19,8 +19,11 @@ use stardust_xr_molecules::{
 	input_action::{InputQueue, SingleAction},
 	reparentable::Reparentable,
 };
-use std::{f32::consts::FRAC_PI_2, sync::Arc};
-use tokio::{sync::watch, task::AbortHandle};
+use std::{f32::consts::FRAC_PI_2, sync::Arc, time::Duration};
+use tokio::{
+	sync::{Notify, watch},
+	task::AbortHandle,
+};
 
 const RESIZE_HANDLE_FLOATING: f32 = 0.025;
 
@@ -61,7 +64,6 @@ pub struct ResizeHandle {
 	_model: Model,
 	sphere: ModelPart,
 	model_spatial: Spatial,
-	model_spatial_ref: SpatialRef,
 	_field: Field,
 	_input_spatial: Spatial,
 	input_spatial_ref: SpatialRef,
@@ -78,8 +80,7 @@ impl ResizeHandle {
 		input_reference: &SpatialRef,
 		settings: GrabBallSettings,
 	) -> stardust_xr_fusion::Result<Self> {
-		let (model_spatial, model_spatial_ref) =
-			Spatial::new(client, initial_parent, Transform::IDENTITY).await?;
+		let (model_spatial, _) = Spatial::new(client, initial_parent, Transform::IDENTITY).await?;
 		let model = Model::new(
 			client,
 			&model_spatial,
@@ -119,7 +120,6 @@ impl ResizeHandle {
 			_model: model,
 			sphere,
 			model_spatial,
-			model_spatial_ref,
 			_field: field,
 			_input_spatial: input_spatial,
 			input_spatial_ref,
@@ -267,6 +267,7 @@ pub struct ResizeHandlesInner {
 
 	hmd_pos: watch::Receiver<Vec3>,
 	stage_transform: watch::Receiver<Mat4>,
+	frame_tick: Arc<Notify>,
 	_hmd_task: AbortHandle,
 	_stage_task: AbortHandle,
 	is_reparentable: bool,
@@ -304,12 +305,18 @@ impl ResizeHandlesInner {
 		let hmd = Tracked::hmd_spatial(client).await?;
 		let stage = Tracked::stage_spatial(client).await?;
 		let (hmd_tx, hmd_pos) = watch::channel(Vec3::ZERO);
+		let frame_tick = Arc::new(Notify::new());
 		let _hmd_task = {
 			let client = client.clone();
 			let hmd_parent = parent.clone();
+			let frame_tick = frame_tick.clone();
 			tokio::spawn(async move {
-				// TODO: this is spamming the server with requests
+				// driven by the client's actual frame events rather than a fixed-rate
+				// timer, since display refresh rate varies; also keeps this from
+				// flooding the connection with requests (it used to send them as fast
+				// as possible)
 				loop {
+					frame_tick.notified().await;
 					let _ = hmd_tx.send(pos(&client, &hmd, &hmd_parent).await);
 				}
 			})
@@ -320,9 +327,11 @@ impl ResizeHandlesInner {
 			let client = client.clone();
 			let parent = parent.clone();
 			tokio::spawn(async move {
-				// TODO: this is spamming the server with requests, and this probably never even
-				// changes
+				// this practically never changes, so poll it infrequently rather than
+				// flooding the connection with requests
+				let mut ticker = tokio::time::interval(Duration::from_millis(250));
 				loop {
+					ticker.tick().await;
 					let _ = stage_tx.send(mat(&client, &stage, &parent).await);
 				}
 			})
@@ -354,6 +363,7 @@ impl ResizeHandlesInner {
 
 			parent,
 			hmd_pos,
+			frame_tick,
 			_hmd_task,
 			is_reparentable: reparentable,
 			change_tx,
@@ -552,6 +562,7 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 	}
 
 	fn frame(&self, ctx: &Context, _info: &FrameInfo, state: &mut State, inner: &mut Self::Inner) {
+		inner.frame_tick.notify_one();
 		inner.handle_events(&ctx.stardust_client);
 
 		if inner.change.has_changed().is_ok_and(|t| t) {

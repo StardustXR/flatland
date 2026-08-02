@@ -1823,7 +1823,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/molecules?branch=binder#29c94bf97f47a8dd43f5d39ede297623b962281e"
+source = "git+https://github.com/StardustXR/molecules?branch=binder#83cae5acd391712d7b69f6fc4dfa5901b6f482c3"
 dependencies = [
  "futures",
  "glam 0.29.3",
@@ -1844,7 +1844,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules-protocols"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/molecules?branch=binder#29c94bf97f47a8dd43f5d39ede297623b962281e"
+source = "git+https://github.com/StardustXR/molecules?branch=binder#83cae5acd391712d7b69f6fc4dfa5901b6f482c3"
 dependencies = [
  "gluon",
  "gluon-codegen",
