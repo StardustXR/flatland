@@ -1,6 +1,5 @@
 use derive_setters::Setters;
 use glam::{Mat4, Vec2, Vec3, vec2, vec3};
-use serde::Deserialize;
 use stardust_xr_asteroids::{
 	Context, CreateInnerInfo, CustomElement, FnWrapper, Transformable, ValidState,
 };
@@ -24,7 +23,7 @@ use std::{
 	time::{Duration, Instant},
 };
 
-#[derive(Debug, Default, Clone, Deserialize)]
+#[derive(Debug, Default, Clone)]
 pub struct MouseEvent {
 	pub scroll_continuous: Option<Vec2F>,
 	pub scroll_discrete: Option<Vec2F>,
@@ -105,7 +104,7 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 			},
 		)
 		.await?;
-		info.child_space.set_local_transform(self.transform)?;
+		info.child_space.set_local_transform(self.transform).await?;
 
 		let input = InputQueue::new(
 			&ctx.stardust_client,
@@ -363,11 +362,6 @@ impl PointerSurfaceInputInner {
 			},
 		);
 
-		#[derive(Deserialize, Default)]
-		struct ScrollInput {
-			scroll: Option<Vec2F>,
-		}
-
 		let scroll = get_v("scroll");
 		(decl.on_scroll.0)(
 			state,
@@ -385,7 +379,7 @@ impl PointerSurfaceInputInner {
 		let mut lines = self.hover_lines();
 		lines.extend(self.debug_lines());
 
-		self.lines.set_lines(lines).unwrap();
+		self.lines.set_lines_event(lines).unwrap();
 	}
 
 	fn debug_lines(&mut self) -> Vec<Line> {

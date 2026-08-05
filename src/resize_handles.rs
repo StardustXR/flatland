@@ -516,6 +516,7 @@ pub struct ResizeHandles<State: ValidState> {
 	pub max_size: Option<Vec2F>,
 	pub on_change: FnWrapper<dyn Fn(&mut State, Posef, Vec2F) + Send + Sync>,
 }
+// TODO: replace some oneway method calls with _event variants
 impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 	type Inner = ResizeHandlesInner;
 	type Error = Error;
@@ -536,7 +537,7 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 			self.max_size,
 		)
 		.await?;
-		info.child_space.set_parent(v.content_parent_ref.clone())?;
+		info.child_space.set_parent(v.content_parent_ref.clone()).await?;
 
 		Ok(v)
 	}

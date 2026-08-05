@@ -38,7 +38,7 @@ impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 		ctx: &Context,
 		info: CreateInnerInfo,
 	) -> Result<Self::Inner, Self::Error> {
-		info.child_space.set_local_transform(self.transform)?;
+		info.child_space.set_local_transform(self.transform).await?;
 		ExposureButtonInner::new(&ctx.stardust_client, info.child_space, self.thickness).await
 	}
 
@@ -133,7 +133,7 @@ impl ExposureButtonInner {
 		field_spatial.set_relative_transform(
 			shell_spatial_ref.clone(),
 			PartialTransform::from_translation_rotation(Vec3::ZERO, Quat::IDENTITY),
-		)?;
+		).await?;
 
 		let input = InputQueue::new(
 			client,

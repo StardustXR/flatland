@@ -281,7 +281,7 @@ impl TouchSurfaceInputInner {
 			lines.push(self.line_from_input(input));
 		}
 
-		self.lines.set_lines(lines).unwrap();
+		self.lines.set_lines_event(lines).unwrap();
 	}
 
 	fn debug_lines(&self) -> Vec<Line> {
