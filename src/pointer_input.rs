@@ -104,7 +104,7 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 			},
 		)
 		.await?;
-		info.child_space.set_local_transform(self.transform).await?;
+		info.child_space.set_local_transform(self.transform)?;
 
 		let input = InputQueue::new(
 			&ctx.stardust_client,
@@ -379,7 +379,7 @@ impl PointerSurfaceInputInner {
 		let mut lines = self.hover_lines();
 		lines.extend(self.debug_lines());
 
-		self.lines.set_lines_event(lines).unwrap();
+		self.lines.set_lines(lines).unwrap();
 	}
 
 	fn debug_lines(&mut self) -> Vec<Line> {

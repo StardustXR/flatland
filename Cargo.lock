@@ -208,21 +208,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
-name = "binderbinder"
-version = "0.1.0"
-source = "git+https://github.com/Technobaboo/binderbinder#9615b9853227406f463f47e5ff8d3bc853cbb5cb"
-dependencies = [
- "bitflags",
- "dashmap",
- "rustix",
- "thiserror",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "bitflags"
 version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -645,11 +630,11 @@ checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 name = "flatland"
 version = "0.51.0"
 dependencies = [
- "binderbinder",
  "colorgrad",
  "derive-where",
  "derive_setters",
  "glam 0.28.0",
+ "gluon",
  "input-event-codes",
  "rustc-hash 1.1.0",
  "serde",
@@ -851,12 +836,12 @@ dependencies = [
 [[package]]
 name = "gluon"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#ed14119b10ddfca6b42faf89d2f8dd8212df3603"
+source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#44b59852e66e65eea6945d7f82a85d8db39600e5"
 dependencies = [
- "binderbinder",
  "bitflags",
  "gluon-derive",
  "rustix",
+ "strong-ipc",
  "thiserror",
  "tokio",
 ]
@@ -864,7 +849,7 @@ dependencies = [
 [[package]]
 name = "gluon-codegen"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#ed14119b10ddfca6b42faf89d2f8dd8212df3603"
+source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#44b59852e66e65eea6945d7f82a85d8db39600e5"
 dependencies = [
  "convert_case",
  "gluon",
@@ -878,7 +863,7 @@ dependencies = [
 [[package]]
 name = "gluon-derive"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#ed14119b10ddfca6b42faf89d2f8dd8212df3603"
+source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#44b59852e66e65eea6945d7f82a85d8db39600e5"
 dependencies = [
  "quote",
  "syn",
@@ -887,7 +872,7 @@ dependencies = [
 [[package]]
 name = "gluon-parser"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#ed14119b10ddfca6b42faf89d2f8dd8212df3603"
+source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#44b59852e66e65eea6945d7f82a85d8db39600e5"
 dependencies = [
  "ansi_term",
  "chumsky",
@@ -1355,19 +1340,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
-name = "pion-binder"
-version = "0.1.0"
-source = "git+https://github.com/Technobaboo/pion#c11a613d26a493e0da8a1e82ea4c06c350a10a59"
-dependencies = [
- "async-trait",
- "binderbinder",
- "dashmap",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "piper"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1748,9 +1720,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.15.1"
+version = "1.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
+checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
 name = "socket2"
@@ -1778,7 +1750,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids?branch=binder#0a57d3b0c203a283fdd7aa489ebe812bc385b766"
+source = "git+https://github.com/StardustXR/asteroids?branch=refactor%2Fstrongipc#16d5bf860906ccbd0c8416520143d0ac52efaeb8"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -1806,12 +1778,11 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core?branch=binder#55016584f03b8a2eea20df9cc569cea664a85696"
+source = "git+https://github.com/StardustXR/core?branch=refactor%2Fstrongipc#a0b089e6473172789130ae8124d251c385465225"
 dependencies = [
  "glam 0.30.10",
  "gluon",
  "parking_lot",
- "pion-binder",
  "rustix",
  "stardust-xr-protocol",
  "thiserror",
@@ -1823,14 +1794,13 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/molecules?branch=binder#0806a15d34697bd582d5d8a0bd605941ab69e672"
+source = "git+https://github.com/StardustXR/molecules?branch=refactor%2Fstrongipc#239f75e99ccc0adf0a64d7f4b665060614f71619"
 dependencies = [
  "futures",
  "glam 0.29.3",
  "gluon",
  "lazy_static",
  "lerp",
- "pion-binder",
  "rustc-hash 2.1.2",
  "serde",
  "shiva-color-rs",
@@ -1845,7 +1815,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules-protocols"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/molecules?branch=binder#0806a15d34697bd582d5d8a0bd605941ab69e672"
+source = "git+https://github.com/StardustXR/molecules?branch=refactor%2Fstrongipc#239f75e99ccc0adf0a64d7f4b665060614f71619"
 dependencies = [
  "gluon",
  "gluon-codegen",
@@ -1856,9 +1826,8 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#edeab9595c2503ca97d13b2f92ddb40579c3ab02"
+source = "git+https://github.com/StardustXR/panel-item?branch=refactor%2Fstrongipc#0a8b857eb40a0bec9071c58e09252e3accfd123e"
 dependencies = [
- "binderbinder",
  "gluon",
  "gluon-codegen",
  "gluon-parser",
@@ -1874,14 +1843,12 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item-asteroids"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=binder-core#edeab9595c2503ca97d13b2f92ddb40579c3ab02"
+source = "git+https://github.com/StardustXR/panel-item?branch=refactor%2Fstrongipc#0a8b857eb40a0bec9071c58e09252e3accfd123e"
 dependencies = [
- "binderbinder",
  "derive-where",
  "directories",
  "gluon",
  "mint",
- "pion-binder",
  "rustc-hash 2.1.2",
  "stardust-xr-asteroids",
  "stardust-xr-fusion",
@@ -1893,7 +1860,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-protocol"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core?branch=binder#55016584f03b8a2eea20df9cc569cea664a85696"
+source = "git+https://github.com/StardustXR/core?branch=refactor%2Fstrongipc#a0b089e6473172789130ae8124d251c385465225"
 dependencies = [
  "fnv",
  "glam 0.29.3",
@@ -1916,6 +1883,18 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "strong-ipc"
+version = "0.1.0"
+source = "git+https://github.com/technobaboo/strong-ipc#8e49d35b1625e35db0769635a2d14bf1a6e9741a"
+dependencies = [
+ "dashmap",
+ "rustix",
+ "smallvec",
+ "tokio",
+ "tokio-util",
+]
 
 [[package]]
 name = "strsim"
@@ -2006,9 +1985,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.52.3"
+version = "1.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fc7f01b389ac15039e4dc9531aa973a135d7a4135281b12d7c1bc79fd57fffe"
+checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
 dependencies = [
  "bytes",
  "libc",
@@ -2046,13 +2025,14 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.18"
+version = "0.7.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ae9cec805b01e8fc3fd2fe289f89149a9b66dd16786abd8b19cfa7b48cb0098"
+checksum = "494815d09bf52b5548659851081238f0ca39ff638363907596da739561c62c52"
 dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
+ "futures-util",
  "pin-project-lite",
  "tokio",
 ]

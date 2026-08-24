@@ -59,9 +59,9 @@ impl<H: GrabBallHead> GrabBall<H> {
 	) -> Result<Self, Error> {
 		let connect_root_ref = connect_root.spatial_ref().await?;
 		let offset = Vec3::from(offset.into());
-		head.root().set_parent(connect_root_ref.clone()).await?;
+		head.root().set_parent(connect_root_ref.clone())?;
 		head.root()
-			.set_local_transform(Transform::from_translation(offset)).await?;
+			.set_local_transform(Transform::from_translation(offset))?;
 
 		let connector = Lines::new(client, &connect_root, Vec::new()).await?;
 		let (field, _) = Field::new(

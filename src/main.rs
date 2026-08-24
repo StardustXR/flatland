@@ -1,6 +1,6 @@
-use binderbinder::binder_object::BinderObject;
 use close_button::ExposureButton;
 use glam::{Quat, Vec3, vec2, vec3};
+use gluon::Node;
 use initial_panel_placement::InitialPanelPlacement;
 use pointer_input::PointerPlane;
 use resize_handles::ResizeHandles;
@@ -187,7 +187,7 @@ struct PanelItem {
 	children: Vec<ChildState>,
 }
 
-type Shell = BinderObject<PanelShellHandler>;
+type Shell = Node<PanelShellHandler>;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Flatland {
 	/// meters
@@ -409,7 +409,7 @@ impl Reify for Flatland {
 					};
 					remove_child(&mut item.children, id);
 				})
-				.pos(vec3(0.0, -self.size.y / 2.0, 0.0) + Vec3::from(item.release_pos_offset))
+				.pos(vec3(0.0, -self.size.y / 2.0, 0.0) + item.release_pos_offset)
 				.build()
 			}))
 			.child(

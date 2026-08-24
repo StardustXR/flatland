@@ -1,7 +1,7 @@
 use glam::{Quat, Vec3, vec3};
 use stardust_xr_asteroids::{Context, CreateInnerInfo, CustomElement, ValidState};
 use stardust_xr_fusion::{
-	Error,
+	Error, Result,
 	client::{Client, ClientHandler},
 	spatial::{Spatial, SpatialRefOpError, Transform},
 	tracked::{Tracked, TrackedExt},
@@ -19,9 +19,8 @@ fn look_direction(direction: Vec3) -> Quat {
 async fn initial_placement(
 	client: &Client<impl ClientHandler>,
 	spatial_root: Spatial,
-) -> stardust_xr_fusion::Result<()> {
-	client.pion_device();
-	let hmd = Tracked::hmd_spatial(client).await?;
+) -> Result<()> {
+	let hmd = Tracked::hmd_spatial().await?;
 	let root = client.root();
 
 	let Transform {
@@ -66,11 +65,7 @@ impl<State: ValidState> CustomElement<State> for InitialPanelPlacement {
 	type Inner = ();
 	type Error = Error;
 
-	async fn create_inner(
-		&self,
-		ctx: &Context,
-		info: CreateInnerInfo,
-	) -> Result<Self::Inner, Self::Error> {
+	async fn create_inner(&self, ctx: &Context, info: CreateInnerInfo) -> Result<Self::Inner> {
 		initial_placement(&ctx.stardust_client, info.child_space).await
 	}
 

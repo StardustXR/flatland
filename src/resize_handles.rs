@@ -302,8 +302,8 @@ impl ResizeHandlesInner {
 		let top = ResizeHandle::new(client, &content_parent_ref, &parent, settings.clone()).await?;
 
 		let (change_tx, change) = watch::channel((initial_pose, initial_size));
-		let hmd = Tracked::hmd_spatial(client).await?;
-		let stage = Tracked::stage_spatial(client).await?;
+		let hmd = Tracked::hmd_spatial().await?;
+		let stage = Tracked::stage_spatial().await?;
 		let (hmd_tx, hmd_pos) = watch::channel(Vec3::ZERO);
 		let frame_tick = Arc::new(Notify::new());
 		let _hmd_task = {
@@ -350,7 +350,7 @@ impl ResizeHandlesInner {
 			rotation: initial_pose.orientation,
 			scale: [1.0; 3].into(),
 		});
-		let stage = Tracked::stage_spatial(client).await?;
+		let stage = Tracked::stage_spatial().await?;
 
 		let mut resize_handles = ResizeHandlesInner {
 			client_root: stage,
@@ -537,7 +537,7 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 			self.max_size,
 		)
 		.await?;
-		info.child_space.set_parent(v.content_parent_ref.clone()).await?;
+		info.child_space.set_parent(v.content_parent_ref.clone())?;
 
 		Ok(v)
 	}
