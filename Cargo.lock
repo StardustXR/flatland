@@ -1865,7 +1865,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids?branch=refactor%2Fstrongipc#16d5bf860906ccbd0c8416520143d0ac52efaeb8"
+source = "git+https://github.com/StardustXR/asteroids?branch=refactor%2Fstrongipc#bb32ec42ee4843ec22e32606abbce8ed4ea453cf"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -1893,7 +1893,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core?branch=refactor%2Fstrongipc#a0b089e6473172789130ae8124d251c385465225"
+source = "git+https://github.com/StardustXR/core?branch=refactor%2Fstrongipc#68ea50297537707e8367c7d23ac7524355bd82a5"
 dependencies = [
  "glam 0.30.10",
  "gluon",
@@ -1909,7 +1909,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/molecules?branch=refactor%2Fstrongipc#239f75e99ccc0adf0a64d7f4b665060614f71619"
+source = "git+https://github.com/StardustXR/molecules?branch=refactor%2Fstrongipc#a4f1b8d46142130c555c662c12c7556da7862ee1"
 dependencies = [
  "futures",
  "glam 0.29.3",
@@ -1930,7 +1930,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules-protocols"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/molecules?branch=refactor%2Fstrongipc#239f75e99ccc0adf0a64d7f4b665060614f71619"
+source = "git+https://github.com/StardustXR/molecules?branch=refactor%2Fstrongipc#a4f1b8d46142130c555c662c12c7556da7862ee1"
 dependencies = [
  "gluon",
  "gluon-codegen",
@@ -1941,7 +1941,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=refactor%2Fstrongipc#30b3f126cfa07afd25668b216608b3aede7bd931"
+source = "git+https://github.com/StardustXR/panel-item?branch=refactor%2Fstrongipc#890867e975cc60304b66abfd92104d38a383b7e6"
 dependencies = [
  "gluon",
  "gluon-codegen",
@@ -1958,7 +1958,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item-asteroids"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=refactor%2Fstrongipc#30b3f126cfa07afd25668b216608b3aede7bd931"
+source = "git+https://github.com/StardustXR/panel-item?branch=refactor%2Fstrongipc#890867e975cc60304b66abfd92104d38a383b7e6"
 dependencies = [
  "derive-where",
  "directories",
@@ -1975,7 +1975,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-protocol"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core?branch=refactor%2Fstrongipc#a0b089e6473172789130ae8124d251c385465225"
+source = "git+https://github.com/StardustXR/core?branch=refactor%2Fstrongipc#68ea50297537707e8367c7d23ac7524355bd82a5"
 dependencies = [
  "fnv",
  "glam 0.29.3",
