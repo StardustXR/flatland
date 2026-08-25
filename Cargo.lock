@@ -1826,7 +1826,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=refactor%2Fstrongipc#0a8b857eb40a0bec9071c58e09252e3accfd123e"
+source = "git+https://github.com/StardustXR/panel-item?branch=refactor%2Fstrongipc#30b3f126cfa07afd25668b216608b3aede7bd931"
 dependencies = [
  "gluon",
  "gluon-codegen",
@@ -1843,7 +1843,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panel-item-asteroids"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/panel-item?branch=refactor%2Fstrongipc#0a8b857eb40a0bec9071c58e09252e3accfd123e"
+source = "git+https://github.com/StardustXR/panel-item?branch=refactor%2Fstrongipc#30b3f126cfa07afd25668b216608b3aede7bd931"
 dependencies = [
  "derive-where",
  "directories",
