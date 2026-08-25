@@ -147,6 +147,21 @@ impl Migrate for Flatland {
 }
 impl ClientState for Flatland {
 	const APP_ID: &'static str = "org.stardustxr.Flatland";
+
+	fn initial_state_update(&mut self) {
+		use clap::Parser;
+
+		/// Flat slab panel shell to place in the environment with basic operation
+		#[derive(clap::Parser)]
+		#[command(version, about, long_about = None)]
+		struct Args {
+			#[arg(short, long, default_value_t = false)]
+			derez_with_item: bool,
+		}
+
+		let args = Args::parse();
+		self.derez_with_item = args.derez_with_item;
+	}
 }
 impl Default for Flatland {
 	fn default() -> Self {
@@ -157,7 +172,8 @@ impl Default for Flatland {
 			panel_item: None,
 			density: 3000.0,
 			mouse_scroll_multiplier: 1.0,
-			exit_on_disconnect: false,
+			derez_with_item: false,
+			derez_with_item_temp: false,
 		}
 	}
 }
@@ -193,8 +209,9 @@ pub struct Flatland {
 	/// meters
 	size: Vec2F,
 	pose: Posef,
+	derez_with_item: bool,
 	#[serde(skip)]
-	exit_on_disconnect: bool,
+	derez_with_item_temp: bool,
 
 	#[serde(skip)]
 	panel_item: Option<PanelItem>,
@@ -351,7 +368,7 @@ impl Reify for Flatland {
 				let context = context.clone();
 				PanelShell::new(&item.shell, move |state: &mut Self| {
 					_ = state.panel_item.take();
-					if state.exit_on_disconnect {
+					if state.derez_with_item || state.derez_with_item_temp {
 						context.stop();
 					}
 				})
@@ -605,7 +622,7 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 			.extend(thickness * (z_offset as f32)),
 	)
 	.component(Derezzable::<Flatland>::new(|state| {
-		state.exit_on_disconnect = true;
+		state.derez_with_item_temp = true;
 		if let Some(item) = &state.panel_item {
 			_ = item.item.close_toplevel();
 		}
