@@ -933,7 +933,7 @@ dependencies = [
 [[package]]
 name = "gluon"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#44b59852e66e65eea6945d7f82a85d8db39600e5"
+source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#b950c3bcf7b92d70c36647752d678018d0e6ef3d"
 dependencies = [
  "bitflags",
  "gluon-derive",
@@ -946,7 +946,7 @@ dependencies = [
 [[package]]
 name = "gluon-codegen"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#44b59852e66e65eea6945d7f82a85d8db39600e5"
+source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#b950c3bcf7b92d70c36647752d678018d0e6ef3d"
 dependencies = [
  "convert_case",
  "gluon",
@@ -960,7 +960,7 @@ dependencies = [
 [[package]]
 name = "gluon-derive"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#44b59852e66e65eea6945d7f82a85d8db39600e5"
+source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#b950c3bcf7b92d70c36647752d678018d0e6ef3d"
 dependencies = [
  "quote",
  "syn 2.0.117",
@@ -969,7 +969,7 @@ dependencies = [
 [[package]]
 name = "gluon-parser"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#44b59852e66e65eea6945d7f82a85d8db39600e5"
+source = "git+https://github.com/technobaboo/gluon?branch=refactor%2Fstrongipc#b950c3bcf7b92d70c36647752d678018d0e6ef3d"
 dependencies = [
  "ansi_term",
  "chumsky",
@@ -2002,7 +2002,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "strong-ipc"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/strong-ipc#8e49d35b1625e35db0769635a2d14bf1a6e9741a"
+source = "git+https://github.com/technobaboo/strong-ipc#4dddd5ede29f02352bc101645c55708862b1d9f4"
 dependencies = [
  "dashmap",
  "rustix",
