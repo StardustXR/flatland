@@ -1532,7 +1532,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids?branch=refactor%2Fstrongipc#96d32699a348af712a30fbd2957fbec283c93136"
+source = "git+https://github.com/StardustXR/asteroids?branch=refactor%2Fstrongipc#b965367e9fc5c7c033712c578348985c1fd55bfd"
 dependencies = [
  "bumpalo",
  "derive-where",

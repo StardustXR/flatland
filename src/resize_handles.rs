@@ -3,13 +3,14 @@ use derive_setters::Setters;
 use glam::{Mat4, Quat, Vec3, Vec3Swizzles, vec2, vec3};
 use stardust_xr_asteroids::{
 	ClientState, Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState,
-	components::innermost_container,
+	components::{TransformableInner, innermost_container},
 };
 use stardust_xr_fusion::{
 	Error,
 	client::{Client, ClientHandler, FrameInfo},
 	drawable::{MaterialParameter, Model, ModelExt as _, ModelPart},
 	fields::{Field, FieldExt as _, Shape},
+	query::{QueryableExt as _, QueryableObject},
 	spatial::{PartialTransform, Spatial, SpatialExt as _, SpatialRef, Transform},
 	suis::InputDataType,
 	tracked::{Tracked, TrackedExt},
@@ -264,6 +265,9 @@ pub struct ResizeHandlesInner {
 	bottom: ResizeHandle,
 	top: ResizeHandle,
 	containable: Arc<Containable>,
+	field: Field,
+	_queryable: QueryableObject,
+	transformable: TransformableInner,
 
 	hmd_pos: watch::Receiver<Vec3>,
 	stage_transform: watch::Receiver<Mat4>,
@@ -297,6 +301,14 @@ impl ResizeHandlesInner {
 		let (anchor, anchor_ref) = Spatial::new(client, &parent, Transform::IDENTITY).await?;
 		let (content_parent, content_parent_ref) =
 			Spatial::new(client, &anchor_ref, Transform::IDENTITY).await?;
+		let (field, _) = Field::new(
+			client,
+			&content_parent,
+			Shape::Box {
+				size: [initial_size.x, initial_size.y, 0.01].into(),
+			},
+		)
+		.await?;
 		let bottom =
 			ResizeHandle::new(client, &content_parent_ref, &anchor_ref, settings.clone()).await?;
 		let top =
@@ -355,6 +367,10 @@ impl ResizeHandlesInner {
 		.await?;
 		containable.set_auto_reparent(false);
 
+		let queryable = QueryableObject::new(client, content_parent.clone(), field.clone()).await?;
+		let mut transformable = TransformableInner::new(client, content_parent.clone(), anchor_ref);
+		transformable.poseable(&queryable).await?;
+
 		let mut resize_handles = ResizeHandlesInner {
 			client_root: stage,
 			_anchor: anchor,
@@ -363,6 +379,9 @@ impl ResizeHandlesInner {
 			bottom,
 			top,
 			containable: Arc::new(containable),
+			field,
+			_queryable: queryable,
+			transformable,
 
 			hmd_pos,
 			frame_tick,
@@ -404,6 +423,20 @@ impl ResizeHandlesInner {
 				.set_parent_in_place(self.content_parent_ref.clone());
 			let containable = self.containable.clone();
 			tokio::spawn(async move { containable.reparent().await });
+		}
+
+		// a resize owns the pose while it lasts, so anything that came in meanwhile is dropped
+		let grabbing =
+			self.top.grab_action.actor_acting() || self.bottom.grab_action.actor_acting();
+		if let Some(transform) = self.transformable.take_pending().filter(|_| !grabbing) {
+			let size = self.change_tx.borrow().1;
+			let _ = self.change_tx.send((
+				Posef {
+					position: transform.translation,
+					orientation: transform.rotation,
+				},
+				size,
+			));
 		}
 	}
 	fn update_content_transform(&mut self) {
@@ -532,6 +565,11 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 			});
 		}
 		inner.set_handle_positions(self.size, self.pose);
+		if self.size != old.size {
+			_ = inner.field.set_shape(Shape::Box {
+				size: [self.size.x, self.size.y, 0.01].into(),
+			});
+		}
 	}
 
 	fn frame(&self, _ctx: &Context, _info: &FrameInfo, state: &mut State, inner: &mut Self::Inner) {
@@ -541,6 +579,9 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 		if inner.change.has_changed().is_ok_and(|t| t) {
 			let (pose, size) = *inner.change.borrow_and_update();
 			(self.on_change.0)(state, pose, size);
+			_ = inner.field.set_shape(Shape::Box {
+				size: [size.x, size.y, 0.01].into(),
+			});
 		}
 	}
 }
