@@ -3,6 +3,7 @@ use derive_setters::Setters;
 use glam::{Mat4, Quat, Vec3, Vec3Swizzles, vec2, vec3};
 use stardust_xr_asteroids::{
 	ClientState, Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState,
+	components::innermost_container,
 };
 use stardust_xr_fusion::{
 	Error,
@@ -16,8 +17,8 @@ use stardust_xr_fusion::{
 };
 use stardust_xr_molecules::{
 	UIElement,
+	container::Containable,
 	input_action::{InputQueue, SingleAction},
-	reparentable::Reparentable,
 };
 use std::{f32::consts::FRAC_PI_2, sync::Arc, time::Duration};
 use tokio::{
@@ -257,31 +258,27 @@ impl ResizeHandle {
 
 pub struct ResizeHandlesInner {
 	client_root: SpatialRef,
+	_anchor: Spatial,
 	content_parent: Spatial,
 	content_parent_ref: SpatialRef,
 	bottom: ResizeHandle,
 	top: ResizeHandle,
-	reparentable: watch::Sender<Option<Reparentable>>,
-	reparentable_field: Field,
-	parent: SpatialRef,
+	containable: Arc<Containable>,
 
 	hmd_pos: watch::Receiver<Vec3>,
 	stage_transform: watch::Receiver<Mat4>,
 	frame_tick: Arc<Notify>,
 	_hmd_task: AbortHandle,
 	_stage_task: AbortHandle,
-	is_reparentable: bool,
 	change_tx: watch::Sender<(Posef, Vec2F)>,
 	change: watch::Receiver<(Posef, Vec2F)>,
 	pub min_size: Option<Vec2F>,
 	pub max_size: Option<Vec2F>,
 }
 impl ResizeHandlesInner {
-	#[allow(clippy::too_many_arguments)]
 	pub async fn new(
 		client: &Arc<Client<impl ClientHandler>>,
 		parent: SpatialRef,
-		reparentable: bool,
 		accent_color: Color,
 		initial_pose: Posef,
 		initial_size: Vec2F,
@@ -295,11 +292,15 @@ impl ResizeHandlesInner {
 			connector_color: accent_color,
 		};
 
+		// a Containable reparents the anchor, never the content parent, so the pose stays
+		// local to the same space across a containment
+		let (anchor, anchor_ref) = Spatial::new(client, &parent, Transform::IDENTITY).await?;
 		let (content_parent, content_parent_ref) =
-			Spatial::new(client, &parent, Transform::IDENTITY).await?;
+			Spatial::new(client, &anchor_ref, Transform::IDENTITY).await?;
 		let bottom =
-			ResizeHandle::new(client, &content_parent_ref, &parent, settings.clone()).await?;
-		let top = ResizeHandle::new(client, &content_parent_ref, &parent, settings.clone()).await?;
+			ResizeHandle::new(client, &content_parent_ref, &anchor_ref, settings.clone()).await?;
+		let top =
+			ResizeHandle::new(client, &content_parent_ref, &anchor_ref, settings.clone()).await?;
 
 		let (change_tx, change) = watch::channel((initial_pose, initial_size));
 		let hmd = Tracked::hmd_spatial().await?;
@@ -308,7 +309,7 @@ impl ResizeHandlesInner {
 		let frame_tick = Arc::new(Notify::new());
 		let _hmd_task = {
 			let client = client.clone();
-			let hmd_parent = parent.clone();
+			let hmd_parent = anchor_ref.clone();
 			let frame_tick = frame_tick.clone();
 			tokio::spawn(async move {
 				// driven by the client's actual frame events rather than a fixed-rate
@@ -325,26 +326,18 @@ impl ResizeHandlesInner {
 		let (stage_tx, stage_transform) = watch::channel(Mat4::IDENTITY);
 		let _stage_task = {
 			let client = client.clone();
-			let parent = parent.clone();
+			let anchor_ref = anchor_ref.clone();
 			tokio::spawn(async move {
 				// this practically never changes, so poll it infrequently rather than
 				// flooding the connection with requests
 				let mut ticker = tokio::time::interval(Duration::from_millis(250));
 				loop {
 					ticker.tick().await;
-					let _ = stage_tx.send(mat(&client, &stage, &parent).await);
+					let _ = stage_tx.send(mat(&client, &stage, &anchor_ref).await);
 				}
 			})
 			.abort_handle()
 		};
-		let (reparentable_field, _) = Field::new(
-			client,
-			&content_parent,
-			Shape::Box {
-				size: [initial_size.x, initial_size.y, 0.01].into(),
-			},
-		)
-		.await?;
 		let _ = content_parent.set_local_transform(Transform {
 			translation: initial_pose.position,
 			rotation: initial_pose.orientation,
@@ -352,20 +345,28 @@ impl ResizeHandlesInner {
 		});
 		let stage = Tracked::stage_spatial().await?;
 
+		let containable = Containable::new(
+			client,
+			anchor.clone(),
+			parent,
+			content_parent_ref.clone(),
+			innermost_container,
+		)
+		.await?;
+		containable.set_auto_reparent(false);
+
 		let mut resize_handles = ResizeHandlesInner {
 			client_root: stage,
+			_anchor: anchor,
 			content_parent,
 			content_parent_ref,
 			bottom,
 			top,
-			reparentable: watch::channel(None).0,
-			reparentable_field,
+			containable: Arc::new(containable),
 
-			parent,
 			hmd_pos,
 			frame_tick,
 			_hmd_task,
-			is_reparentable: reparentable,
 			change_tx,
 			change,
 			min_size,
@@ -374,10 +375,9 @@ impl ResizeHandlesInner {
 			_stage_task,
 		};
 		resize_handles.set_handle_positions(initial_size, initial_pose);
-		resize_handles.make_reparentable(client);
 		Ok(resize_handles)
 	}
-	pub fn handle_events(&mut self, client: &Arc<Client<impl ClientHandler>>) {
+	pub fn handle_events(&mut self) {
 		let root = &self.client_root;
 		self.bottom.handle_events();
 		self.top.handle_events();
@@ -386,9 +386,6 @@ impl ResizeHandlesInner {
 		{
 			let _ = self.top.model_spatial.set_parent_in_place(root.clone());
 			let _ = self.bottom.model_spatial.set_parent_in_place(root.clone());
-			self.reparentable.send_modify(|v| {
-				v.take();
-			});
 		}
 		if self.top.grab_action.actor_acting() || self.bottom.grab_action.actor_acting() {
 			self.update_content_transform();
@@ -405,34 +402,16 @@ impl ResizeHandlesInner {
 				.bottom
 				.model_spatial
 				.set_parent_in_place(self.content_parent_ref.clone());
-			self.make_reparentable(client);
-		}
-	}
-	fn make_reparentable(&mut self, client: &Arc<Client<impl ClientHandler>>) {
-		if self.is_reparentable {
-			let content_parent = self.content_parent.clone();
-			let parent = self.parent.clone();
-			let field = self.reparentable_field.clone();
-			let client = client.clone();
-			let watch = self.reparentable.clone();
-			tokio::spawn(async move {
-				let v = Reparentable::new(&client, content_parent, parent, field)
-					.await
-					.ok();
-				_ = watch.send(v);
-			});
-		} else {
-			self.reparentable.send_modify(|v| {
-				v.take();
-			});
+			let containable = self.containable.clone();
+			tokio::spawn(async move { containable.reparent().await });
 		}
 	}
 	fn update_content_transform(&mut self) {
-		let stage_to_parent = *self.stage_transform.borrow();
-		let parent_to_stage = stage_to_parent.inverse();
-		let hmd_pos = parent_to_stage.transform_point3(*self.hmd_pos.borrow());
-		let mut corner1 = parent_to_stage.transform_point3(self.bottom.last_pos);
-		let mut corner2 = parent_to_stage.transform_point3(self.top.last_pos);
+		let stage_to_anchor = *self.stage_transform.borrow();
+		let anchor_to_stage = stage_to_anchor.inverse();
+		let hmd_pos = anchor_to_stage.transform_point3(*self.hmd_pos.borrow());
+		let mut corner1 = anchor_to_stage.transform_point3(self.bottom.last_pos);
+		let mut corner2 = anchor_to_stage.transform_point3(self.top.last_pos);
 
 		let center_point = (corner1 + corner2) * 0.5;
 
@@ -453,18 +432,18 @@ impl ResizeHandlesInner {
 
 		let min_size = self.min_size.unwrap_or([0.0; 2].into());
 		let max_size = self.max_size.unwrap_or([4096.0; 2].into());
-		let (stage_to_parent_scale, stage_to_parent_rot, _) =
-			stage_to_parent.to_scale_rotation_translation();
+		let (stage_to_anchor_scale, stage_to_anchor_rot, _) =
+			stage_to_anchor.to_scale_rotation_translation();
 		let mut size = vec2(
 			// for some reason this doesn't work with transforming the corners back into
-			// parent space?
-			((corner1.x - corner2.x) * stage_to_parent_scale.x).abs()
+			// anchor space?
+			((corner1.x - corner2.x) * stage_to_anchor_scale.x).abs()
 				- (RESIZE_HANDLE_FLOATING * 2.0),
-			stage_to_parent
+			stage_to_anchor
 				.transform_point3(corner1_2d.extend(0.0))
 				.zy()
 				.distance(
-					stage_to_parent
+					stage_to_anchor
 						.transform_point3(corner2_2d.extend(0.0))
 						.zy(),
 				) - (RESIZE_HANDLE_FLOATING * 2.0),
@@ -473,8 +452,8 @@ impl ResizeHandlesInner {
 		size.y = size.y.max(min_size.y).min(max_size.y);
 
 		let pose = Posef {
-			position: stage_to_parent.transform_point3(center_point).into(),
-			orientation: (stage_to_parent_rot * (y_rotation * x_rotation)).into(),
+			position: stage_to_anchor.transform_point3(center_point).into(),
+			orientation: (stage_to_anchor_rot * (y_rotation * x_rotation)).into(),
 		};
 		let _ = self.change_tx.send((pose, size.into()));
 	}
@@ -509,7 +488,6 @@ impl ResizeHandlesInner {
 #[setters(into, strip_option)]
 #[allow(clippy::type_complexity)]
 pub struct ResizeHandles<State: ValidState> {
-	pub reparentable: bool,
 	pub pose: Posef,
 	pub size: Vec2F,
 	pub min_size: Option<Vec2F>,
@@ -529,7 +507,6 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 		let v = ResizeHandlesInner::new(
 			&ctx.stardust_client,
 			info.parent_space.clone(),
-			self.reparentable,
 			ctx.accent_color.color(),
 			self.pose,
 			self.size,
@@ -555,23 +532,15 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 			});
 		}
 		inner.set_handle_positions(self.size, self.pose);
-		if self.size != old.size {
-			_ = inner.reparentable_field.set_shape(Shape::Box {
-				size: [self.size.x, self.size.y, 0.01].into(),
-			});
-		}
 	}
 
-	fn frame(&self, ctx: &Context, _info: &FrameInfo, state: &mut State, inner: &mut Self::Inner) {
+	fn frame(&self, _ctx: &Context, _info: &FrameInfo, state: &mut State, inner: &mut Self::Inner) {
 		inner.frame_tick.notify_one();
-		inner.handle_events(&ctx.stardust_client);
+		inner.handle_events();
 
 		if inner.change.has_changed().is_ok_and(|t| t) {
 			let (pose, size) = *inner.change.borrow_and_update();
 			(self.on_change.0)(state, pose, size);
-			_ = inner.reparentable_field.set_shape(Shape::Box {
-				size: [size.x, size.y, 0.01].into(),
-			});
 		}
 	}
 }
@@ -625,7 +594,6 @@ async fn test_resize_handles() {
 				.build()
 				.child(
 					ResizeHandles::<Self> {
-						reparentable: true,
 						pose: self.pose,
 						size: self.size,
 						min_size: None,

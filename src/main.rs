@@ -331,7 +331,6 @@ impl Reify for Flatland {
 		};
 		InitialPanelPlacement.build().child(
 			ResizeHandles::<Flatland> {
-				reparentable: true,
 				pose: self.pose,
 				size: self.size,
 				min_size: self
