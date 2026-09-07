@@ -8,4 +8,4 @@ Categories=XR;Stardust;
 Keywords=XR;Stardust;
 Icon=org.stardustxr.Flatland
 StartupNotify=false
-NoDisplay=true
+OnlyShowIn=Stardust
