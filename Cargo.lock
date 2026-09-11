@@ -1532,7 +1532,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids?branch=refactor%2Fstrongipc#b965367e9fc5c7c033712c578348985c1fd55bfd"
+source = "git+https://github.com/StardustXR/asteroids?branch=refactor%2Fstrongipc#25377daad950784100eb3c6e7f672af4cbb5ac60"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -1559,7 +1559,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core?branch=refactor%2Fstrongipc#a6ffc99818759f860f51aa10a9c7b350c79a6402"
+source = "git+https://github.com/StardustXR/core?branch=refactor%2Fstrongipc#7d0834673c4b8192b6908c79387f8be03fdbab62"
 dependencies = [
  "glam 0.30.10",
  "gluon",
@@ -1575,7 +1575,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/molecules?branch=refactor%2Fstrongipc#b468c75faf111f00b2e540ad385f2ba65eef7b7d"
+source = "git+https://github.com/StardustXR/molecules?branch=refactor%2Fstrongipc#2c5f33d2a9e90eadf06845404e43a32f7d1d3d0c"
 dependencies = [
  "futures",
  "glam 0.30.10",
@@ -1596,7 +1596,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules-protocols"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/molecules?branch=refactor%2Fstrongipc#b468c75faf111f00b2e540ad385f2ba65eef7b7d"
+source = "git+https://github.com/StardustXR/molecules?branch=refactor%2Fstrongipc#2c5f33d2a9e90eadf06845404e43a32f7d1d3d0c"
 dependencies = [
  "gluon",
  "gluon-codegen",
@@ -1641,7 +1641,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-protocol"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core?branch=refactor%2Fstrongipc#a6ffc99818759f860f51aa10a9c7b350c79a6402"
+source = "git+https://github.com/StardustXR/core?branch=refactor%2Fstrongipc#7d0834673c4b8192b6908c79387f8be03fdbab62"
 dependencies = [
  "fnv",
  "glam 0.29.3",

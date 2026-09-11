@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use stardust_xr_asteroids::{
 	Context, CustomElement, Element, Entity, FnWrapper, Migrate, Reify, Tasker, Transformable as _,
 	client::{ClientState, run},
-	components::{Derezzable, KeyboardHandler, MouseHandler},
+	components::{Derezzable, KeyboardHandler, MouseHandler, Poseable},
 	elements::{Handle, Model, Spatial, Text},
 };
 use stardust_xr_fusion::{
@@ -350,6 +350,35 @@ impl Reify for Flatland {
 				})),
 			}
 			.build()
+			.child(
+				Entity::new(Shape::Box {
+					size: [self.size.x, self.size.y, panel_thickness].into(),
+				})
+				.component(Poseable::new(|state: &mut Self, pose| state.pose = pose))
+				.component(Derezzable::<Flatland>::new(|state| {
+					state.derez_with_item_temp = true;
+					if let Some(item) = &state.panel_item {
+						_ = item.item.close_toplevel();
+					}
+				}))
+				.component(PanelItemAcceptor::<Flatland>::new(|state, shell| {
+					_ = shell.item().request_toplevel_resize(state.size_px());
+					state.panel_item.replace(PanelItem {
+						item: shell.item().clone(),
+						shell,
+						release_pos_offset: [0.0, -0.02, 0.0].into(),
+						parent: None,
+						title: None,
+						app_id: None,
+						min_size: None,
+						max_size: None,
+						cursor_pos: [0.0; 2].into(),
+						cursor: None,
+						children: vec![],
+					});
+				}))
+				.build(),
+			)
 			.maybe_child(self.panel_item.is_some().then(|| {
 				Handle::new([0.0, -self.size.y / 2.0, 0.0], |state: &mut Self, pos| {
 					let Some(item) = &mut state.panel_item else {
@@ -620,28 +649,6 @@ fn reify_surface<S: Into<Size2>, E: Element<Flatland>>(
 		(origin_meters - parent_origin_meters + (size_meters / vec2(2.0, -2.0)))
 			.extend(thickness * (z_offset as f32)),
 	)
-	.component(Derezzable::<Flatland>::new(|state| {
-		state.derez_with_item_temp = true;
-		if let Some(item) = &state.panel_item {
-			_ = item.item.close_toplevel();
-		}
-	}))
-	.component(PanelItemAcceptor::<Flatland>::new(|state, shell| {
-		_ = shell.item().request_toplevel_resize(state.size_px());
-		state.panel_item.replace(PanelItem {
-			item: shell.item().clone(),
-			shell,
-			release_pos_offset: [0.0, -0.02, 0.0].into(),
-			parent: None,
-			title: None,
-			app_id: None,
-			min_size: None,
-			max_size: None,
-			cursor_pos: [0.0; 2].into(),
-			cursor: None,
-			children: vec![],
-		});
-	}))
 	.component((!input_areas.is_empty()).then(|| {
 		KeyboardHandler::<Flatland>::new().on_key_async({
 			let panel_item = panel_shell.as_ref().map(|v| v.item().clone());
