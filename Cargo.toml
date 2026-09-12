@@ -2,7 +2,7 @@
 edition = "2024"
 # rust-version = "1.75"
 name = "flatland"
-version = "0.51.0"
+version = "0.52.0"
 authors = ["Nova King <technobaboo@proton.me>"]
 description = "Flat panel UI client for Stardust XR like SimulaVR or xrdesktop"
 license = "MIT"
@@ -13,7 +13,7 @@ homepage = "https://stardustxr.org"
 tracy = ["dep:tracing-tracy", "dep:tracy-client"]
 
 [dependencies]
-glam = { version = "0.28.0", features = ["mint"] }
+glam = { version = "0.33.7", features = ["mint"] }
 tokio = { version = "1.38.0", features = ["full"] }
 input-event-codes = "6.2.0"
 rustc-hash = "1.1.0"
@@ -30,39 +30,26 @@ clap = { version = "4.6.6", features = ["derive"] }
 [profile.dev]
 panic = "abort"
 
-[dependencies.gluon]
-git = "https://github.com/technobaboo/gluon"
-branch = "refactor/strongipc"
+[dependencies.gluon-ipc]
+version = "0.1.0"
+# git = "https://github.com/StardustXR/gluon-ipc"
 
 [dependencies.stardust-xr-fusion]
-version = "0.51.0"
-git = "https://github.com/StardustXR/core"
-branch = "refactor/strongipc"
+version = "0.52.0"
+# git = "https://github.com/StardustXR/core"
 
 [dependencies.stardust-xr-molecules]
-version = "0.51.0"
-git = "https://github.com/StardustXR/molecules"
-branch = "refactor/strongipc"
+version = "0.52.0"
+# git = "https://github.com/StardustXR/molecules"
 
 [dependencies.stardust-xr-asteroids]
-version = "0.51.0"
-git = "https://github.com/StardustXR/asteroids"
-branch = "refactor/strongipc"
+version = "0.52.0"
+# git = "https://github.com/StardustXR/asteroids"
 
 [dependencies.stardust-xr-panel-item]
-# version = "0.50.0"
+# version = "0.52.0"
 git = "https://github.com/StardustXR/panel-item"
-branch = "refactor/strongipc"
 
 [dependencies.stardust-xr-panel-item-asteroids]
-# version = "0.50.0"
+# version = "0.52.0"
 git = "https://github.com/StardustXR/panel-item"
-branch = "refactor/strongipc"
-
-[patch.crates-io]
-zbus = { git = "https://github.com/Schmarni-Dev/zbus", branch = "better_obj_destruct" }
-zbus_macros = { git = "https://github.com/Schmarni-Dev/zbus", branch = "better_obj_destruct" }
-zbus_names = { git = "https://github.com/Schmarni-Dev/zbus", branch = "better_obj_destruct" }
-zvariant = { git = "https://github.com/Schmarni-Dev/zbus", branch = "better_obj_destruct" }
-zvariant_derive = { git = "https://github.com/Schmarni-Dev/zbus", branch = "better_obj_destruct" }
-zvariant_utils = { git = "https://github.com/Schmarni-Dev/zbus", branch = "better_obj_destruct" }

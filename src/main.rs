@@ -1,6 +1,6 @@
 use close_button::ExposureButton;
 use glam::{Quat, Vec3, vec2, vec3};
-use gluon::Node;
+use gluon_ipc::Node;
 use initial_panel_placement::InitialPanelPlacement;
 use pointer_input::PointerPlane;
 use resize_handles::ResizeHandles;
