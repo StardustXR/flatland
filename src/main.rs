@@ -366,7 +366,7 @@ impl Reify for Flatland {
 					state.panel_item.replace(PanelItem {
 						item: shell.item().clone(),
 						shell,
-						release_pos_offset: [0.0, -0.02, 0.0].into(),
+						release_pos_offset: [0.0, 0.0, 0.0].into(),
 						parent: None,
 						title: None,
 						app_id: None,
@@ -384,7 +384,7 @@ impl Reify for Flatland {
 					let Some(item) = &mut state.panel_item else {
 						return;
 					};
-					item.release_pos_offset = Vec3::from(pos) - vec3(0.0, -state.size.y / 2.0, 0.0);
+					item.release_pos_offset = pos.into();
 				})
 				.on_release(|state: &mut Self, _pos| {
 					state.panel_item.take();
@@ -454,7 +454,7 @@ impl Reify for Flatland {
 					};
 					remove_child(&mut item.children, id);
 				})
-				.pos(vec3(0.0, -self.size.y / 2.0, 0.0) + item.release_pos_offset)
+				.pos(vec3(0.0, 0.0, panel_thickness) + item.release_pos_offset)
 				.build()
 			}))
 			.child(
