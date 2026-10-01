@@ -9,6 +9,10 @@ license = "MIT"
 repository = "https://github.com/StardustXR/flatland/"
 homepage = "https://stardustxr.org"
 
+[patch.crates-io]
+gluon-ipc-codegen.git = "https://github.com/StardustXR/gluon-ipc"
+gluon-ipc.git = "https://github.com/StardustXR/gluon-ipc"
+
 [features]
 tracy = ["dep:tracing-tracy", "dep:tracy-client"]
 
@@ -46,10 +50,10 @@ version = "0.52.0"
 version = "0.52.0"
 # git = "https://github.com/StardustXR/asteroids"
 
-[dependencies.stardust-xr-panel-item]
+[dependencies.stardust-xr-panels]
 # version = "0.52.0"
 git = "https://github.com/StardustXR/panel-item"
 
-[dependencies.stardust-xr-panel-item-asteroids]
+[dependencies.stardust-xr-panels-asteroids]
 # version = "0.52.0"
 git = "https://github.com/StardustXR/panel-item"

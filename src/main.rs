@@ -19,11 +19,11 @@ use stardust_xr_fusion::{
 	spatial::Transform,
 	types::{Posef, Resource, Size2, Timestamp, Vec2F},
 };
-use stardust_xr_panel_item::panel_item::{
+use stardust_xr_panels::panel_item::{
 	ChildState as ChildInfo, Geometry, ModifierState, Rect, ScrollSource, SurfaceId,
 	SurfaceUpdateTarget,
 };
-use stardust_xr_panel_item_asteroids::{
+use stardust_xr_panels_asteroids::{
 	panel_item_acceptor::PanelItemAcceptor,
 	panel_shell::{PanelShell, PanelShellHandler},
 	surface_model::SurfaceModel,
@@ -187,7 +187,7 @@ pub struct ChildState {
 #[derive(Debug)]
 struct PanelItem {
 	pub shell: Shell,
-	pub item: stardust_xr_panel_item::panel_item::PanelItem,
+	pub item: stardust_xr_panels::panel_item::PanelItem,
 	release_pos_offset: Vec3,
 
 	pub parent: Option<u64>,
