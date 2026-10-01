@@ -190,7 +190,7 @@ struct PanelItem {
 	pub item: stardust_xr_panels::panel_item::PanelItem,
 	release_pos_offset: Vec3,
 
-	pub parent: Option<u64>,
+	pub _parent: Option<u64>,
 	pub title: Option<String>,
 	pub app_id: Option<String>,
 	pub min_size: Option<Size2>,
@@ -355,10 +355,15 @@ impl Reify for Flatland {
 					size: [self.size.x, self.size.y, panel_thickness].into(),
 				})
 				.component(Poseable::new(|state: &mut Self, pose| state.pose = pose))
-				.component(Derezzable::<Flatland>::new(|state| {
-					state.derez_with_item_temp = true;
-					if let Some(item) = &state.panel_item {
-						_ = item.item.close_toplevel();
+				.component(Derezzable::<Flatland>::new({
+					let context = context.clone();
+					move |state| {
+						if let Some(item) = &state.panel_item {
+							state.derez_with_item_temp = true;
+							_ = item.item.close_toplevel();
+						} else {
+							context.stop();
+						}
 					}
 				}))
 				.component(PanelItemAcceptor::<Flatland>::new(|state, shell| {
@@ -367,7 +372,7 @@ impl Reify for Flatland {
 						item: shell.item().clone(),
 						shell,
 						release_pos_offset: [0.0, 0.0, 0.0].into(),
-						parent: None,
+						_parent: None,
 						title: None,
 						app_id: None,
 						min_size: None,
