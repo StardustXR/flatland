@@ -574,7 +574,7 @@ checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
 name = "flatland"
-version = "0.52.0"
+version = "0.53.0-rc.1"
 dependencies = [
  "clap",
  "colorgrad",
@@ -744,8 +744,9 @@ dependencies = [
 
 [[package]]
 name = "gluon-ipc"
-version = "0.1.0"
-source = "git+https://github.com/StardustXR/gluon-ipc#c4f53a05511cd515495c4a177b0f1726e4d7c85f"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f678c9eb6a669631f143f944bd24720a06a263086b757135b3d4c4f10a1730e"
 dependencies = [
  "bitflags",
  "gluon-ipc-derive",
@@ -757,12 +758,13 @@ dependencies = [
 
 [[package]]
 name = "gluon-ipc-codegen"
-version = "0.1.0"
-source = "git+https://github.com/StardustXR/gluon-ipc#c4f53a05511cd515495c4a177b0f1726e4d7c85f"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ad349441f18dcf4d4fb487eef89e261c9a5f1d1e3166811a846dcf936a6076d"
 dependencies = [
  "convert_case",
  "gluon-ipc",
- "gluon-ipc-parser 0.1.0 (git+https://github.com/StardustXR/gluon-ipc)",
+ "gluon-ipc-parser",
  "prettyplease",
  "proc-macro2",
  "quote",
@@ -771,8 +773,9 @@ dependencies = [
 
 [[package]]
 name = "gluon-ipc-derive"
-version = "0.1.0"
-source = "git+https://github.com/StardustXR/gluon-ipc#c4f53a05511cd515495c4a177b0f1726e4d7c85f"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74ed802cf2a46b8a9644dd4f6d3dc29dc8c01658e73b11b5955371105d6255d5"
 dependencies = [
  "quote",
  "syn 2.0.117",
@@ -780,19 +783,9 @@ dependencies = [
 
 [[package]]
 name = "gluon-ipc-parser"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "751bfc0ec65269173abbc479af93f4c706cd091e1880fde269afdc31bb5eaa43"
-dependencies = [
- "ansi_term",
- "chumsky",
- "convert_case",
-]
-
-[[package]]
-name = "gluon-ipc-parser"
-version = "0.1.0"
-source = "git+https://github.com/StardustXR/gluon-ipc#c4f53a05511cd515495c4a177b0f1726e4d7c85f"
+checksum = "5a91d064e854bfd84a829b6d863cbae9173521e46d18ed42db23c3b6a01f2ae2"
 dependencies = [
  "ansi_term",
  "chumsky",
@@ -1524,9 +1517,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-asteroids"
-version = "0.52.0"
+version = "0.53.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "661df6f9f111faed0a460a80d97a12fdbd8049f2317d43b08c349698ccda1c6f"
+checksum = "9e41518b9358c47f16bc0c174bcbe7f5d130deef014b22e0ddb14e929ba048a2"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -1552,9 +1545,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-fusion"
-version = "0.52.0"
+version = "0.53.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1897d300c9c5f213f61ea03b3d06fc3b06048cf8116b4a858f0dea19d2eb76b9"
+checksum = "779073e169bdad18e90ad8a4b2d8a6a062352400811caf5d70b292128d7165da"
 dependencies = [
  "glam",
  "gluon-ipc",
@@ -1569,9 +1562,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-molecules"
-version = "0.52.0"
+version = "0.53.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4bea71366497ecc641035d37058c59db133225c9a11936424ef4cac9e50b4a4a"
+checksum = "f73cfdc05123b96eb3f8e11db4a228d07dec7c485b801a26653c01463b892dd9"
 dependencies = [
  "futures",
  "glam",
@@ -1591,9 +1584,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-molecules-protocols"
-version = "0.52.0"
+version = "0.53.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56ff868f2e22706c25d80b87e3219b088462128f3332fad117fcb09f7399d906"
+checksum = "581277d0ff36373d5a2b7bf2cd673525472bbf034506ac254c3ee51916aa05d9"
 dependencies = [
  "gluon-ipc",
  "gluon-ipc-codegen",
@@ -1603,25 +1596,25 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-panels"
-version = "0.52.0"
-source = "git+https://github.com/StardustXR/panel-item#5e51ba99d684e700fe2830be96744158a6e6453d"
+version = "0.53.0-rc.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12fc54e02018e5c6f8245878fe11559202a0f5ad523d80252e51f9d85c9692ec"
 dependencies = [
  "gluon-ipc",
  "gluon-ipc-codegen",
- "gluon-ipc-parser 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gluon-ipc-parser",
  "mint",
- "prettyplease",
  "stardust-xr-fusion",
  "stardust-xr-protocol",
- "syn 2.0.117",
  "tokio",
  "tracing",
 ]
 
 [[package]]
 name = "stardust-xr-panels-asteroids"
-version = "0.52.0"
-source = "git+https://github.com/StardustXR/panel-item#5e51ba99d684e700fe2830be96744158a6e6453d"
+version = "0.53.0-rc.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "817e5e7cfc22cf3cdc526b6e67b8d650507709783ec1e3215e36323bb33cd2ea"
 dependencies = [
  "derive-where",
  "directories",
@@ -1637,9 +1630,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-protocol"
-version = "0.52.1"
+version = "0.53.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "097926accefdaa7ab195978044b38b463758e948dabe4b394705aa7df102f61c"
+checksum = "11e3d92629921194c6226779e48bad2c47a5cd7822e48229f545a3e371ca3d22"
 dependencies = [
  "fnv",
  "glam",

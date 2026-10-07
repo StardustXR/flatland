@@ -306,6 +306,7 @@ impl Reify for Flatland {
 		&self,
 		context: &Context,
 		_tasks: impl Tasker<Self>,
+        _props: (),
 	) -> impl stardust_xr_asteroids::Element<Self> {
 		let panel_thickness = 0.01;
 

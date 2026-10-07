@@ -2,16 +2,12 @@
 edition = "2024"
 # rust-version = "1.75"
 name = "flatland"
-version = "0.52.0"
+version = "0.53.0-rc.1"
 authors = ["Nova King <technobaboo@proton.me>"]
 description = "Flat panel UI client for Stardust XR like SimulaVR or xrdesktop"
 license = "MIT"
 repository = "https://github.com/StardustXR/flatland/"
 homepage = "https://stardustxr.org"
-
-[patch.crates-io]
-gluon-ipc-codegen.git = "https://github.com/StardustXR/gluon-ipc"
-gluon-ipc.git = "https://github.com/StardustXR/gluon-ipc"
 
 [features]
 tracy = ["dep:tracing-tracy", "dep:tracy-client"]
@@ -35,25 +31,25 @@ clap = { version = "4.6.6", features = ["derive"] }
 panic = "abort"
 
 [dependencies.gluon-ipc]
-version = "0.1.0"
+version = "0.1.1"
 # git = "https://github.com/StardustXR/gluon-ipc"
 
 [dependencies.stardust-xr-fusion]
-version = "0.52.0"
+version = "0.53.0-rc.1"
 # git = "https://github.com/StardustXR/core"
 
 [dependencies.stardust-xr-molecules]
-version = "0.52.0"
+version = "0.53.0-rc.1"
 # git = "https://github.com/StardustXR/molecules"
 
 [dependencies.stardust-xr-asteroids]
-version = "0.52.0"
+version = "0.53.0-rc.1"
 # git = "https://github.com/StardustXR/asteroids"
 
 [dependencies.stardust-xr-panels]
-# version = "0.52.0"
-git = "https://github.com/StardustXR/panel-item"
+version = "0.53.0-rc.1"
+# git = "https://github.com/StardustXR/panel-item"
 
 [dependencies.stardust-xr-panels-asteroids]
-# version = "0.52.0"
-git = "https://github.com/StardustXR/panel-item"
+version = "0.53.0-rc.1"
+# git = "https://github.com/StardustXR/panel-item"
