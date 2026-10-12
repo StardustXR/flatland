@@ -29,8 +29,7 @@
           default = craneLib.buildPackage {
             src = ./.;
             cargoLock = ./Cargo.lock;
-
-            cargoTestCommand = "echo \"looks good to me\"";
+            doCheck = false;
 
             nativeBuildInputs = [ pkgs.just ];
             postInstall = "just prefix=$out install-data";
@@ -39,5 +38,21 @@
         }
       );
       formatter = forAllSystems (system: nixpkgsFor.${system}.nixfmt-tree);
+
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+        in
+        {
+          default = pkgs.mkShell {
+            nativeBuildInputs = with pkgs; [
+              cargo
+              rustc
+              just
+            ];
+          };
+        }
+      );
     };
 }
