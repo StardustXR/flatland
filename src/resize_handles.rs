@@ -291,7 +291,8 @@ impl ResizeHandlesInner {
 	) -> stardust_xr_fusion::Result<Self> {
 		let settings = GrabBallSettings {
 			radius: 0.005,
-			padding: 0.02,
+			// grab reach matches asteroids' Handle, otherwise it requests capture first from farther away
+			padding: 0.045,
 			connector_thickness: 0.0025,
 			connector_color: accent_color,
 		};
