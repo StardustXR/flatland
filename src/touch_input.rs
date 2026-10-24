@@ -108,7 +108,7 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 		.await?;
 		let lines = Lines::new(&ctx.stardust_client, &info.child_space, Vec::new()).await?;
 
-		Ok(TouchSurfaceInputInner {
+		let mut inner = TouchSurfaceInputInner {
 			input,
 			field,
 			touch: MultiAction::default(),
@@ -120,7 +120,9 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 			spatial: info.child_space,
 			points: HashMap::new(),
 			last_touch: 0,
-		})
+		};
+		inner.update_signifiers();
+		Ok(inner)
 	}
 
 	fn diff(&self, old_self: &Self, _ctx: &Context, inner: &mut Self::Inner) {

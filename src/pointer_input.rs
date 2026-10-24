@@ -116,7 +116,7 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 		let hover = SimpleAction::default();
 		let lines = Lines::new(&ctx.stardust_client, &info.child_space, Vec::new()).await?;
 
-		Ok(PointerSurfaceInputInner {
+		let mut inner = PointerSurfaceInputInner {
 			input,
 			field,
 			spatial: info.child_space,
@@ -130,7 +130,9 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 			thickness: self.thickness,
 			lines,
 			debug_line_settings: self.debug_line_settings,
-		})
+		};
+		inner.update_signifiers();
+		Ok(inner)
 	}
 
 	fn diff(&self, old: &Self, _ctx: &Context, inner: &mut Self::Inner) {
