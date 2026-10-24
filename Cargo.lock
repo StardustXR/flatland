@@ -1518,8 +1518,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.53.0-rc.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e41518b9358c47f16bc0c174bcbe7f5d130deef014b22e0ddb14e929ba048a2"
+source = "git+https://github.com/StardustXR/asteroids#05aea7b04360a4deda2da26f3d220573ca139580"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -1536,6 +1535,7 @@ dependencies = [
  "ron",
  "rustc-hash 2.1.2",
  "serde",
+ "stardust-xr-asteroids-derive",
  "stardust-xr-fusion",
  "stardust-xr-molecules",
  "tokio",
@@ -1544,10 +1544,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "stardust-xr-asteroids-derive"
+version = "0.53.0-rc.1"
+source = "git+https://github.com/StardustXR/asteroids#05aea7b04360a4deda2da26f3d220573ca139580"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "stardust-xr-fusion"
 version = "0.53.0-rc.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "779073e169bdad18e90ad8a4b2d8a6a062352400811caf5d70b292128d7165da"
+source = "git+https://github.com/StardustXR/core#395e6769c84fab9cfccba29df16a1b91709fb100"
 dependencies = [
  "glam",
  "gluon-ipc",
@@ -1631,8 +1640,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-protocol"
 version = "0.53.0-rc.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11e3d92629921194c6226779e48bad2c47a5cd7822e48229f545a3e371ca3d22"
+source = "git+https://github.com/StardustXR/core#395e6769c84fab9cfccba29df16a1b91709fb100"
 dependencies = [
  "fnv",
  "glam",

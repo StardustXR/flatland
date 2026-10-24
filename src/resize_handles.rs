@@ -2,7 +2,7 @@ use crate::{Flatland, grab_ball::GrabBallSettings};
 use derive_setters::Setters;
 use glam::{Mat4, Quat, Vec3, Vec3Swizzles, vec2, vec3};
 use stardust_xr_asteroids::{
-	ClientState, Context, CreateInnerInfo, CustomElement, FnWrapper, ValidState,
+	Animatable, AnimatedElement, ClientState, CloneFnWrapper, Context, CreateInnerInfo, ValidState,
 	components::{TransformableInner, innermost_container},
 };
 use stardust_xr_fusion::{
@@ -516,19 +516,22 @@ impl ResizeHandlesInner {
 	}
 }
 
-#[derive_where::derive_where(Debug, PartialEq)]
-#[derive(Setters)]
+#[derive_where::derive_where(Debug, Clone, PartialEq)]
+#[derive(Setters, Animatable)]
 #[setters(into, strip_option)]
 #[allow(clippy::type_complexity)]
 pub struct ResizeHandles<State: ValidState> {
 	pub pose: Posef,
 	pub size: Vec2F,
+	#[no_animate]
 	pub min_size: Option<Vec2F>,
+	#[no_animate]
 	pub max_size: Option<Vec2F>,
-	pub on_change: FnWrapper<dyn Fn(&mut State, Posef, Vec2F) + Send + Sync>,
+	#[no_animate]
+	pub on_change: CloneFnWrapper<dyn Fn(&mut State, Posef, Vec2F) + Send + Sync>,
 }
 // TODO: replace some oneway method calls with _event variants
-impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
+impl<State: ValidState> AnimatedElement<State> for ResizeHandles<State> {
 	type Inner = ResizeHandlesInner;
 	type Error = Error;
 
@@ -590,7 +593,7 @@ impl<State: ValidState> CustomElement<State> for ResizeHandles<State> {
 async fn test_resize_handles() {
 	use serde::{Deserialize, Serialize};
 	use stardust_xr_asteroids::{
-		ClientState, Migrate, Reify, Transformable, client, elements::Lines,
+		ClientState, CustomElement, Migrate, Reify, Transformable, client, elements::Lines,
 	};
 	use stardust_xr_fusion::{spatial::BoundingBox, types::QuatF};
 	use stardust_xr_molecules::lines::bounding_box;
@@ -629,6 +632,7 @@ async fn test_resize_handles() {
 			&self,
 			_context: &Context,
 			_tasks: impl stardust_xr_asteroids::Tasker<Self>,
+			_props: (),
 		) -> impl stardust_xr_asteroids::Element<Self> {
 			stardust_xr_asteroids::elements::Spatial::default()
 				.rot(Quat::from_rotation_y(self.time / 10.0))
@@ -639,7 +643,7 @@ async fn test_resize_handles() {
 						size: self.size,
 						min_size: None,
 						max_size: None,
-						on_change: FnWrapper(Box::new(|state, pose, size| {
+						on_change: CloneFnWrapper(Arc::new(|state, pose, size| {
 							state.pose = pose;
 							state.size = size;
 						})),

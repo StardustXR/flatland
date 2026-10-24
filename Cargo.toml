@@ -9,6 +9,11 @@ license = "MIT"
 repository = "https://github.com/StardustXR/flatland/"
 homepage = "https://stardustxr.org"
 
+[patch.crates-io]
+stardust-xr-fusion.git = "https://github.com/StardustXR/core"
+stardust-xr-protocol.git = "https://github.com/StardustXR/core"
+stardust-xr-asteroids.git = "https://github.com/StardustXR/asteroids"
+
 [features]
 tracy = ["dep:tracing-tracy", "dep:tracy-client"]
 

@@ -11,7 +11,7 @@ use stardust_xr_fusion::{
 	fields::{Field, FieldExt as _, Shape},
 	spatial::{PartialTransform, Spatial, Transform},
 	suis::{InputDataType, InputMethod},
-	types::{Vec2F, Vec3F, rgba_linear},
+	types::{Color, Vec2F, Vec3F, rgba_linear},
 };
 use stardust_xr_molecules::{
 	DebugSettings, VisualDebug,
@@ -20,8 +20,43 @@ use stardust_xr_molecules::{
 };
 use std::{
 	collections::HashMap,
+	f32::consts::FRAC_PI_2,
 	time::{Duration, Instant},
 };
+
+/// meters from the front face, past this a finger isn't hovering anymore
+const MAX_HOVER_DISTANCE: f32 = 0.05;
+const MIN_RING_RADIUS: f32 = 0.002;
+/// about the size of an average fingertip
+const FINGERTIP_RADIUS: f32 = 0.008;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TouchHover {
+	/// plane local, +Y up from the center
+	pub pos: Vec2,
+	/// meters from the front face
+	pub distance: f32,
+	pub touching: bool,
+}
+impl TouchHover {
+	/// small and far away, growing to fingertip size as it gets close, accent colored once touching
+	pub fn ring(&self, thickness: f32, accent: Color) -> Line {
+		let t = 1.0 - (self.distance / MAX_HOVER_DISTANCE).min(1.0);
+		let radius = MIN_RING_RADIUS + (FINGERTIP_RADIUS - MIN_RING_RADIUS) * t;
+		let color = if self.touching {
+			accent
+		} else {
+			rgba_linear!(1.0, 1.0, 1.0, 1.0)
+		};
+		// molecules circles lie on XZ, so stand them up to face the user
+		let transform = Mat4::from_translation(self.pos.extend(thickness / 2.0))
+			* Mat4::from_rotation_x(FRAC_PI_2);
+		lines::circle(24, 0.0, radius)
+			.thickness(0.001)
+			.color(color)
+			.transform(transform)
+	}
+}
 
 #[derive_where::derive_where(Debug, PartialEq)]
 #[derive(Setters)]
@@ -40,6 +75,8 @@ pub struct TouchPlane<State: ValidState> {
 	pub on_touch_move: FnWrapper<dyn Fn(&mut State, u32, Vec3F) + Send + Sync>,
 	#[setters(skip)]
 	pub on_touch_up: FnWrapper<dyn Fn(&mut State, u32) + Send + Sync>,
+	#[setters(skip)]
+	pub on_hover: FnWrapper<dyn Fn(&mut State, Vec<TouchHover>) + Send + Sync>,
 }
 
 impl<State: ValidState> Default for TouchPlane<State> {
@@ -54,6 +91,7 @@ impl<State: ValidState> Default for TouchPlane<State> {
 			on_touch_down: FnWrapper(Box::new(|_, _, _| {})),
 			on_touch_move: FnWrapper(Box::new(|_, _, _| {})),
 			on_touch_up: FnWrapper(Box::new(|_, _| {})),
+			on_hover: FnWrapper(Box::new(|_, _| {})),
 		}
 	}
 }
@@ -77,6 +115,14 @@ impl<State: ValidState> TouchPlane<State> {
 
 	pub fn on_touch_up(mut self, f: impl Fn(&mut State, u32) + Send + Sync + 'static) -> Self {
 		self.on_touch_up = FnWrapper(Box::new(f));
+		self
+	}
+
+	pub fn on_hover(
+		mut self,
+		f: impl Fn(&mut State, Vec<TouchHover>) + Send + Sync + 'static,
+	) -> Self {
+		self.on_hover = FnWrapper(Box::new(f));
 		self
 	}
 }
@@ -117,9 +163,11 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 			thickness: self.thickness,
 			lines,
 			debug_line_settings: self.debug_line_settings,
+			accent: ctx.accent_color.color(),
 			spatial: info.child_space,
 			points: HashMap::new(),
 			last_touch: 0,
+			hovers: Vec::new(),
 		};
 		inner.update_signifiers();
 		Ok(inner)
@@ -137,11 +185,12 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 
 	fn frame(
 		&self,
-		_context: &Context,
+		context: &Context,
 		info: &FrameInfo,
 		state: &mut State,
 		inner: &mut Self::Inner,
 	) {
+		inner.accent = context.accent_color.color();
 		inner.handle_events(state, self, info);
 	}
 }
@@ -163,10 +212,12 @@ pub struct TouchSurfaceInputInner {
 	start_tap_times: FxHashMap<u32, Instant>,
 	points: HashMap<InputMethod, u32>,
 	last_touch: u32,
+	hovers: Vec<TouchHover>,
 	physical_size: Vec2,
 	thickness: f32,
 	lines: Lines,
 	debug_line_settings: Option<DebugSettings>,
+	accent: Color,
 }
 
 impl TouchSurfaceInputInner {
@@ -180,7 +231,29 @@ impl TouchSurfaceInputInner {
 			return;
 		}
 		self.update_touches(state, decl);
+		self.update_hovers(state, decl);
 		self.update_signifiers();
+	}
+
+	fn update_hovers<State: ValidState>(&mut self, state: &mut State, decl: &TouchPlane<State>) {
+		let hovering = self.touch.hover().current().iter().map(|i| (i, false));
+		let touching = self.touch.interact().current().iter().map(|i| (i, true));
+		let hovers = hovering
+			.chain(touching)
+			.map(|(input, touching)| {
+				let p = Self::hover_point(input);
+				TouchHover {
+					pos: p.truncate(),
+					distance: (p.z - self.thickness / 2.0).max(0.0),
+					touching,
+				}
+			})
+			.filter(|h| h.touching || h.distance <= MAX_HOVER_DISTANCE)
+			.collect::<Vec<_>>();
+		if hovers != self.hovers {
+			self.hovers = hovers.clone();
+			(decl.on_hover.0)(state, hovers);
+		}
 	}
 
 	pub fn resize(&mut self, physical_size: Vec2) {
@@ -279,6 +352,8 @@ impl TouchSurfaceInputInner {
 		let mut lines = vec![];
 		lines.extend(self.debug_lines());
 
+		lines.extend(self.touch_rings());
+
 		// Add touch point visualization
 		for input in self.touch.interact().current().iter() {
 			lines.push(self.line_from_input(input));
@@ -309,6 +384,13 @@ impl TouchSurfaceInputInner {
 			))
 			.transform(Mat4::from_translation(vec3(0.0, 0.0, -self.thickness)));
 		vec![line_front, line_back]
+	}
+
+	fn touch_rings(&self) -> Vec<Line> {
+		self.hovers
+			.iter()
+			.map(|h| h.ring(self.thickness, self.accent))
+			.collect()
 	}
 
 	fn line_from_input(&self, input: &InputSnapshot) -> Line {
