@@ -186,6 +186,7 @@ impl TouchSurfaceInputInner {
 		let _ = self.field.set_shape(Shape::Box {
 			size: [physical_size.x, physical_size.y, self.thickness].into(),
 		});
+		self.update_signifiers();
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {
@@ -343,5 +344,6 @@ impl TouchSurfaceInputInner {
 impl VisualDebug for TouchSurfaceInputInner {
 	fn set_debug(&mut self, settings: Option<DebugSettings>) {
 		self.debug_line_settings = settings;
+		self.update_signifiers();
 	}
 }
