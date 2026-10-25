@@ -1606,7 +1606,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panels"
 version = "0.53.0-rc.1"
-source = "git+https://github.com/StardustXR/panel-item#7c7e476857bff0516ea548d7c83c3bf12dcfe0f6"
+source = "git+https://github.com/StardustXR/panel-item#d2ce83212c759a50ed09e50377ab48171a9f5692"
 dependencies = [
  "gluon-ipc",
  "gluon-ipc-codegen",
@@ -1622,7 +1622,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panels-asteroids"
 version = "0.53.0-rc.1"
-source = "git+https://github.com/StardustXR/panel-item#7c7e476857bff0516ea548d7c83c3bf12dcfe0f6"
+source = "git+https://github.com/StardustXR/panel-item#d2ce83212c759a50ed09e50377ab48171a9f5692"
 dependencies = [
  "derive-where",
  "directories",
