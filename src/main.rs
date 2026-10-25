@@ -318,10 +318,13 @@ impl Flatland {
 				context.stop();
 			}
 		}))
-		.component(PanelItemAcceptor::<Self>::new(|state, shell| {
-			_ = shell.item().request_toplevel_resize(state.size_px());
-			state.panel_item = Some(PanelItem::new(shell));
-		}))
+		.component(PanelItemAcceptor::<Self>::new(
+			|state, shell, spawned_for_item| {
+				_ = shell.item().request_toplevel_resize(state.size_px());
+				state.derez_with_item_temp |= spawned_for_item;
+				state.panel_item = Some(PanelItem::new(shell));
+			},
+		))
 		.build()
 	}
 

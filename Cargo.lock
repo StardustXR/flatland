@@ -1606,8 +1606,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panels"
 version = "0.53.0-rc.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12fc54e02018e5c6f8245878fe11559202a0f5ad523d80252e51f9d85c9692ec"
+source = "git+https://github.com/StardustXR/panel-item#7c7e476857bff0516ea548d7c83c3bf12dcfe0f6"
 dependencies = [
  "gluon-ipc",
  "gluon-ipc-codegen",
@@ -1617,13 +1616,13 @@ dependencies = [
  "stardust-xr-protocol",
  "tokio",
  "tracing",
+ "xdg",
 ]
 
 [[package]]
 name = "stardust-xr-panels-asteroids"
 version = "0.53.0-rc.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "817e5e7cfc22cf3cdc526b6e67b8d650507709783ec1e3215e36323bb33cd2ea"
+source = "git+https://github.com/StardustXR/panel-item#7c7e476857bff0516ea548d7c83c3bf12dcfe0f6"
 dependencies = [
  "derive-where",
  "directories",

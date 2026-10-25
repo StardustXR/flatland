@@ -52,9 +52,9 @@ version = "0.53.0-rc.1"
 # git = "https://github.com/StardustXR/asteroids"
 
 [dependencies.stardust-xr-panels]
-version = "0.53.0-rc.1"
-# git = "https://github.com/StardustXR/panel-item"
+# version = "0.53.0-rc.1"
+git = "https://github.com/StardustXR/panel-item"
 
 [dependencies.stardust-xr-panels-asteroids]
-version = "0.53.0-rc.1"
-# git = "https://github.com/StardustXR/panel-item"
+# version = "0.53.0-rc.1"
+git = "https://github.com/StardustXR/panel-item"
