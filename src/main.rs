@@ -157,9 +157,23 @@ impl ClientState for Flatland {
 		struct Args {
 			#[arg(short, long, default_value_t = false)]
 			derez_with_item: bool,
+			/// Panel pixels per meter (default 3000), or $FLATLAND_DENSITY if unset
+			#[arg(long, value_name = "PX_PER_M")]
+			density: Option<f32>,
 		}
 
-		self.derez_with_item = Args::parse().derez_with_item;
+		let args = Args::parse();
+		self.derez_with_item = args.derez_with_item;
+		let density = args.density.or_else(|| {
+			std::env::var("FLATLAND_DENSITY")
+				.ok()
+				.and_then(|v| v.trim().parse().ok())
+		});
+		match density {
+			Some(d) if d.is_finite() && d > 0.0 => self.density = d,
+			Some(d) => tracing::warn!("ignoring invalid panel density {d}"),
+			None => {}
+		}
 	}
 }
 impl Flatland {
