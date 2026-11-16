@@ -10,7 +10,7 @@ use stardust_xr_asteroids::{
 	CloneFnWrapper, Context, CustomElement, Element, Entity, FnWrapper, Migrate, Reify, Tasker,
 	Transformable as _,
 	client::{ClientState, run},
-	components::{Derezzable, Poseable},
+	components::Derezzable,
 	elements::{Handle, Text},
 };
 use stardust_xr_fusion::{
@@ -307,9 +307,7 @@ impl Flatland {
 		Entity::new(Shape::Box {
 			size: [self.screen_size.x, self.screen_size.y, PANEL_THICKNESS].into(),
 		})
-		.component(Poseable::new(|state: &mut Self, pose| {
-			state.screen_pose = pose
-		}))
+		// no Poseable here, ResizeHandles already serves one for this plane in the right space
 		.component(Derezzable::<Self>::new(move |state| {
 			if let Some(item) = &state.panel_item {
 				state.derez_with_item_temp = true;
