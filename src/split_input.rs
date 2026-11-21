@@ -1,4 +1,4 @@
-use crate::{Flatland, PANEL_THICKNESS, resize_handles::ResizeHandles, surfaces::Layer};
+use crate::{Flatland, TOPLEVEL_THICKNESS, resize_handles::ResizeHandles, surfaces::Layer};
 use glam::{Mat4, Quat, Vec3, vec2, vec3};
 use serde::{Deserialize, Serialize};
 use stardust_xr_asteroids::{
@@ -67,7 +67,7 @@ impl Flatland {
 			})
 			.child(
 				Entity::new(Shape::Box {
-					size: [size.x, size.y, PANEL_THICKNESS].into(),
+					size: [size.x, size.y, TOPLEVEL_THICKNESS].into(),
 				})
 				.component(Derezzable::<Self>::new(|state| state.set_split(None)))
 				.build(),
@@ -78,11 +78,10 @@ impl Flatland {
 	}
 
 	fn split_cursor(&self) -> Option<impl Element<Self> + use<>> {
-		let item = self.panel_item.as_ref()?;
+		let item = self.panel.as_ref()?;
 		item.cursor?;
 		let screen = vec2(self.size_px().x as f32, self.size_px().y as f32);
-		let pos = (vec2(item.cursor_pos.x, item.cursor_pos.y) - screen / 2.0) * vec2(1.0, -1.0)
-			/ self.density;
+		let pos = (item.pointer.borrow().pos - screen / 2.0) * vec2(1.0, -1.0) / self.density;
 		let ring = circle(16, 0.0, 0.003)
 			.thickness(0.001)
 			.color(rgba_linear!(1.0, 1.0, 1.0, 1.0))

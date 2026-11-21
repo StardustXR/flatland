@@ -1,7 +1,8 @@
 use close_button::ExposureButton;
-use glam::{Quat, Vec3, vec2, vec3};
+use glam::{Quat, Vec2, Vec3, vec2, vec3};
 use gluon_ipc::Node;
 use initial_panel_placement::InitialPanelPlacement;
+use pointer_2d::{Pointer2D, Pointer2DDepth};
 use resize_handles::ResizeHandles;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,8 @@ use stardust_xr_asteroids::{
 	Transformable as _,
 	client::{ClientState, run},
 	components::Derezzable,
-	elements::{Handle, Text},
+	elements::{Handle, Spatial, Text},
+	spring,
 };
 use stardust_xr_fusion::{
 	drawable::{TextBounds, TextFit, XAlign, YAlign},
@@ -27,14 +29,17 @@ use stardust_xr_panels_asteroids::{
 	surface_model::SurfaceModel,
 };
 use std::{f32::consts::FRAC_PI_2, sync::Arc};
-use surface_tree::{ChildState, add_child, remove_child, update_child_geometry};
+use surface_tree::SurfaceTree;
 use surfaces::{Layer, Surfaces, panel_resource};
+use tokio::sync::watch;
 use touch_input::TouchHover;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt as _};
 
 pub mod close_button;
 pub mod grab_ball;
 pub mod initial_panel_placement;
+pub mod layout;
+pub mod pointer_2d;
 // pub mod panel_shell_transfer;
 pub mod pointer_input;
 pub mod resize_handles;
@@ -44,7 +49,16 @@ pub mod surface_tree;
 pub mod surfaces;
 pub mod touch_input;
 
-const PANEL_THICKNESS: f32 = 0.01;
+const TOPLEVEL_THICKNESS: f32 = 0.01;
+const CHILD_THICKNESS: f32 = 0.005;
+const INPUTLESS_CHILD_THICKNESS: f32 = 0.005;
+const CURSOR_THICKNESS: f32 = 0.001;
+/// how far past the surfaces' hull the cursor can go, in meters
+const CURSOR_HULL_MARGIN: f32 = 0.002;
+/// how far from a surface the cursor starts rising onto it, in meters
+const CURSOR_DEPTH_MARGIN: f32 = 0.004;
+/// period of the spring the cursor glides to a new depth on, in seconds
+const CURSOR_DEPTH_SPRING: f32 = 0.1;
 
 // #[tokio::main(flavor = "current_thread")]
 #[tokio::main]
@@ -67,7 +81,7 @@ async fn main() {
 type Shell = Node<PanelShellHandler>;
 
 #[derive(Debug)]
-struct PanelItem {
+pub struct Panel {
 	shell: Shell,
 	item: stardust_xr_panels::panel_item::PanelItem,
 	release_pos_offset: Vec3,
@@ -77,15 +91,19 @@ struct PanelItem {
 	min_size: Option<Size2>,
 	max_size: Option<Size2>,
 
-	/// in px
-	cursor_pos: Vec2F,
+	/// shared with the async mouse path so input reaches the app without waiting on a frame
+	pointer: watch::Sender<Pointer2D>,
 	cursor: Option<Geometry>,
+	cursor_depth: Pointer2DDepth,
 
-	children: Vec<ChildState>,
+	tree: SurfaceTree,
 }
-impl PanelItem {
-	fn new(shell: Shell) -> Self {
-		PanelItem {
+impl Panel {
+	fn new(shell: Shell, size: Size2, margin: f32) -> Self {
+		let tree = SurfaceTree::new(size);
+		Panel {
+			pointer: watch::Sender::new(Pointer2D::new(tree.layout().clone(), margin)),
+			tree,
 			item: shell.item().clone(),
 			shell,
 			release_pos_offset: Vec3::ZERO,
@@ -93,10 +111,15 @@ impl PanelItem {
 			app_id: None,
 			min_size: None,
 			max_size: None,
-			cursor_pos: [0.0; 2].into(),
 			cursor: None,
-			children: Vec::new(),
+			cursor_depth: Pointer2DDepth::Blend,
 		}
+	}
+	/// the only way to change the tree, so the pointer always sees its layout
+	fn edit_tree(&mut self, f: impl FnOnce(&mut SurfaceTree)) {
+		f(&mut self.tree);
+		let layout = self.tree.layout().clone();
+		self.pointer.send_modify(|c| c.set_layout(layout));
 	}
 }
 
@@ -117,7 +140,7 @@ pub struct Flatland {
 	derez_with_item_temp: bool,
 
 	#[serde(skip)]
-	panel_item: Option<PanelItem>,
+	panel: Option<Panel>,
 
 	/// pixels per meter
 	density: f32,
@@ -135,7 +158,7 @@ impl Default for Flatland {
 			derez_with_item: false,
 			derez_with_item_temp: false,
 
-			panel_item: None,
+			panel: None,
 
 			density: 3000.0,
 			mouse_scroll_multiplier: 1.0,
@@ -174,12 +197,15 @@ impl Flatland {
 	}
 	fn set_size_px(&mut self, size: impl Into<Size2>) {
 		self.screen_size = self.px_to_m(size.into());
-		self.clamp_pointer();
+		let size_px = self.size_px();
+		if let Some(item) = &mut self.panel {
+			item.edit_tree(|t| t.set_size(size_px));
+		}
 	}
 	fn resize(&mut self, new_size: impl Into<Vec2F>) {
 		let old_size_px = self.size_px();
 		self.screen_size = new_size.into();
-		let Some(item) = self.panel_item.as_ref() else {
+		let Some(item) = self.panel.as_ref() else {
 			return;
 		};
 		let mut size_px = self.size_px();
@@ -195,55 +221,27 @@ impl Flatland {
 		self.set_size_px(size_px);
 	}
 
-	fn move_pointer(
-		&mut self,
-		surface_id: SurfaceId,
-		delta: impl Into<Vec2F>,
-		timestamp: Option<Timestamp>,
-	) {
-		let Some(cursor_pos) = self.panel_item.as_ref().map(|i| i.cursor_pos) else {
-			return;
-		};
-		let delta = delta.into();
-		self.set_pointer(
-			surface_id,
-			Some(delta),
-			[cursor_pos.x + delta.x, cursor_pos.y + delta.y],
-			timestamp,
-		);
-	}
+	/// pos is local to the surface
 	fn set_pointer(
 		&mut self,
 		surface_id: SurfaceId,
-		motion: Option<Vec2F>,
-		new_pos: impl Into<Vec2F>,
+		pos: impl Into<Vec2F>,
 		timestamp: Option<Timestamp>,
 	) {
-		if let Some(item) = self.panel_item.as_mut() {
-			item.cursor_pos = new_pos.into();
-			let _ = item
-				.item
-				.pointer_motion(surface_id, motion, item.cursor_pos, timestamp);
-		}
-		self.clamp_pointer();
-	}
-	fn clamp_pointer(&mut self) {
-		let size_px = self.size_px();
-		let Some(item) = self.panel_item.as_mut() else {
+		let Some(item) = self.panel.as_mut() else {
 			return;
 		};
-		item.cursor_pos.x = item
-			.cursor_pos
-			.x
-			.clamp(0.0, size_px.x.saturating_sub(1) as f32);
-		item.cursor_pos.y = item
-			.cursor_pos
-			.y
-			.clamp(0.0, size_px.y.saturating_sub(1) as f32);
+		item.cursor_depth = Pointer2DDepth::On(surface_id);
+		let pos = pos.into();
+		item.pointer.send_modify(|c| {
+			let origin = c.origin(surface_id).unwrap_or(Vec2::ZERO);
+			c.move_to(origin + vec2(pos.x, pos.y));
+			c.send_motion(&item.item, None, timestamp);
+		});
 	}
 
 	fn title(&self) -> String {
-		let Some(item) = &self.panel_item else {
+		let Some(item) = &self.panel else {
 			return String::new();
 		};
 		let app_name = item
@@ -275,7 +273,7 @@ impl Reify for Flatland {
 }
 impl Flatland {
 	fn screen(&self, context: &Context) -> impl Element<Self> + use<> {
-		let item = self.panel_item.as_ref();
+		let item = self.panel.as_ref();
 		ResizeHandles::<Self> {
 			pose: self.screen_pose,
 			size: self.screen_size,
@@ -305,11 +303,11 @@ impl Flatland {
 	fn slab(&self, context: &Context) -> impl Element<Self> + use<> {
 		let context = context.clone();
 		Entity::new(Shape::Box {
-			size: [self.screen_size.x, self.screen_size.y, PANEL_THICKNESS].into(),
+			size: [self.screen_size.x, self.screen_size.y, TOPLEVEL_THICKNESS].into(),
 		})
 		// no Poseable here, ResizeHandles already serves one for this plane in the right space
 		.component(Derezzable::<Self>::new(move |state| {
-			if let Some(item) = &state.panel_item {
+			if let Some(item) = &state.panel {
 				state.derez_with_item_temp = true;
 				_ = item.item.close_toplevel();
 			} else {
@@ -320,82 +318,83 @@ impl Flatland {
 			|state, shell, spawned_for_item| {
 				_ = shell.item().request_toplevel_resize(state.size_px());
 				state.derez_with_item_temp |= spawned_for_item;
-				state.panel_item = Some(PanelItem::new(shell));
+				let margin = CURSOR_HULL_MARGIN * state.density;
+				state.panel = Some(Panel::new(shell, state.size_px(), margin));
 			},
 		))
 		.build()
 	}
 
 	fn eject_handle(&self) -> Option<impl Element<Self> + use<>> {
-		self.panel_item.is_some().then(|| {
+		self.panel.is_some().then(|| {
 			Handle::new(
 				[0.0, -self.screen_size.y / 2.0, 0.0],
 				|state: &mut Self, pos| {
-					if let Some(item) = &mut state.panel_item {
+					if let Some(item) = &mut state.panel {
 						item.release_pos_offset = pos.into();
 					}
 				},
 			)
-			.on_release(|state: &mut Self, _| state.panel_item = None)
+			.on_release(|state: &mut Self, _| state.panel = None)
 			.head_offset([0.0, -0.02, 0.0])
 			.build()
 		})
 	}
 
 	fn panel_shell(&self, context: &Context) -> Option<impl Element<Self> + use<>> {
-		let item = self.panel_item.as_ref()?;
+		let item = self.panel.as_ref()?;
 		let context = context.clone();
 		Some(
 			PanelShell::new(&item.shell, move |state: &mut Self| {
-				state.panel_item = None;
+				state.panel = None;
 				if state.derez_with_item || state.derez_with_item_temp {
 					context.stop();
 				}
 			})
 			.on_toplevel_resolution_changed(|state: &mut Self, _, size| state.set_size_px(size))
 			.on_toplevel_max_size_changed(|state: &mut Self, _, size| {
-				if let Some(item) = &mut state.panel_item {
+				if let Some(item) = &mut state.panel {
 					item.max_size = size;
 				}
 				state.resize(state.screen_size);
 			})
 			.on_toplevel_min_size_changed(|state: &mut Self, _, size| {
-				if let Some(item) = &mut state.panel_item {
+				if let Some(item) = &mut state.panel {
 					item.min_size = size;
 				}
 				state.resize(state.screen_size);
 			})
 			.on_toplevel_app_id_changed(|state: &mut Self, _, app_id| {
-				if let Some(item) = &mut state.panel_item {
+				if let Some(item) = &mut state.panel {
 					item.app_id = Some(app_id);
 				}
 			})
 			.on_toplevel_title_changed(|state: &mut Self, _, title| {
-				if let Some(item) = &mut state.panel_item {
+				if let Some(item) = &mut state.panel {
 					item.title = Some(title);
 				}
 			})
 			.cursor_visuals_changed(|state: &mut Self, _, geometry| {
-				if let Some(item) = &mut state.panel_item {
+				if let Some(item) = &mut state.panel {
 					item.cursor = geometry;
 				}
 			})
 			.new_child(|state: &mut Self, _, info| {
-				if let Some(item) = &mut state.panel_item {
-					add_child(&mut item.children, info);
+				if let Some(item) = &mut state.panel {
+					item.edit_tree(|t| t.add(info));
 				}
 			})
 			.child_moved(|state: &mut Self, _, id, geometry| {
-				if let Some(item) = &mut state.panel_item {
-					update_child_geometry(&mut item.children, id, geometry);
+				if let Some(item) = &mut state.panel {
+					item.edit_tree(|t| t.move_child(id, geometry));
 				}
 			})
 			.child_removed(|state: &mut Self, _, id| {
-				if let Some(item) = &mut state.panel_item {
-					remove_child(&mut item.children, id);
+				if let Some(item) = &mut state.panel {
+					item.edit_tree(|t| t.remove(id));
 				}
 			})
-			.pos(vec3(0.0, 0.0, PANEL_THICKNESS) + item.release_pos_offset)
+			.pos(vec3(0.0, 0.0, TOPLEVEL_THICKNESS) + item.release_pos_offset)
 			.build(),
 		)
 	}
@@ -406,12 +405,12 @@ impl Flatland {
 			transform: Transform::from_translation([
 				self.screen_size.x / 2.0,
 				self.screen_size.y / -2.0,
-				PANEL_THICKNESS / 2.0,
+				TOPLEVEL_THICKNESS / 2.0,
 			]),
-			thickness: PANEL_THICKNESS,
+			thickness: TOPLEVEL_THICKNESS,
 			gain: 2.0,
 			on_click: FnWrapper(Box::new(move |state: &mut Self| {
-				if let Some(item) = &state.panel_item {
+				if let Some(item) = &state.panel {
 					_ = item.item.close_toplevel();
 				} else {
 					context.stop();
@@ -423,11 +422,11 @@ impl Flatland {
 
 	fn side_text(&self) -> impl Element<Self> + use<> {
 		Text::new(self.title())
-			.character_height(PANEL_THICKNESS * 0.75)
+			.character_height(TOPLEVEL_THICKNESS * 0.75)
 			.align_x(XAlign::Left)
 			.align_y(YAlign::Center)
 			.bounds(TextBounds {
-				bounds: [self.screen_size.y, PANEL_THICKNESS].into(),
+				bounds: [self.screen_size.y, TOPLEVEL_THICKNESS].into(),
 				fit: TextFit::Squeeze,
 				anchor_align_x: XAlign::Left,
 				anchor_align_y: YAlign::Bottom,
@@ -435,47 +434,76 @@ impl Flatland {
 			.pos([
 				self.screen_size.x / 2.0 + 0.0005,
 				self.screen_size.y / 2.0 - 0.001,
-				PANEL_THICKNESS / 2.0,
+				TOPLEVEL_THICKNESS / 2.0,
 			])
 			.rot(Quat::from_rotation_z(-FRAC_PI_2) * Quat::from_rotation_x(-FRAC_PI_2))
 			.build()
 	}
 
 	fn surfaces(&self, context: &Context, layer: Layer) -> impl Element<Self> + use<> {
+		let layout = match &self.panel {
+			Some(panel) => panel.tree.layout().clone(),
+			None => SurfaceTree::new(self.size_px()).layout().clone(),
+		};
 		Surfaces {
-			shell: self.panel_item.as_ref().map(|i| &i.shell),
+			panel: self.panel.as_ref(),
 			layer,
 			touch_hovers: &self.touch_hovers,
 			accent: context.accent_color.color(),
-			thickness: PANEL_THICKNESS,
 			density: self.density,
 			scroll_multiplier: self.mouse_scroll_multiplier,
 		}
-		.toplevel(
-			self.size_px(),
-			self.panel_item.as_ref().map_or(&[], |i| &i.children),
-		)
+		.build(self.size_px(), &layout.placed)
 	}
 
+	fn cursor_depth(&self) -> Option<f32> {
+		let item = self.panel.as_ref()?;
+		let geometry = item.cursor?;
+		let pointer = item.pointer.borrow();
+		if let Pointer2DDepth::On(id) = item.cursor_depth
+			&& let Some(s) = pointer.layout.get(id)
+		{
+			return Some(s.front);
+		}
+		let min = pointer.pos - vec2(geometry.origin.x as f32, geometry.origin.y as f32);
+		let size = vec2(geometry.size.x as f32, geometry.size.y as f32);
+		let margin = CURSOR_DEPTH_MARGIN * self.density;
+		Some(pointer.layout.depth(min, min + size, margin))
+	}
 	fn cursor(&self) -> Option<impl Element<Self> + use<>> {
-		let item = self.panel_item.as_ref()?;
+		let item = self.panel.as_ref()?;
 		let geometry = item.cursor?;
 		let screen = vec2(self.size_px().x as f32, self.size_px().y as f32);
 		let origin = vec2(geometry.origin.x as f32, geometry.origin.y as f32);
 		let size = vec2(geometry.size.x as f32, geometry.size.y as f32);
-		let pos_px =
-			vec2(item.cursor_pos.x, item.cursor_pos.y) - screen / 2.0 + size / 2.0 - origin;
-		let pos = pos_px * vec2(1.0, -1.0) / self.density;
+		let min = item.pointer.borrow().pos - origin;
+		let pos = (min - screen / 2.0 + size / 2.0) * vec2(1.0, -1.0) / self.density;
+		let z = self.cursor_depth()?;
+		// a spring since the target moves every frame the mouse does, an eased curve would
+		// restart each time and never arrive
+		let blend = item.cursor_depth == Pointer2DDepth::Blend;
 		Some(
-			SurfaceModel::new(
-				&item.shell,
-				SurfaceUpdateTarget::Cursor,
-				panel_resource(),
-				"Panel",
-			)
-			.pos(pos.extend(0.001))
-			.scl((size / self.density).extend(PANEL_THICKNESS))
-			.build(),
+			Spatial::default()
+				.pos(vec3(0.0, 0.0, z))
+				.build()
+				.animation(|a| {
+					if blend {
+						a._0(spring(CURSOR_DEPTH_SPRING, 0.0))
+					} else {
+						a
+					}
+				})
+				.child(
+					SurfaceModel::new(
+						&item.shell,
+						SurfaceUpdateTarget::Cursor,
+						panel_resource(),
+						"Panel",
+					)
+					.pos(pos.extend(CURSOR_THICKNESS / 2.0))
+					.scl((size / self.density).extend(CURSOR_THICKNESS))
+					.build(),
+				),
 		)
 	}
 }

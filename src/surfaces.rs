@@ -1,21 +1,21 @@
 use crate::{
-	Flatland, Shell,
+	Flatland, Panel,
+	layout::Placed,
 	surface_input::{input_planes, keyboard_handler, mouse_handler},
-	surface_tree::ChildState,
 	touch_input::TouchHover,
 };
-use glam::{Vec2, Vec3, vec2};
+use glam::{Vec2, vec2};
 use rustc_hash::FxHashMap;
 use stardust_xr_asteroids::{
 	ClientState as _, CustomElement as _, Element, Entity, Transformable as _,
-	elements::{Lines, Model},
+	elements::{Lines, Model, Spatial},
 };
 use stardust_xr_fusion::{
 	fields::Shape,
 	types::{Color, Resource, Size2},
 };
 use stardust_xr_molecules::DebugSettings;
-use stardust_xr_panels::panel_item::{Geometry, SurfaceId};
+use stardust_xr_panels::panel_item::SurfaceId;
 use stardust_xr_panels_asteroids::surface_model::SurfaceModel;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -34,95 +34,70 @@ pub fn panel_resource() -> Resource {
 }
 
 pub struct Surfaces<'a> {
-	pub shell: Option<&'a Shell>,
+	pub panel: Option<&'a Panel>,
 	pub layer: Layer,
 	pub touch_hovers: &'a FxHashMap<SurfaceId, Vec<TouchHover>>,
 	pub accent: Color,
-	pub thickness: f32,
 	pub density: f32,
 	pub scroll_multiplier: f32,
 }
 impl Surfaces<'_> {
-	pub fn toplevel(&self, size: Size2, children: &[ChildState]) -> impl Element<Flatland> + use<> {
-		let geometry = Geometry {
-			origin: [0; 2].into(),
-			size,
-		};
-		self.surface(SurfaceId::Toplevel, size, geometry, true, 0, children)
+	pub fn build(&self, size: Size2, placed: &[Placed]) -> impl Element<Flatland> + use<> {
+		let toplevel = vec2(size.x as f32, size.y as f32);
+		Spatial::default().build().stable_children(
+			placed
+				.iter()
+				.map(|s| (s.id, self.surface(toplevel, s)))
+				.collect::<FxHashMap<_, _>>(),
+		)
 	}
 
-	fn surface(
-		&self,
-		id: SurfaceId,
-		parent_size: Size2,
-		geometry: Geometry,
-		has_input: bool,
-		z_offset: i32,
-		children: &[ChildState],
-	) -> impl Element<Flatland> + use<> {
-		let (pos, size) = self.layout(parent_size, geometry, z_offset);
+	fn surface(&self, toplevel: Vec2, s: &Placed) -> impl Element<Flatland> + use<> {
+		let id = s.id;
+		let has_input = !s.input.is_empty();
+		let size = (s.max - s.min) / self.density;
+		// px are +Y down from the top left corner, spatials +Y up from the center
+		let pos = (s.min + s.max - toplevel) / 2.0 * vec2(1.0, -1.0) / self.density;
 		let (visuals, planes) = match self.layer {
 			Layer::Screen { planes } => (true, planes),
 			Layer::SplitInput => (false, true),
 		};
 		let debug = (self.layer == Layer::SplitInput).then(DebugSettings::default);
-		let scl = size.extend(self.thickness);
+		let t = s.thickness;
+		let scl = size.extend(t);
 
 		Entity::new(Shape::Box { size: scl.into() })
-			.pos(pos)
-			.component(has_input.then(|| keyboard_handler(self.shell, id)))
-			.component(has_input.then(|| mouse_handler(self.shell, id, self.scroll_multiplier)))
+			.pos(pos.extend(s.front - t / 2.0))
+			.component(has_input.then(|| keyboard_handler(self.panel.map(|i| &i.shell), id)))
+			.component(
+				self.panel
+					.filter(|_| has_input)
+					.map(|p| mouse_handler(&p.item, p.pointer.clone(), self.scroll_multiplier)),
+			)
 			.build()
-			.maybe_child(self.shell.filter(|_| visuals).map(|shell| {
-				SurfaceModel::new(shell, id, panel_resource(), "Panel")
-					.scl(scl)
-					.build()
-			}))
-			.maybe_child((visuals && self.shell.is_none()).then(|| {
+			.maybe_child(
+				self.panel
+					.filter(|_| visuals)
+					.map(|i| &i.shell)
+					.map(|shell| {
+						SurfaceModel::new(shell, id, panel_resource(), "Panel")
+							.scl(scl)
+							.build()
+					}),
+			)
+			.maybe_child((visuals && self.panel.is_none()).then(|| {
 				Model::namespaced(Flatland::APP_ID, "panel")
 					.scl(scl)
 					.build()
 			}))
-			.maybe_child(
-				(has_input && planes).then(|| input_planes(id, size, self.thickness, debug)),
-			)
+			.maybe_child((has_input && planes).then(|| input_planes(id, size, t, debug)))
 			.maybe_child(
 				self.touch_hovers
 					.get(&id)
 					.filter(|_| !planes)
 					.map(|hovers| {
-						Lines::new(hovers.iter().map(|h| h.ring(self.thickness, self.accent)))
-							.build()
+						Lines::new(hovers.iter().map(|h| h.ring(t, self.accent))).build()
 					}),
 			)
-			.stable_children(
-				children
-					.iter()
-					.map(|child| {
-						let element = self.surface(
-							SurfaceId::Child { id: child.info.id },
-							geometry.size,
-							child.info.geometry,
-							!child.info.input_regions.is_empty(),
-							1,
-							&child.children,
-						);
-						(child.info.id, element)
-					})
-					.collect::<FxHashMap<_, _>>(),
-			)
-			.dynamic()
-	}
-
-	fn layout(&self, parent_size: Size2, geometry: Geometry, z_offset: i32) -> (Vec3, Vec2) {
-		let parent = vec2(parent_size.x as f32, parent_size.y as f32);
-		let origin = vec2(geometry.origin.x as f32, geometry.origin.y as f32);
-		let size = vec2(geometry.size.x as f32, geometry.size.y as f32);
-		// surfaces are placed by their top left corner in +Y down pixels, spatials by their center
-		let pos = (origin - parent / 2.0 + size / 2.0) * vec2(1.0, -1.0) / self.density;
-		(
-			pos.extend(self.thickness * z_offset as f32),
-			size / self.density,
-		)
 	}
 }
