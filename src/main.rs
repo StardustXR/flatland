@@ -289,7 +289,7 @@ impl Flatland {
 		.maybe_child(self.eject_handle())
 		.maybe_child(self.split_handle())
 		.maybe_child(self.panel_shell(context))
-		.child(self.close_button(context))
+		// .child(self.close_button(context))
 		.child(self.side_text())
 		.child(self.surfaces(
 			context,
@@ -399,26 +399,26 @@ impl Flatland {
 		)
 	}
 
-	fn close_button(&self, context: &Context) -> impl Element<Self> + use<> {
-		let context = context.clone();
-		ExposureButton::<Self> {
-			transform: Transform::from_translation([
-				self.screen_size.x / 2.0,
-				self.screen_size.y / -2.0,
-				TOPLEVEL_THICKNESS / 2.0,
-			]),
-			thickness: TOPLEVEL_THICKNESS,
-			gain: 2.0,
-			on_click: FnWrapper(Box::new(move |state: &mut Self| {
-				if let Some(item) = &state.panel {
-					_ = item.item.close_toplevel();
-				} else {
-					context.stop();
-				}
-			})),
-		}
-		.build()
-	}
+	// fn close_button(&self, context: &Context) -> impl Element<Self> + use<> {
+	// 	let context = context.clone();
+	// 	ExposureButton::<Self> {
+	// 		transform: Transform::from_translation([
+	// 			self.screen_size.x / 2.0,
+	// 			self.screen_size.y / -2.0,
+	// 			TOPLEVEL_THICKNESS / 2.0,
+	// 		]),
+	// 		thickness: TOPLEVEL_THICKNESS,
+	// 		gain: 2.0,
+	// 		on_click: FnWrapper(Box::new(move |state: &mut Self| {
+	// 			if let Some(item) = &state.panel {
+	// 				_ = item.item.close_toplevel();
+	// 			} else {
+	// 				context.stop();
+	// 			}
+	// 		})),
+	// 	}
+	// 	.build()
+	// }
 
 	fn side_text(&self) -> impl Element<Self> + use<> {
 		Text::new(self.title())
