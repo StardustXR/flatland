@@ -8,7 +8,7 @@ use stardust_xr_fusion::{
 	client::FrameInfo,
 	drawable::{Line, LinePoint, Lines, LinesExt as _},
 	fields::{Field, FieldExt as _, Shape},
-	spatial::{PartialTransform, Spatial, Transform},
+	spatial::{PartialTransform, Spatial, SpatialRef, Transform},
 	suis::{DatamapData, Finger, Hand, InputDataType},
 	types::{Vec2F, Vec3F, rgba_linear},
 };
@@ -104,7 +104,8 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 			},
 		)
 		.await?;
-		info.child_space.set_local_transform(self.transform)?;
+		info.child_space
+			.set_relative_transform(info.parent_space.clone(), self.transform)?;
 
 		let input = InputQueue::new(
 			&ctx.stardust_client,
@@ -120,6 +121,7 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 			input,
 			field,
 			spatial: info.child_space,
+			parent: info.parent_space,
 			hover,
 			pointer_hover: None,
 			left_click: SingleAction::default(),
@@ -136,7 +138,7 @@ impl<State: ValidState> CustomElement<State> for PointerPlane<State> {
 	}
 
 	fn diff(&self, old: &Self, _ctx: &Context, inner: &mut Self::Inner) {
-		self.apply_transform(old, &inner.spatial);
+		self.apply_transform(old, &inner.spatial, &inner.parent);
 		if self.debug_line_settings != old.debug_line_settings {
 			inner.set_debug(self.debug_line_settings);
 		}
@@ -169,6 +171,7 @@ pub struct PointerSurfaceInputInner {
 	input: InputQueue,
 	field: Field,
 	spatial: Spatial,
+	parent: SpatialRef,
 	hover: SimpleAction,
 	pointer_hover: Option<Arc<InputSnapshot>>,
 	left_click: SingleAction,
@@ -204,9 +207,10 @@ impl PointerSurfaceInputInner {
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {
-		let _ = self
-			.spatial
-			.set_local_transform(PartialTransform::from_scale([enabled as u8 as f32; 3]));
+		let _ = self.spatial.set_relative_transform(
+			self.parent.clone(),
+			PartialTransform::from_scale([enabled as u8 as f32; 3]),
+		);
 	}
 
 	fn hovering(size: Vec2F, point: Vec3F, front: bool) -> bool {

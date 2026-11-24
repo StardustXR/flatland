@@ -9,7 +9,7 @@ use stardust_xr_fusion::{
 	client::FrameInfo,
 	drawable::{Line, LinePoint, Lines, LinesExt as _},
 	fields::{Field, FieldExt as _, Shape},
-	spatial::{PartialTransform, Spatial, Transform},
+	spatial::{PartialTransform, Spatial, SpatialRef, Transform},
 	suis::{InputDataType, InputMethod},
 	types::{Color, Vec2F, Vec3F, rgba_linear},
 };
@@ -165,6 +165,7 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 			debug_line_settings: self.debug_line_settings,
 			accent: ctx.accent_color.color(),
 			spatial: info.child_space,
+			parent: info.parent_space,
 			points: HashMap::new(),
 			last_touch: 0,
 			hovers: Vec::new(),
@@ -174,7 +175,7 @@ impl<State: ValidState> CustomElement<State> for TouchPlane<State> {
 	}
 
 	fn diff(&self, old_self: &Self, _ctx: &Context, inner: &mut Self::Inner) {
-		self.apply_transform(old_self, &inner.spatial);
+		self.apply_transform(old_self, &inner.spatial, &inner.parent);
 		if self.debug_line_settings != old_self.debug_line_settings {
 			inner.set_debug(self.debug_line_settings);
 		}
@@ -208,6 +209,7 @@ pub struct TouchSurfaceInputInner {
 	input: InputQueue,
 	field: Field,
 	spatial: Spatial,
+	parent: SpatialRef,
 	touch: MultiAction,
 	start_tap_times: FxHashMap<u32, Instant>,
 	points: HashMap<InputMethod, u32>,
@@ -265,9 +267,10 @@ impl TouchSurfaceInputInner {
 	}
 
 	pub fn set_enabled(&mut self, enabled: bool) {
-		let _ = self
-			.spatial
-			.set_local_transform(PartialTransform::from_scale([enabled as u8 as f32; 3]));
+		let _ = self.spatial.set_relative_transform(
+			self.parent.clone(),
+			PartialTransform::from_scale([enabled as u8 as f32; 3]),
+		);
 	}
 
 	fn hovering(size: Vec2F, point: Vec3F, front: bool) -> bool {

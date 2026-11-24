@@ -260,6 +260,7 @@ impl ResizeHandle {
 pub struct ResizeHandlesInner {
 	client_root: SpatialRef,
 	_anchor: Spatial,
+	anchor_ref: SpatialRef,
 	content_parent: Spatial,
 	content_parent_ref: SpatialRef,
 	bottom: ResizeHandle,
@@ -351,11 +352,14 @@ impl ResizeHandlesInner {
 			})
 			.abort_handle()
 		};
-		let _ = content_parent.set_local_transform(Transform {
-			translation: initial_pose.position,
-			rotation: initial_pose.orientation,
-			scale: [1.0; 3].into(),
-		});
+		let _ = content_parent.set_relative_transform(
+			anchor_ref.clone(),
+			Transform {
+				translation: initial_pose.position,
+				rotation: initial_pose.orientation,
+				scale: [1.0; 3].into(),
+			},
+		);
 		let stage = Tracked::stage_spatial().await?;
 
 		let containable = Containable::new(
@@ -369,12 +373,14 @@ impl ResizeHandlesInner {
 		containable.set_auto_reparent(false);
 
 		let queryable = QueryableObject::new(client, content_parent.clone(), field.clone()).await?;
-		let mut transformable = TransformableInner::new(client, content_parent.clone(), anchor_ref);
+		let mut transformable =
+			TransformableInner::new(client, content_parent.clone(), anchor_ref.clone());
 		transformable.poseable(&queryable).await?;
 
 		let mut resize_handles = ResizeHandlesInner {
 			client_root: stage,
 			_anchor: anchor,
+			anchor_ref,
 			content_parent,
 			content_parent_ref,
 			bottom,
@@ -562,11 +568,14 @@ impl<State: ValidState> AnimatedElement<State> for ResizeHandles<State> {
 		inner.bottom.settings.connector_color = ctx.accent_color.color();
 		inner.top.settings.connector_color = ctx.accent_color.color();
 		if self.pose != old.pose {
-			let _ = inner.content_parent.set_local_transform(Transform {
-				translation: self.pose.position,
-				rotation: self.pose.orientation,
-				scale: [1.0; 3].into(),
-			});
+			let _ = inner.content_parent.set_relative_transform(
+				inner.anchor_ref.clone(),
+				Transform {
+					translation: self.pose.position,
+					rotation: self.pose.orientation,
+					scale: [1.0; 3].into(),
+				},
+			);
 		}
 		inner.set_handle_positions(self.size, self.pose);
 		if self.size != old.size {

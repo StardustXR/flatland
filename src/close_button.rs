@@ -9,7 +9,7 @@ use stardust_xr_fusion::{
 	client::{Client, ClientHandler, FrameInfo},
 	drawable::{MaterialParameter, Model, ModelExt as _, ModelPart},
 	fields::{Field, FieldExt as _, Shape},
-	spatial::{PartialTransform, Spatial, SpatialExt as _, Transform},
+	spatial::{PartialTransform, Spatial, SpatialExt as _, SpatialRef, Transform},
 	suis::InputDataType,
 	types::{Resource, ResourceLoadError, rgba_linear},
 };
@@ -38,20 +38,28 @@ impl<State: ValidState> CustomElement<State> for ExposureButton<State> {
 		ctx: &Context,
 		info: CreateInnerInfo,
 	) -> Result<Self::Inner, Self::Error> {
-		info.child_space.set_local_transform(self.transform)?;
-		ExposureButtonInner::new(&ctx.stardust_client, info.child_space, self.thickness).await
+		info.child_space
+			.set_relative_transform(info.parent_space.clone(), self.transform)?;
+		ExposureButtonInner::new(
+			&ctx.stardust_client,
+			info.child_space,
+			info.parent_space,
+			self.thickness,
+		)
+		.await
 	}
 
 	fn diff(&self, old: &Self, _context: &Context, inner: &mut Self::Inner) {
-		self.apply_transform(old, &inner.root);
+		self.apply_transform(old, &inner.root, &inner.parent);
 
 		if self.thickness != old.thickness {
 			let _ = inner.field.set_shape(Shape::Box {
 				size: [1.5 * 0.025, 0.025, self.thickness].into(),
 			});
-			let _ = inner
-				.model_spatial
-				.set_local_transform(PartialTransform::from_scale([0.025, 0.025, self.thickness]));
+			let _ = inner.model_spatial.set_relative_transform(
+				inner.root_ref.clone(),
+				PartialTransform::from_scale([0.025, 0.025, self.thickness]),
+			);
 		}
 	}
 
@@ -79,6 +87,8 @@ impl<State: ValidState> Transformable for ExposureButton<State> {
 
 pub struct ExposureButtonInner {
 	root: Spatial,
+	root_ref: SpatialRef,
+	parent: SpatialRef,
 	_model: Model,
 	model_spatial: Spatial,
 	shell: ModelPart,
@@ -91,6 +101,7 @@ impl ExposureButtonInner {
 	pub async fn new(
 		client: &Client<impl ClientHandler>,
 		root: Spatial,
+		parent: SpatialRef,
 		thickness: f32,
 	) -> Result<Self, Error> {
 		let root_ref = root.spatial_ref().await?;
@@ -145,6 +156,8 @@ impl ExposureButtonInner {
 
 		Ok(ExposureButtonInner {
 			root,
+			root_ref,
+			parent,
 			_model: model,
 			model_spatial,
 			shell,

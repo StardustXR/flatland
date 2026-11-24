@@ -1518,7 +1518,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.53.0-rc.1"
-source = "git+https://github.com/StardustXR/asteroids#b7b2291a48641f3cd3ea203e45a109d31210a8bc"
+source = "git+https://github.com/StardustXR/asteroids#c511286eed9cd3ccdb02c3d36e0948c156d286ef"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -1546,7 +1546,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids-derive"
 version = "0.53.0-rc.1"
-source = "git+https://github.com/StardustXR/asteroids#b7b2291a48641f3cd3ea203e45a109d31210a8bc"
+source = "git+https://github.com/StardustXR/asteroids#c511286eed9cd3ccdb02c3d36e0948c156d286ef"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1606,7 +1606,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panels"
 version = "0.53.0-rc.1"
-source = "git+https://github.com/StardustXR/panel-item#72f352140c4aa2ec08a363b9034668a7b6f99740"
+source = "git+https://github.com/StardustXR/panel-item#dd3c66fb6aa25a555cabd86d8277d65c4a540104"
 dependencies = [
  "gluon-ipc",
  "gluon-ipc-codegen",
@@ -1622,7 +1622,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-panels-asteroids"
 version = "0.53.0-rc.1"
-source = "git+https://github.com/StardustXR/panel-item#72f352140c4aa2ec08a363b9034668a7b6f99740"
+source = "git+https://github.com/StardustXR/panel-item#dd3c66fb6aa25a555cabd86d8277d65c4a540104"
 dependencies = [
  "derive-where",
  "directories",
