@@ -37,7 +37,12 @@ impl Flatland {
 	pub fn split_handle(&self) -> Option<impl Element<Self> + use<>> {
 		(self.split_input_surface.is_none() || self.pulling_split).then(|| {
 			Handle::new(
-				[-self.screen_size.x / 2.0, -self.screen_size.y / 2.0, 0.0],
+				[
+					// 0.01 is the radius of the handle
+					(self.screen_size.x / 2.0) - 0.01,
+					-self.screen_size.y / 2.0,
+					0.0,
+				],
 				|state: &mut Self, pos| {
 					state.pulling_split = true;
 					state.pull_split(pos.into());
